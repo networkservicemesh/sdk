@@ -33,9 +33,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
 type authorizeServer struct {
@@ -86,21 +84,26 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		}
 	}
 
-	var isRefresh bool
+	// var connID string
 
-	if spiffeID, err := spire.PeerSpiffeIDFromContext(ctx); err == nil {
-		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
-		var ids *genericsync.Map[string, struct{}]
-		ids, isRefresh = a.spiffeIDConnectionMap.LoadOrStore(spiffeID, new(genericsync.Map[string, struct{}]))
-		ids.Store(connID, struct{}{})
-		a.spiffeIDConnectionMap.Store(spiffeID, ids)
-	}
+	// if index > 0 {
+	// 	connID = conn.GetPath().GetPathSegments()[index-1].GetId()
+	// }
+
+	// spiffeID, err := spire.PeerSpiffeIDFromContext(ctx)
+	// if err != nil {
+	// 	log.FromContext(ctx).Warnf("can not load  spiffe id: %v", err.Error())
+	// }
+
+	// var ids *genericsync.Map[string, struct{}]
+	// ids, _ = a.spiffeIDConnectionMap.LoadOrStore(spiffeID, new(genericsync.Map[string, struct{}]))
+	// ids.Store(connID, struct{}{})
 
 	resp, err := next.Server(ctx).Request(ctx, request)
 
-	if err != nil && !isRefresh {
-		a.deleteConnectionBySpiffieID(ctx)
-	}
+	// if err != nil {
+	// 	a.deleteConnectionByID(ctx, connID)
+	// }
 
 	return resp, err
 }
@@ -111,41 +114,40 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
-	if spiffeID, err := spire.PeerSpiffeIDFromContext(ctx); err == nil {
-		defer a.deleteConnectionBySpiffieID(ctx)
-		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
-		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
-		idsEmpty := true
-		if ok {
-			if _, loaded := ids.Load(connID); loaded {
-				ids.Delete(connID)
-			}
+	// var connID string
+	// if index > 0 {
+	// 	connID = conn.GetPath().GetPathSegments()[index-1].GetId()
+	// }
 
-			ids.Range(func(_ string, _ struct{}) bool {
-				idsEmpty = false
-				return false
-			})
-		}
-
-		if idsEmpty {
-			a.spiffeIDConnectionMap.Delete(spiffeID)
-		} else {
-			a.spiffeIDConnectionMap.Store(spiffeID, ids)
-		}
-	}
 	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err
 		}
 	}
+
+	// a.deleteConnectionByID(ctx, connID)
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (a *authorizeServer) deleteConnectionBySpiffieID(ctx context.Context) {
-	spiffeID, err := spire.PeerSpiffeIDFromContext(ctx)
-	if err != nil {
-		log.FromContext(ctx).Warnf("can not load spiffeID: %v", err.Error())
-		return
-	}
-	a.spiffeIDConnectionMap.Delete(spiffeID)
-}
+// func (a *authorizeServer) deleteConnectionByID(ctx context.Context, id string) {
+// 	spiffeID, err := spire.PeerSpiffeIDFromContext(ctx)
+// 	if err != nil {
+// 		log.FromContext(ctx).Warnf("can not load spiffeID: %v", err.Error())
+// 	}
+// 	ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
+// 	if !ok {
+// 		return
+// 	}
+// 	ids.Delete(id)
+
+// 	var idsEmpty = true
+// 	ids.Range(func(key string, value struct{}) bool {
+// 		idsEmpty = false
+// 		return false
+// 	})
+
+// 	if idsEmpty {
+// 		a.spiffeIDConnectionMap.Delete(spiffeID)
+// 	}
+
+// }
