@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opa"
 	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
@@ -83,16 +84,23 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		}
 	}
 
+	var isRefresh bool
+
 	if spiffeID, err := spire.PeerSpiffeIDFromContext(ctx); err == nil {
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
-		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
-		if !ok {
-			ids = new(genericsync.Map[string, struct{}])
-		}
+		var ids *genericsync.Map[string, struct{}]
+		ids, isRefresh = a.spiffeIDConnectionMap.LoadOrStore(spiffeID, new(genericsync.Map[string, struct{}]))
 		ids.Store(connID, struct{}{})
 		a.spiffeIDConnectionMap.Store(spiffeID, ids)
 	}
-	return next.Server(ctx).Request(ctx, request)
+
+	resp, err := next.Server(ctx).Request(ctx, request)
+
+	if err != nil && !isRefresh {
+		a.deleteConnectionBySpiffieID(ctx)
+	}
+
+	return resp, err
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
@@ -102,6 +110,7 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
 	if spiffeID, err := spire.PeerSpiffeIDFromContext(ctx); err == nil {
+		defer a.deleteConnectionBySpiffieID(ctx)
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		idsEmpty := true
@@ -128,4 +137,14 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		}
 	}
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+func (a *authorizeServer) deleteConnectionBySpiffieID(ctx context.Context) {
+	spiffeID, err := spire.PeerSpiffeIDFromContext(ctx)
+	if err != nil {
+		log.FromContext(ctx).Warnf("can not load spiffeID: %v", err.Error())
+		return
+	}
+	a.spiffeIDConnectionMap.Delete(spiffeID)
+
 }
