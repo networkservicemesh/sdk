@@ -50,7 +50,7 @@ func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkSer
 	}
 
 	return &authorizeNSEClient{
-		policies:      o.policies,
+		//policies:      o.policies,
 		nsePathIdsMap: o.resourcePathIdsMap,
 	}
 }

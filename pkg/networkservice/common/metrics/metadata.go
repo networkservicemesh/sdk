@@ -1,5 +1,8 @@
 // Copyright (c) 2022 Cisco and/or its affiliates.
+//
 // Copyright (c) 2023 Nordix Foundation.
+//
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,9 +29,13 @@ import (
 )
 
 type keyType struct{}
-type metricsMap = map[string]metric.Int64Counter
 
-func loadOrStore(ctx context.Context, metrics metricsMap) (value metricsMap, ok bool) {
+type metricsMap struct {
+	counters map[string]metric.Int64Counter
+	previous map[string]int64
+}
+
+func loadOrStore(ctx context.Context, metrics *metricsMap) (value *metricsMap, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, metrics)
-	return rawValue.(metricsMap), ok
+	return rawValue.(*metricsMap), ok
 }

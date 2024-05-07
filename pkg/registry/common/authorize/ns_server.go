@@ -1,5 +1,7 @@
 // Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -46,7 +48,7 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 	}
 
 	return &authorizeNSServer{
-		policies:     o.policies,
+		// policies:     o.policies,
 		nsPathIdsMap: o.resourcePathIdsMap,
 	}
 }
@@ -72,8 +74,14 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		return nil, err
 	}
 
-	s.nsPathIdsMap.Store(ns.Name, ns.PathIds)
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	_, loaded := s.nsPathIdsMap.LoadOrStore(ns.Name, ns.PathIds)
+	resp, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+
+	if !loaded && err != nil {
+		s.nsPathIdsMap.Delete(ns.GetName())
+	}
+
+	return resp, err
 }
 
 func (s *authorizeNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {

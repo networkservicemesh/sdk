@@ -1,5 +1,7 @@
 // Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,7 +25,6 @@ import (
 	"github.com/spiffe/go-spiffe/v2/spiffeid"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/spire"
 )
 
 type authorizeMonitorConnectionsServer struct {
@@ -56,35 +57,35 @@ type MonitorOpaInput struct {
 
 func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservice.MonitorScopeSelector, srv networkservice.MonitorConnection_MonitorConnectionsServer) error {
 	ctx := srv.Context()
-	simpleMap := make(map[string][]string)
+	// simpleMap := make(map[string][]string)
 
-	a.spiffeIDConnectionMap.Range(
-		func(sid spiffeid.ID, connIds *genericsync.Map[string, struct{}]) bool {
-			connIds.Range(
-				func(connId string, _ struct{}) bool {
-					ids := simpleMap[sid.String()]
-					ids = append(ids, connId)
-					simpleMap[sid.String()] = ids
-					return true
-				},
-			)
-			return true
-		},
-	)
+	// a.spiffeIDConnectionMap.Range(
+	// 	func(sid spiffeid.ID, connIds *genericsync.Map[string, struct{}]) bool {
+	// 		connIds.Range(
+	// 			func(connId string, _ struct{}) bool {
+	// 				ids := simpleMap[sid.String()]
+	// 				ids = append(ids, connId)
+	// 				simpleMap[sid.String()] = ids
+	// 				return true
+	// 			},
+	// 		)
+	// 		return true
+	// 	},
+	// )
 
-	connIDs := make([]string, 0)
-	for _, v := range in.PathSegments {
-		connIDs = append(connIDs, v.GetId())
-	}
-	spiffeID, _ := spire.PeerSpiffeIDFromContext(ctx)
-	err := a.policies.check(ctx, MonitorOpaInput{
-		ServiceSpiffeID:       spiffeID.String(),
-		SpiffeIDConnectionMap: simpleMap,
-		SelectorConnectionIds: connIDs,
-	})
-	if err != nil {
-		return err
-	}
+	// connIDs := make([]string, 0)
+	// for _, v := range in.PathSegments {
+	// 	connIDs = append(connIDs, v.GetId())
+	// }
+	// spiffeID, _ := spire.PeerSpiffeIDFromContext(ctx)
+	// err := a.policies.check(ctx, MonitorOpaInput{
+	// 	ServiceSpiffeID:       spiffeID.String(),
+	// 	SpiffeIDConnectionMap: simpleMap,
+	// 	SelectorConnectionIds: connIDs,
+	// })
+	// if err != nil {
+	// 	return err
+	// }
 
 	return next.MonitorConnectionServer(ctx).MonitorConnections(in, srv)
 }

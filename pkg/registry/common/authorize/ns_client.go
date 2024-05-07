@@ -50,7 +50,7 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 	}
 
 	return &authorizeNSClient{
-		policies:     o.policies,
+		//	policies:     o.policies,
 		nsPathIdsMap: o.resourcePathIdsMap,
 	}
 }

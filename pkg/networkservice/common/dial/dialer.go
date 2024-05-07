@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/url"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -30,6 +31,7 @@ import (
 )
 
 type dialer struct {
+	m              sync.Mutex
 	ctx            context.Context
 	cleanupContext context.Context
 	clientURL      *url.URL
@@ -51,6 +53,8 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	if di == nil {
 		return errors.New("cannot call dialer.Dial on  nil dialer")
 	}
+	di.m.Lock()
+	defer di.m.Unlock()
 	// Cleanup any previous grpc.ClientConn
 	if di.cleanupCancel != nil {
 		di.cleanupCancel()
@@ -86,10 +90,17 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 }
 
 func (di *dialer) Close() error {
-	if di != nil && di.cleanupCancel != nil {
+	if di == nil {
+		return nil
+	}
+	di.m.Lock()
+	defer di.m.Unlock()
+
+	if di.cleanupContext != nil {
 		di.cleanupCancel()
 		runtime.Gosched()
 	}
+
 	return nil
 }
 

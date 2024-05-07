@@ -1,12 +1,14 @@
 // Copyright (c) 2022 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0v
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -18,6 +20,7 @@ package metrics_test
 
 import (
 	"context"
+	"sync"
 
 	"math/rand"
 	"strconv"
@@ -48,15 +51,22 @@ func TestMetrics_Concurrency(t *testing.T) {
 		&metricsGeneratorServer{},
 		metrics.NewServer(),
 	)
+	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
+		wg.Add(1)
 		go func(i int) {
+			defer wg.Done()
 			req := &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{Id: "nsc-" + strconv.Itoa(i)},
 			}
 			_, err := server.Request(context.Background(), req)
 			require.NoError(t, err)
+			_, err = server.Request(context.Background(), req)
+			require.NoError(t, err)
 		}(i)
 	}
+
+	wg.Wait()
 }
 
 type metricsGeneratorServer struct{}
