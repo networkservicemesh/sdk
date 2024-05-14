@@ -72,8 +72,12 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 		return nil, err
 	}
 
+	ns, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	if err != nil {
+		return nil, err
+	}
 	s.nsPathIdsMap.Store(ns.Name, ns.PathIds)
-	return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
+	return ns, nil
 }
 
 func (s *authorizeNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {

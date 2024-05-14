@@ -83,7 +83,8 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		}
 	}
 
-	if spiffeID, err := spire.PeerSpiffeIDFromContext(ctx); err == nil {
+	spiffeID, loadErr := spire.PeerSpiffeIDFromContext(ctx)
+	if loadErr == nil {
 		connID := conn.GetPath().GetPathSegments()[index-1].GetId()
 		ids, ok := a.spiffeIDConnectionMap.Load(spiffeID)
 		if !ok {
@@ -92,7 +93,13 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 		ids.Store(connID, struct{}{})
 		a.spiffeIDConnectionMap.Store(spiffeID, ids)
 	}
-	return next.Server(ctx).Request(ctx, request)
+
+	conn, err := next.Server(ctx).Request(ctx, request)
+	if loadErr == nil && err != nil {
+		a.spiffeIDConnectionMap.Delete(spiffeID)
+	}
+
+	return conn, err
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
