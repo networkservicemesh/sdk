@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -68,6 +70,7 @@ func (r *recvFDClient) Request(ctx context.Context, request *networkservice.Netw
 	// Recv the FD and swap theInode to File in the Parameters for the returned connection mechanism
 	err = recvFDAndSwapInodeToFile(ctx, fileMap, conn.GetMechanism().GetParameters(), recv)
 	if err != nil {
+		closeFiles(conn, &r.fileMaps)
 		return nil, err
 	}
 

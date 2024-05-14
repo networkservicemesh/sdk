@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024  Xored Software Inc and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -99,6 +101,9 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 
 		// Recv the FD and swap theInode to File in the Parameters for the returned connection mechanism
 		err = recvFDAndSwapInodeToUnix(x.Context(), fileMap, nseResp.GetNetworkServiceEndpoint(), x.transceiver)
+		if err != nil {
+			closeFiles(nseResp.GetNetworkServiceEndpoint(), x.fileMaps)
+		}
 	}
 	return nseResp, err
 }
