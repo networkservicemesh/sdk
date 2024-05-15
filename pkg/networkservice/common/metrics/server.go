@@ -31,6 +31,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 type metricServer struct {
@@ -40,9 +41,11 @@ type metricServer struct {
 
 // NewServer returns a new metric server chain element
 func NewServer() networkservice.NetworkServiceServer {
-	return &metricServer{
-		meter: otel.Meter(""),
+	var res = &metricServer{}
+	if opentelemetry.IsEnabled() {
+		res.meter = otel.Meter("")
 	}
+	return res
 }
 
 func (t *metricServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -50,8 +53,9 @@ func (t *metricServer) Request(ctx context.Context, request *networkservice.Netw
 	if err != nil {
 		return nil, err
 	}
-
-	t.writeMetrics(ctx, conn.GetPath())
+	if opentelemetry.IsEnabled() {
+		t.writeMetrics(ctx, conn.GetPath())
+	}
 	return conn, nil
 }
 
@@ -61,7 +65,9 @@ func (t *metricServer) Close(ctx context.Context, conn *networkservice.Connectio
 		return nil, err
 	}
 
-	t.writeMetrics(ctx, conn.GetPath())
+	if opentelemetry.IsEnabled() {
+		t.writeMetrics(ctx, conn.GetPath())
+	}
 	return &empty.Empty{}, nil
 }
 
