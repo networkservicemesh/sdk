@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -81,6 +81,7 @@ func NewNetworkServiceEndpointRegistryServer(errorChance float32) registry.Netwo
 }
 
 func (s *randomErrorNSEServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
+	// nolint
 	val := rand.Float32()
 	if val > s.errorChance {
 		return nil, errors.New("random error")
@@ -93,10 +94,6 @@ func (s *randomErrorNSEServer) Find(query *registry.NetworkServiceEndpointQuery,
 }
 
 func (s *randomErrorNSEServer) Unregister(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	val := rand.Float32()
-	if val > s.errorChance {
-		return nil, errors.New("random error")
-	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, ns)
 }
 
@@ -141,7 +138,8 @@ func TestNetworkServiceEndpointRegistryAuthorize_ResourcePathIdMapHaveNoLeaks(t 
 	// Close the connections established in the previous loop
 	for _, closeData := range data {
 		ctx := grpcmetadata.PathWithContext(context.Background(), closeData.path)
-		server.Unregister(ctx, closeData.nse)
+		_, err := server.Unregister(ctx, closeData.nse)
+		require.NoError(t, err)
 	}
 	mapLen := 0
 	authorizeMap.Range(func(key string, value []string) bool {

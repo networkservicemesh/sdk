@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,7 +25,6 @@ import (
 	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
-	"math"
 	"math/big"
 	"net/url"
 	"os"
@@ -227,6 +226,7 @@ func NewServer(errorChance float32) networkservice.NetworkServiceServer {
 }
 
 func (s randomErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	// nolint
 	val := mathrand.Float32()
 	if val > s.errorChance {
 		return nil, errors.New("random error")
@@ -235,10 +235,6 @@ func (s randomErrorServer) Request(ctx context.Context, request *networkservice.
 }
 
 func (s randomErrorServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	val := mathrand.Float32() / math.MaxFloat32
-	if val > s.errorChance {
-		return nil, errors.New("random error")
-	}
 	return next.Server(ctx).Close(ctx, conn)
 }
 
@@ -284,10 +280,10 @@ func TestAuthorize_SpiffeIDConnectionMapHaveNoLeaks(t *testing.T) {
 	count := 1000
 	data := make([]closeData, 0)
 	for i := 0; i < count; i++ {
-		path, err := nanoid.GenerateString(10, nanoid.WithAlphabet("abcdefghijklmnopqrstuvwxyz"))
+		spiffeidPath, err := nanoid.GenerateString(10, nanoid.WithAlphabet("abcdefghijklmnopqrstuvwxyz"))
 		require.NoError(t, err)
 
-		certBytes := generateCert(&url.URL{Scheme: "spiffe", Host: "test.com", Path: path})
+		certBytes := generateCert(&url.URL{Scheme: "spiffe", Host: "test.com", Path: spiffeidPath})
 		ctx, err := withPeer(context.Background(), certBytes)
 		require.NoError(t, err)
 
@@ -301,8 +297,8 @@ func TestAuthorize_SpiffeIDConnectionMapHaveNoLeaks(t *testing.T) {
 	for _, closeData := range data {
 		ctx, err := withPeer(context.Background(), closeData.cert)
 		require.NoError(t, err)
-
-		chain.Close(ctx, closeData.conn)
+		_, err = chain.Close(ctx, closeData.conn)
+		require.NoError(t, err)
 	}
 
 	mapLen := 0
