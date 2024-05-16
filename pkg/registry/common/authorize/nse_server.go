@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -73,8 +73,12 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 		return nil, err
 	}
 
+	nse, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	if err != nil {
+		return nil, err
+	}
 	s.nsePathIdsMap.Store(nse.Name, nse.PathIds)
-	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
+	return nse, nil
 }
 
 func (s *authorizeNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
