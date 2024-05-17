@@ -1,6 +1,6 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
 // Copyright (c) 2023 Nordix Foundation.
-// Copyright (c) 2024 Cisco and/or its affiliates.
+//
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,12 +29,12 @@ import (
 
 type keyType struct{}
 
-type dataType struct {
+type metricsData struct {
 	counter  map[string]metric.Int64Counter
-	previous *sync.Map
+	previous sync.Map
 }
 
-func loadOrStore(ctx context.Context, metrics dataType) (value dataType, ok bool) {
+func loadOrStore(ctx context.Context, metrics *metricsData) (value *metricsData, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, metrics)
-	return rawValue.(dataType), ok
+	return rawValue.(*metricsData), ok
 }

@@ -22,14 +22,12 @@ package metrics
 import (
 	"context"
 	"fmt"
-	"strconv"
-	"sync"
-
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
+	"strconv"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
@@ -79,11 +77,10 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				continue
 			}
 
-			k := dataType{
-				counter:  make(map[string]metric.Int64Counter),
-				previous: new(sync.Map),
+			k := metricsData{
+				counter: make(map[string]metric.Int64Counter),
 			}
-			metrics, _ := loadOrStore(ctx, k)
+			metrics, _ := loadOrStore(ctx, &k)
 			for metricName, metricValue := range pathSegment.Metrics {
 				/* Works with integers only */
 				recVal, err := strconv.ParseInt(metricValue, 10, 64)
