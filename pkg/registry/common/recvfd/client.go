@@ -135,7 +135,7 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 			closeFiles(nseResp.GetNetworkServiceEndpoint(), x.fileMaps)
 		} else {
 			var stopExpireCtx = fileMap.ctx
-			var expirationTime = nseResp.GetNetworkServiceEndpoint().ExpirationTime.AsTime()
+			var expirationTime = nseResp.GetNetworkServiceEndpoint().GetExpirationTime().AsTime()
 			var expireCh = time.After(time.Until(expirationTime.Local()))
 			go func() {
 				select {
