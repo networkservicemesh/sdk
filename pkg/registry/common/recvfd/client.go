@@ -27,6 +27,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"time"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/edwarnicke/grpcfd"
@@ -42,9 +43,22 @@ type perEndpointFileMap struct {
 	executor           serialize.Executor
 	filesByInodeURL    map[string]*os.File
 	inodeURLbyFilename map[string]*url.URL
+	ctx                context.Context
+	cancel             context.CancelFunc
+}
+
+// Option applies additional configuration for the recvfd nse client
+type Option func(*recvfdNSEClient)
+
+// WithChainContext sets chain context for the recvfd nse client that can be used to prevent goroutines leaks
+func WithChainContext(ctx context.Context) Option {
+	return func(rn *recvfdNSEClient) {
+		rn.chainCtx = ctx
+	}
 }
 
 type recvfdNSEClient struct {
+	chainCtx context.Context
 	fileMaps genericsync.Map[string, *perEndpointFileMap]
 }
 
@@ -63,7 +77,8 @@ func (n *recvfdNSEClient) Find(ctx context.Context, in *registry.NetworkServiceE
 	return &recvfdNSEFindClient{
 		transceiver: recv,
 		NetworkServiceEndpointRegistry_FindClient: resp,
-		fileMaps: &n.fileMaps,
+		fileMaps:     &n.fileMaps,
+		chainContext: n.chainCtx,
 	}, nil
 }
 
@@ -72,14 +87,23 @@ func (n *recvfdNSEClient) Unregister(ctx context.Context, in *registry.NetworkSe
 }
 
 // NewNetworkServiceEndpointRegistryClient - returns a new null client that does nothing but call next.NetworkServiceEndpointRegistryClient(ctx).
-func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
-	return new(recvfdNSEClient)
+func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+	var res = &recvfdNSEClient{
+		chainCtx: context.Background(),
+	}
+
+	for _, opt := range opts {
+		opt(res)
+	}
+
+	return res
 }
 
 type recvfdNSEFindClient struct {
 	registry.NetworkServiceEndpointRegistry_FindClient
-	transceiver grpcfd.FDTransceiver
-	fileMaps    *genericsync.Map[string, *perEndpointFileMap]
+	transceiver  grpcfd.FDTransceiver
+	fileMaps     *genericsync.Map[string, *perEndpointFileMap]
+	chainContext context.Context
 }
 
 func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, error) {
@@ -93,16 +117,34 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 			filesByInodeURL:    make(map[string]*os.File),
 			inodeURLbyFilename: make(map[string]*url.URL),
 		}
+		fileMap.ctx, fileMap.cancel = context.WithCancel(x.chainContext)
 		endpointName := nseResp.GetNetworkServiceEndpoint().GetName()
 		// If name is specified, let's use it, since it could be heal/update request
 		if endpointName != "" {
-			fileMap, _ = x.fileMaps.LoadOrStore(nseResp.NetworkServiceEndpoint.GetName(), fileMap)
+			var loaded bool
+			fileMap, loaded = x.fileMaps.LoadOrStore(nseResp.NetworkServiceEndpoint.GetName(), fileMap)
+			if loaded {
+				fileMap.cancel()
+				fileMap.ctx, fileMap.cancel = context.WithCancel(x.chainContext)
+			}
 		}
 
 		// Recv the FD and swap theInode to File in the Parameters for the returned connection mechanism
 		err = recvFDAndSwapInodeToUnix(x.Context(), fileMap, nseResp.GetNetworkServiceEndpoint(), x.transceiver)
-		if err != nil {
+		if err != nil || nseResp.Deleted {
 			closeFiles(nseResp.GetNetworkServiceEndpoint(), x.fileMaps)
+		} else {
+			var stopExpireCtx = fileMap.ctx
+			var expirationTime = nseResp.GetNetworkServiceEndpoint().ExpirationTime.AsTime()
+			var expireCh = time.After(time.Until(expirationTime.Local()))
+			go func() {
+				select {
+				case <-stopExpireCtx.Done():
+					return
+				case <-expireCh:
+					closeFiles(nseResp.GetNetworkServiceEndpoint(), x.fileMaps)
+				}
+			}()
 		}
 	}
 	return nseResp, err

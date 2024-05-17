@@ -133,7 +133,7 @@ func (n *Node) NewForwarder(
 	nseClient := chain.NewNetworkServiceEndpointRegistryClient(
 		registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
 			registryclient.WithClientURL(CloneURL(n.NSMgr.URL)),
-			registryclient.WithNSEAdditionalFunctionality(recvfd.NewNetworkServiceEndpointRegistryClient()),
+			registryclient.WithNSEAdditionalFunctionality(recvfd.NewNetworkServiceEndpointRegistryClient(recvfd.WithChainContext(ctx))),
 			registryclient.WithDialOptions(dialOptions...),
 		),
 	)
