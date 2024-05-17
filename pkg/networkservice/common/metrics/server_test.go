@@ -18,6 +18,7 @@ package metrics_test
 
 import (
 	"context"
+	"sync"
 
 	"math/rand"
 	"strconv"
@@ -38,25 +39,40 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
+const (
+	connectionCount = 1000
+)
+
 func TestMetrics_Concurrency(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	var previousMetrics sync.Map
 	server := chain.NewNetworkServiceServer(
 		begin.NewServer(),
 		metadata.NewServer(),
 		updatepath.NewServer("testServer"),
 		&metricsGeneratorServer{},
-		metrics.NewServer(),
+		metrics.NewServer(metrics.WithPreviousMetrics(&previousMetrics)),
 	)
-	for i := 0; i < 100; i++ {
+
+	wg := new(sync.WaitGroup)
+	wg.Add(connectionCount)
+	for i := 0; i < connectionCount; i++ {
 		go func(i int) {
+			defer wg.Done()
 			req := &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{Id: "nsc-" + strconv.Itoa(i)},
 			}
-			_, err := server.Request(context.Background(), req)
+			conn, err := server.Request(context.Background(), req)
 			require.NoError(t, err)
+			defer func() {
+				_, err = server.Close(context.Background(), conn)
+				require.NoError(t, err)
+			}()
 		}(i)
 	}
+	wg.Wait()
+	require.Equal(t, getMapSize(&previousMetrics), 0)
 }
 
 type metricsGeneratorServer struct{}
@@ -74,4 +90,13 @@ func (s *metricsGeneratorServer) Request(ctx context.Context, request *networkse
 
 func (s *metricsGeneratorServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, connection)
+}
+
+func getMapSize(m *sync.Map) int {
+	size := 0
+	m.Range(func(key, value interface{}) bool {
+		size++
+		return true
+	})
+	return size
 }

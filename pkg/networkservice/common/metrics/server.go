@@ -35,13 +35,21 @@ import (
 
 type metricServer struct {
 	meter           metric.Meter
-	previousMetrics sync.Map
+	previousMetrics *sync.Map
 }
 
 // NewServer returns a new metric server chain element
-func NewServer() networkservice.NetworkServiceServer {
+func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+	o := &options{
+		previousMetrics: new(sync.Map),
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+
 	return &metricServer{
-		meter: otel.Meter(""),
+		meter:           otel.Meter(""),
+		previousMetrics: o.previousMetrics,
 	}
 }
 
@@ -51,7 +59,7 @@ func (t *metricServer) Request(ctx context.Context, request *networkservice.Netw
 		return nil, err
 	}
 
-	t.writeMetrics(ctx, conn.GetPath())
+	t.writeMetrics(ctx, conn.GetPath(), false)
 	return conn, nil
 }
 
@@ -61,11 +69,11 @@ func (t *metricServer) Close(ctx context.Context, conn *networkservice.Connectio
 		return nil, err
 	}
 
-	t.writeMetrics(ctx, conn.GetPath())
+	t.writeMetrics(ctx, conn.GetPath(), true)
 	return &empty.Empty{}, nil
 }
 
-func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Path) {
+func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Path, isConnectionClose bool) {
 	if path != nil {
 		for _, pathSegment := range path.GetPathSegments() {
 			if pathSegment.Metrics == nil {
@@ -108,7 +116,11 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 					recVal-previousValueInt,
 					metric.WithAttributes(attribute.String("connection", path.GetPathSegments()[0].Id)),
 				)
-				t.previousMetrics.Store(previousValueKey, metricValue)
+				if !isConnectionClose {
+					t.previousMetrics.Store(previousValueKey, metricValue)
+				} else {
+					t.previousMetrics.Delete(previousValueKey)
+				}
 			}
 		}
 	}
