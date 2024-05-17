@@ -1,5 +1,6 @@
-// Copyright (c) 2021-2024 Doc.ai and/or its affiliates.
-// Copyright (c) 2023-2024 Nordix Foundation.
+// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2023 Nordix Foundation.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,6 +32,7 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 type metricServer struct {
@@ -47,10 +49,13 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 		opt(o)
 	}
 
-	return &metricServer{
-		meter:           otel.Meter(""),
+	var res = &metricServer{
 		previousMetrics: o.previousMetrics,
 	}
+	if opentelemetry.IsEnabled() {
+		res.meter = otel.Meter("")
+	}
+	return res
 }
 
 func (t *metricServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -59,7 +64,9 @@ func (t *metricServer) Request(ctx context.Context, request *networkservice.Netw
 		return nil, err
 	}
 
-	t.writeMetrics(ctx, conn.GetPath(), false)
+	if opentelemetry.IsEnabled() {
+		t.writeMetrics(ctx, conn.GetPath(), false)
+	}
 	return conn, nil
 }
 
@@ -69,7 +76,9 @@ func (t *metricServer) Close(ctx context.Context, conn *networkservice.Connectio
 		return nil, err
 	}
 
-	t.writeMetrics(ctx, conn.GetPath(), true)
+	if opentelemetry.IsEnabled() {
+		t.writeMetrics(ctx, conn.GetPath(), true)
+	}
 	return &empty.Empty{}, nil
 }
 
