@@ -36,22 +36,12 @@ import (
 )
 
 type metricServer struct {
-	meter           metric.Meter
-	previousMetrics *sync.Map
+	meter metric.Meter
 }
 
 // NewServer returns a new metric server chain element
-func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	o := &options{
-		previousMetrics: new(sync.Map),
-	}
-	for _, opt := range opts {
-		opt(o)
-	}
-
-	var res = &metricServer{
-		previousMetrics: o.previousMetrics,
-	}
+func NewServer() networkservice.NetworkServiceServer {
+	var res = &metricServer{}
 	if opentelemetry.IsEnabled() {
 		res.meter = otel.Meter("")
 	}
@@ -65,7 +55,7 @@ func (t *metricServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	if opentelemetry.IsEnabled() {
-		t.writeMetrics(ctx, conn.GetPath(), false)
+		t.writeMetrics(ctx, conn.GetPath())
 	}
 	return conn, nil
 }
@@ -77,19 +67,23 @@ func (t *metricServer) Close(ctx context.Context, conn *networkservice.Connectio
 	}
 
 	if opentelemetry.IsEnabled() {
-		t.writeMetrics(ctx, conn.GetPath(), true)
+		t.writeMetrics(ctx, conn.GetPath())
 	}
 	return &empty.Empty{}, nil
 }
 
-func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Path, isConnectionClose bool) {
+func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Path) {
 	if path != nil {
 		for _, pathSegment := range path.GetPathSegments() {
 			if pathSegment.Metrics == nil {
 				continue
 			}
 
-			metrics, _ := loadOrStore(ctx, make(map[string]metric.Int64Counter))
+			k := dataType{
+				counter:  make(map[string]metric.Int64Counter),
+				previous: new(sync.Map),
+			}
+			metrics, _ := loadOrStore(ctx, k)
 			for metricName, metricValue := range pathSegment.Metrics {
 				/* Works with integers only */
 				recVal, err := strconv.ParseInt(metricValue, 10, 64)
@@ -98,7 +92,7 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				}
 
 				counterName := fmt.Sprintf("%s_%s", pathSegment.Name, metricName)
-				_, ok := metrics[metricName]
+				_, ok := metrics.counter[metricName]
 				if !ok {
 					var counter metric.Int64Counter
 
@@ -106,7 +100,7 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 					if err != nil {
 						continue
 					}
-					metrics[metricName] = counter
+					metrics.counter[metricName] = counter
 				}
 
 				previousValueKey := fmt.Sprintf(
@@ -115,21 +109,17 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 					path.GetPathSegments()[0].Id,
 				)
 				var previousValueInt int64
-				previousValue, ok := t.previousMetrics.Load(previousValueKey)
+				previousValue, ok := metrics.previous.Load(previousValueKey)
 				if ok {
 					previousValueInt, _ = strconv.ParseInt(previousValue.(string), 10, 64)
 				}
 
-				metrics[metricName].Add(
+				metrics.counter[metricName].Add(
 					ctx,
 					recVal-previousValueInt,
 					metric.WithAttributes(attribute.String("connection", path.GetPathSegments()[0].Id)),
 				)
-				if !isConnectionClose {
-					t.previousMetrics.Store(previousValueKey, metricValue)
-				} else {
-					t.previousMetrics.Delete(previousValueKey)
-				}
+				metrics.previous.Store(previousValueKey, metricValue)
 			}
 		}
 	}

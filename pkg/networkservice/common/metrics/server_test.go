@@ -18,6 +18,7 @@ package metrics_test
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"math/rand"
@@ -31,7 +32,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/metrics"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -41,18 +41,22 @@ import (
 
 const (
 	connectionCount = 1000
+	telemetryEnv    = "TELEMETRY"
 )
 
 func TestMetrics_Concurrency(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var previousMetrics sync.Map
+	err := os.Setenv(telemetryEnv, "true")
+	if err != nil {
+		return
+	}
+
 	server := chain.NewNetworkServiceServer(
-		begin.NewServer(),
 		metadata.NewServer(),
 		updatepath.NewServer("testServer"),
 		&metricsGeneratorServer{},
-		metrics.NewServer(metrics.WithPreviousMetrics(&previousMetrics)),
+		metrics.NewServer(),
 	)
 
 	wg := new(sync.WaitGroup)
@@ -63,16 +67,11 @@ func TestMetrics_Concurrency(t *testing.T) {
 			req := &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{Id: "nsc-" + strconv.Itoa(i)},
 			}
-			conn, err := server.Request(context.Background(), req)
+			_, err := server.Request(context.Background(), req)
 			require.NoError(t, err)
-			defer func() {
-				_, err = server.Close(context.Background(), conn)
-				require.NoError(t, err)
-			}()
 		}(i)
 	}
 	wg.Wait()
-	require.Equal(t, getMapSize(&previousMetrics), 0)
 }
 
 type metricsGeneratorServer struct{}
@@ -90,13 +89,4 @@ func (s *metricsGeneratorServer) Request(ctx context.Context, request *networkse
 
 func (s *metricsGeneratorServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, connection)
-}
-
-func getMapSize(m *sync.Map) int {
-	size := 0
-	m.Range(func(key, value interface{}) bool {
-		size++
-		return true
-	})
-	return size
 }

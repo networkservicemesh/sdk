@@ -19,6 +19,7 @@ package metrics
 
 import (
 	"context"
+	"sync"
 
 	"go.opentelemetry.io/otel/metric"
 
@@ -26,9 +27,13 @@ import (
 )
 
 type keyType struct{}
-type metricsMap = map[string]metric.Int64Counter
 
-func loadOrStore(ctx context.Context, metrics metricsMap) (value metricsMap, ok bool) {
+type dataType struct {
+	counter  map[string]metric.Int64Counter
+	previous *sync.Map
+}
+
+func loadOrStore(ctx context.Context, metrics dataType) (value dataType, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, metrics)
-	return rawValue.(metricsMap), ok
+	return rawValue.(dataType), ok
 }
