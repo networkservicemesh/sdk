@@ -47,16 +47,6 @@ type perEndpointFileMap struct {
 	cancel             context.CancelFunc
 }
 
-// Option applies additional configuration for the recvfd nse client
-type Option func(*recvfdNSEClient)
-
-// WithChainContext sets chain context for the recvfd nse client that can be used to prevent goroutines leaks
-func WithChainContext(ctx context.Context) Option {
-	return func(rn *recvfdNSEClient) {
-		rn.chainCtx = ctx
-	}
-}
-
 type recvfdNSEClient struct {
 	chainCtx context.Context
 	fileMaps genericsync.Map[string, *perEndpointFileMap]
@@ -88,14 +78,14 @@ func (n *recvfdNSEClient) Unregister(ctx context.Context, in *registry.NetworkSe
 
 // NewNetworkServiceEndpointRegistryClient - returns a new null client that does nothing but call next.NetworkServiceEndpointRegistryClient(ctx).
 func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkServiceEndpointRegistryClient {
-	var res = &recvfdNSEClient{
-		chainCtx: context.Background(),
+	var res = new(recvfdNSEClient)
+	var options = &options{
+		chainContext: context.Background(),
 	}
-
 	for _, opt := range opts {
-		opt(res)
+		opt(options)
 	}
-
+	res.chainCtx = options.chainContext
 	return res
 }
 
