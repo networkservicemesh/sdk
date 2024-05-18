@@ -1,5 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 // Copyright (c) 2023 Nordix Foundation.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,7 +23,6 @@ import (
 	"context"
 	"fmt"
 	"strconv"
-	"sync"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -31,18 +31,20 @@ import (
 	"go.opentelemetry.io/otel/metric"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 type metricServer struct {
-	meter           metric.Meter
-	previousMetrics sync.Map
+	meter metric.Meter
 }
 
 // NewServer returns a new metric server chain element
 func NewServer() networkservice.NetworkServiceServer {
-	return &metricServer{
-		meter: otel.Meter(""),
+	var res = &metricServer{}
+	if opentelemetry.IsEnabled() {
+		res.meter = otel.Meter("")
 	}
+	return res
 }
 
 func (t *metricServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -51,7 +53,9 @@ func (t *metricServer) Request(ctx context.Context, request *networkservice.Netw
 		return nil, err
 	}
 
-	t.writeMetrics(ctx, conn.GetPath())
+	if opentelemetry.IsEnabled() {
+		t.writeMetrics(ctx, conn.GetPath())
+	}
 	return conn, nil
 }
 
@@ -61,7 +65,9 @@ func (t *metricServer) Close(ctx context.Context, conn *networkservice.Connectio
 		return nil, err
 	}
 
-	t.writeMetrics(ctx, conn.GetPath())
+	if opentelemetry.IsEnabled() {
+		t.writeMetrics(ctx, conn.GetPath())
+	}
 	return &empty.Empty{}, nil
 }
 
@@ -72,7 +78,10 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				continue
 			}
 
-			metrics, _ := loadOrStore(ctx, make(map[string]metric.Int64Counter))
+			k := metricsData{
+				counter: make(map[string]metric.Int64Counter),
+			}
+			metrics, _ := loadOrStore(ctx, &k)
 			for metricName, metricValue := range pathSegment.Metrics {
 				/* Works with integers only */
 				recVal, err := strconv.ParseInt(metricValue, 10, 64)
@@ -81,7 +90,7 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				}
 
 				counterName := fmt.Sprintf("%s_%s", pathSegment.Name, metricName)
-				_, ok := metrics[metricName]
+				_, ok := metrics.counter[metricName]
 				if !ok {
 					var counter metric.Int64Counter
 
@@ -89,7 +98,7 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 					if err != nil {
 						continue
 					}
-					metrics[metricName] = counter
+					metrics.counter[metricName] = counter
 				}
 
 				previousValueKey := fmt.Sprintf(
@@ -98,17 +107,17 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 					path.GetPathSegments()[0].Id,
 				)
 				var previousValueInt int64
-				previousValue, ok := t.previousMetrics.Load(previousValueKey)
+				previousValue, ok := metrics.previous.Load(previousValueKey)
 				if ok {
 					previousValueInt, _ = strconv.ParseInt(previousValue.(string), 10, 64)
 				}
 
-				metrics[metricName].Add(
+				metrics.counter[metricName].Add(
 					ctx,
 					recVal-previousValueInt,
 					metric.WithAttributes(attribute.String("connection", path.GetPathSegments()[0].Id)),
 				)
-				t.previousMetrics.Store(previousValueKey, metricValue)
+				metrics.previous.Store(previousValueKey, metricValue)
 			}
 		}
 	}

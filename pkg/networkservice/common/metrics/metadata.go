@@ -1,5 +1,6 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
 // Copyright (c) 2023 Nordix Foundation.
+//
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -19,6 +20,7 @@ package metrics
 
 import (
 	"context"
+	"sync"
 
 	"go.opentelemetry.io/otel/metric"
 
@@ -26,9 +28,13 @@ import (
 )
 
 type keyType struct{}
-type metricsMap = map[string]metric.Int64Counter
 
-func loadOrStore(ctx context.Context, metrics metricsMap) (value metricsMap, ok bool) {
+type metricsData struct {
+	counter  map[string]metric.Int64Counter
+	previous sync.Map
+}
+
+func loadOrStore(ctx context.Context, metrics *metricsData) (value *metricsData, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).LoadOrStore(keyType{}, metrics)
-	return rawValue.(metricsMap), ok
+	return rawValue.(*metricsData), ok
 }

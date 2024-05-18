@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,8 @@ package metrics_test
 
 import (
 	"context"
+	"os"
+	"sync"
 
 	"math/rand"
 	"strconv"
@@ -30,7 +32,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/metrics"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
@@ -38,18 +39,31 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
+const (
+	connectionCount = 1000
+	telemetryEnv    = "TELEMETRY"
+)
+
 func TestMetrics_Concurrency(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
+	err := os.Setenv(telemetryEnv, "true")
+	if err != nil {
+		return
+	}
+
 	server := chain.NewNetworkServiceServer(
-		begin.NewServer(),
 		metadata.NewServer(),
 		updatepath.NewServer("testServer"),
 		&metricsGeneratorServer{},
 		metrics.NewServer(),
 	)
-	for i := 0; i < 100; i++ {
+
+	wg := new(sync.WaitGroup)
+	wg.Add(connectionCount)
+	for i := 0; i < connectionCount; i++ {
 		go func(i int) {
+			defer wg.Done()
 			req := &networkservice.NetworkServiceRequest{
 				Connection: &networkservice.Connection{Id: "nsc-" + strconv.Itoa(i)},
 			}
@@ -57,6 +71,7 @@ func TestMetrics_Concurrency(t *testing.T) {
 			require.NoError(t, err)
 		}(i)
 	}
+	wg.Wait()
 }
 
 type metricsGeneratorServer struct{}
