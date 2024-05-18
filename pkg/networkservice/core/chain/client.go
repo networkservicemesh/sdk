@@ -19,14 +19,22 @@
 package chain
 
 import (
+	"os"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
+const disableTracingEnv = "NSM_DISABLE_TRACING"
+
 // NewNetworkServiceClient - chains together a list of networkservice.NetworkServiceClient with tracing
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
+	if os.Getenv(disableTracingEnv) != "" {
+		return next.NewNetworkServiceClient(clients...)
+	}
+
 	return next.NewNetworkServiceClient(
 		next.NewWrappedNetworkServiceClient(trace.NewNetworkServiceClient, clients...),
 	)

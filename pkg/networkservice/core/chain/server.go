@@ -21,6 +21,8 @@
 package chain
 
 import (
+	"os"
+
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -29,6 +31,9 @@ import (
 
 // NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
+	if os.Getenv(disableTracingEnv) != "" {
+		return next.NewNetworkServiceServer(servers...)
+	}
 	return next.NewNetworkServiceServer(
 		next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),
 	)
