@@ -20,6 +20,8 @@
 package chain
 
 import (
+	"os"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
@@ -28,10 +30,16 @@ import (
 
 // NewNetworkServiceEndpointRegistryServer - creates a chain of servers
 func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
+	if os.Getenv(disableTracingEnv) != "" {
+		return next.NewNetworkServiceEndpointRegistryServer(servers...)
+	}
 	return next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...)
 }
 
 // NewNetworkServiceEndpointRegistryClient - creates a chain of clients
 func NewNetworkServiceEndpointRegistryClient(clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
+	if os.Getenv(disableTracingEnv) != "" {
+		return next.NewNetworkServiceEndpointRegistryClient(clients...)
+	}
 	return next.NewWrappedNetworkServiceEndpointRegistryClient(trace.NewNetworkServiceEndpointRegistryClient, clients...)
 }

@@ -19,18 +19,28 @@
 package chain
 
 import (
+	"os"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 )
 
+const disableTracingEnv = "NSM_DISABLE_TRACING"
+
 // NewNetworkServiceRegistryServer - creates a chain of servers
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
+	if os.Getenv(disableTracingEnv) != "" {
+		return next.NewNetworkServiceRegistryServer(servers...)
+	}
 	return next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...)
 }
 
 // NewNetworkServiceRegistryClient - creates a chain of clients
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
+	if os.Getenv(disableTracingEnv) != "" {
+		return next.NewNetworkServiceRegistryClient(clients...)
+	}
 	return next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...)
 }
