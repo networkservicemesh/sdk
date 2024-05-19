@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,9 +26,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
 )
 
 type traceClient struct {
@@ -38,10 +35,7 @@ type traceClient struct {
 
 // NewNetworkServiceClient - wraps tracing around the supplied networkservice.NetworkServiceClient
 func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
-	return &traceClient{
-		verbose: traceverbose.NewNetworkServiceClient(traced),
-		concise: traceconcise.NewNetworkServiceClient(traced),
-	}
+	return traced
 }
 
 func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {

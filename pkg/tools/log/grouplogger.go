@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,7 +27,7 @@ type groupLogger struct {
 
 // Combine creates grouped logger from all provided loggers
 func Combine(s ...Logger) Logger {
-	return &groupLogger{loggers: s}
+	return Default()
 }
 
 func (j *groupLogger) Info(v ...interface{}) {

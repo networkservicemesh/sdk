@@ -1,6 +1,4 @@
-// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
-//
-// Copyright (c) 2024 Cisco Systems, Inc.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,13 +14,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package log
+package defaultlogger
 
 import (
 	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
+
+	nsmlog "github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type defaultLogger struct {
@@ -32,12 +32,12 @@ type defaultLogger struct {
 var instance = &defaultLogger{}
 
 // Default - provides a default logger
-func Default() Logger {
+func Default() nsmlog.Logger {
 	return instance
 }
 
 // IsDefault - true if the logger is a default logger
-func IsDefault(logger Logger) bool {
+func IsDefault(logger nsmlog.Logger) bool {
 	_, ok := logger.(*defaultLogger)
 	return ok
 }
@@ -101,7 +101,7 @@ func (l *defaultLogger) Object(k, v interface{}) {
 	l.Infof("%v=%s", k, msg)
 }
 
-func (l *defaultLogger) WithField(key, value interface{}) Logger {
+func (l *defaultLogger) WithField(key, value interface{}) nsmlog.Logger {
 	var prefix string
 	if l.prefix != "" {
 		prefix = fmt.Sprintf("%s [%s:%s]", l.prefix, key, value)
