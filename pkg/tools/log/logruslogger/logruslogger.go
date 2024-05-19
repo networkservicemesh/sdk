@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,6 +33,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/defaultlogger"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
@@ -109,15 +110,7 @@ func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
 
 // New - create a logruslogger
 func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
-	entry := logrus.NewEntry(logrus.StandardLogger())
-	for _, f := range fields {
-		entry = entry.WithFields(f)
-	}
-	entry.Logger.SetFormatter(newFormatter())
-
-	return &logrusLogger{
-		entry: entry,
-	}
+	return defaultlogger.Default()
 }
 
 // ----------------------------------------------------------------------
@@ -275,40 +268,42 @@ func (s *traceLogger) getTraceInfo() string {
 // and returns context with it, logger, and a function to defer
 func FromSpan(
 	ctx context.Context, span spanlogger.Span, operation string, fields []*log.Field) (context.Context, log.Logger, func()) {
-	var info *traceCtxInfo
-	deleteFunc := func() {}
-	if log.IsTracingEnabled() && logrus.GetLevel() == logrus.TraceLevel {
-		ctx, info = withTraceInfo(ctx)
-		localTraceInfo.Store(info.id, info)
-		deleteFunc = func() { localTraceInfo.Delete(info.id) }
-	}
+	// var info *traceCtxInfo
+	// deleteFunc := func() {}
+	// if log.IsTracingEnabled() && logrus.GetLevel() == logrus.TraceLevel {
+	// 	ctx, info = withTraceInfo(ctx)
+	// 	localTraceInfo.Store(info.id, info)
+	// 	deleteFunc = func() { localTraceInfo.Delete(info.id) }
+	// }
 
-	logger := log.L()
-	if log.IsDefault(logger) {
-		fieldsMap := make(map[string]interface{}, len(fields))
-		for _, field := range fields {
-			fieldsMap[field.Key()] = field.Val()
-		}
-		entry := logrus.WithFields(fieldsMap)
-		entry.Logger.SetFormatter(newFormatter())
-		logger = &logrusLogger{
-			entry: entry,
-		}
-	} else {
-		for _, field := range fields {
-			logger = logger.WithField(field.Key(), field.Val())
-		}
-	}
+	// logger := log.L()
+	// if log.IsDefault(logger) {
+	// 	fieldsMap := make(map[string]interface{}, len(fields))
+	// 	for _, field := range fields {
+	// 		fieldsMap[field.Key()] = field.Val()
+	// 	}
+	// 	entry := logrus.WithFields(fieldsMap)
+	// 	entry.Logger.SetFormatter(newFormatter())
+	// 	logger = &logrusLogger{
+	// 		entry: entry,
+	// 	}
+	// } else {
+	// 	for _, field := range fields {
+	// 		logger = logger.WithField(field.Key(), field.Val())
+	// 	}
+	// }
 
-	newLog := &traceLogger{
-		logger:    logger,
-		span:      span,
-		operation: operation,
-		info:      info,
-	}
+	// newLog := &traceLogger{
+	// 	logger:    logger,
+	// 	span:      span,
+	// 	operation: operation,
+	// 	info:      info,
+	// }
 
-	newLog.printStart()
-	return ctx, newLog, deleteFunc
+	// newLog.printStart()
+	// return ctx, newLog, deleteFunc
+
+	return ctx, defaultlogger.Default(), func() {}
 }
 
 func (s *traceLogger) printStart() {

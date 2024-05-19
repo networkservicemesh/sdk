@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco Systems, Inc.
+// Copyright (c) 2023-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,7 +32,7 @@ const (
 
 var (
 	isTracingEnabled int32  = 0
-	globalLogger     Logger = Default()
+	globalLogger     Logger = instance
 )
 
 // Logger - unified interface for logging
@@ -63,30 +63,30 @@ func L() Logger {
 // SetGlobalLogger Set the global Logger. This should be called early
 // in main() only.
 func SetGlobalLogger(logger Logger) {
-	globalLogger = logger
+	// globalLogger = logger
 }
 
 // FromContext - returns logger from context
 func FromContext(ctx context.Context) Logger {
-	rv, ok := ctx.Value(logKey).(Logger)
-	if ok {
-		return rv
-	}
-	return L()
+	return globalLogger
 }
 
 // Join - concatenates new logger with existing loggers
 func Join(ctx context.Context, log Logger) context.Context {
-	rv, ok := ctx.Value(logKey).(Logger)
-	if ok {
-		return WithLog(ctx, rv, log)
-	}
-	return WithLog(ctx, log)
+	// rv, ok := ctx.Value(logKey).(Logger)
+	// if ok {
+	// 	return WithLog(ctx, rv, log)
+	// }
+	// return WithLog(ctx, log)
+
+	return ctx
 }
 
 // WithLog - creates new context with `log` inside
 func WithLog(ctx context.Context, log ...Logger) context.Context {
-	return context.WithValue(ctx, logKey, Combine(log...))
+	//	return context.WithValue(ctx, logKey, Combine(log...))
+
+	return ctx
 }
 
 // IsTracingEnabled - checks if it is allowed to use traces

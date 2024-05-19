@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,9 +21,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
-
 	"github.com/golang/protobuf/ptypes/empty"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -36,10 +33,7 @@ type traceServer struct {
 
 // NewNetworkServiceServer - wraps tracing around the supplied traced
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	return &traceServer{
-		verbose: traceverbose.NewNetworkServiceServer(traced),
-		concise: traceconcise.NewNetworkServiceServer(traced),
-	}
+	return traced
 }
 
 func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
