@@ -106,3 +106,5 @@ require (
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231030173426-d783a09b4405 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
+
+replace github.com/edwarnicke/grpcfd => github.com/denis-tingaikin/grpcfd v0.0.0-20240519232848-afce55009077
