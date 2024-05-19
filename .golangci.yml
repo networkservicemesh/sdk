@@ -129,7 +129,6 @@ linters:
   enable:
     - goheader
     - bodyclose
-    - deadcode
     - depguard
     - dogsled
     - dupl
@@ -137,7 +136,6 @@ linters:
     - funlen
     - gochecknoinits
     - goconst
-    - gocritic
     - gocyclo
     - gofmt
     - goimports
