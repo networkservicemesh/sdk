@@ -154,7 +154,6 @@ linters:
     - typecheck
     - unconvert
     - unparam
-    - varcheck
     - whitespace
 issues:
   exclude-use-default: false
