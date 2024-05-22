@@ -313,7 +313,6 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			),
 			excludedprefixes.NewServer(ctx),
 			recvfd.NewServer(), // Receive any files passed
-			sendfd.NewServer(),
 			metrics.NewServer(),
 			connect.NewServer(
 				client.NewClient(
@@ -328,6 +327,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 					client.WithoutRefresh(),
 				),
 			)),
+		//sendfd.NewServer()),
 	)
 
 	rv.Registry = registry.NewServer(
