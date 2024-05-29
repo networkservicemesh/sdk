@@ -258,10 +258,10 @@ func TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin(t *testing.T) {
 	require.Len(t, errCh, 0)
 
 	// Create a client
-	client := createClient(ctx, serveURL)
+	c := createClient(ctx, serveURL)
 
 	// Create a file to send
-	testFileName := path.Join(tempDir, "TestRecvfdClosesSingleFile.test")
+	testFileName := path.Join(tempDir, "TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin.test")
 	f, err := os.Create(testFileName)
 	require.NoErrorf(t, err, "Failed to create and open a file: %v", err)
 	err = f.Close()
@@ -282,13 +282,13 @@ func TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin(t *testing.T) {
 	}
 
 	// Make the first request from the client to send files
-	conn, err := client.Request(ctx, request)
+	conn, err := c.Request(ctx, request)
 	require.NoError(t, err)
 	request.Connection = conn.Clone()
 
 	// Make the second request that return an error.
 	// It should make recvfd close all the files.
-	_, err = client.Request(ctx, request)
+	_, err = c.Request(ctx, request)
 	require.Error(t, err)
 
 	// Send Close. Recvfd shouldn't freeze trying to read files
