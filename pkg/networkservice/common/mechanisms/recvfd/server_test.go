@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -27,7 +27,9 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -233,12 +235,16 @@ func TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
+	eventFactoryCh := make(chan begin.EventFactory, 1)
+	var once sync.Once
 	// Create a server
-	var eventFactory begin.EventFactory
 	server := chain.NewNetworkServiceServer(
 		begin.NewServer(),
 		checkcontextonreturn.NewServer(t, func(t *testing.T, ctx context.Context) {
-			eventFactory = begin.FromContext(ctx)
+			once.Do(func() {
+				eventFactoryCh <- begin.FromContext(ctx)
+				close(eventFactoryCh)
+			})
 		}),
 		recvfd.NewServer(),
 		injecterror.NewServer(
@@ -248,7 +254,7 @@ func TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin(t *testing.T) {
 	)
 
 	tempDir := t.TempDir()
-	sock, err := os.Create(path.Join(tempDir, "test.sock"))
+	sock, err := os.Create(filepath.Clean(path.Join(tempDir, "test.sock")))
 	require.NoError(t, err)
 
 	serveURL := &url.URL{Scheme: "unix", Path: sock.Name()}
@@ -261,7 +267,7 @@ func TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin(t *testing.T) {
 	c := createClient(ctx, serveURL)
 
 	// Create a file to send
-	testFileName := path.Join(tempDir, "TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin.test")
+	testFileName := filepath.Clean(path.Join(tempDir, "TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin.test"))
 	f, err := os.Create(testFileName)
 	require.NoErrorf(t, err, "Failed to create and open a file: %v", err)
 	err = f.Close()
@@ -293,6 +299,7 @@ func TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin(t *testing.T) {
 
 	// Send Close. Recvfd shouldn't freeze trying to read files
 	// from the client because we send Close from begin.
+	eventFactory := <-eventFactoryCh
 	ch := eventFactory.Close()
 	err = <-ch
 	require.NoError(t, err)
