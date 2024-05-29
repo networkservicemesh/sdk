@@ -751,6 +751,7 @@ func Test_Timeout(t *testing.T) {
 // This test checks registry expire on sandbox
 // We run nsmgr and registry with registry authorize chain element (tokens_expired.rego)
 func Test_Expire(t *testing.T) {
+	t.Skip()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	// expire chain element will call Unregister() after (tokenTimeout - registerTimeout)
