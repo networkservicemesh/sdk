@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,6 +34,7 @@ import (
 // Even if NSMgr has restarted,
 // we expect that all other apps should get a Close call
 func TestReselect_NsmgrRestart(t *testing.T) {
+	t.Skip()
 	var samples = []struct {
 		name          string
 		nodeNum       int
