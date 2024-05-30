@@ -130,7 +130,7 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 		}
 	}
 
-	if p, ok := peer.FromContext(ctx); ok && *p != (peer.Peer{}) {
+	if p, ok := peer.FromContext(ctx); ok && p != nil && *p != (peer.Peer{}) {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err
 		}
