@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,9 +24,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
-
-	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceconcise"
-	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceverbose"
 )
 
 type traceNetworkServiceEndpointRegistryClient struct {
@@ -36,10 +33,7 @@ type traceNetworkServiceEndpointRegistryClient struct {
 
 // NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing
 func NewNetworkServiceEndpointRegistryClient(traced registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
-	return &traceNetworkServiceEndpointRegistryClient{
-		verbose: traceverbose.NewNetworkServiceEndpointRegistryClient(traced),
-		concise: traceconcise.NewNetworkServiceEndpointRegistryClient(traced),
-	}
+	return traced
 }
 
 func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
@@ -69,10 +63,7 @@ type traceNetworkServiceEndpointRegistryServer struct {
 
 // NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing
 func NewNetworkServiceEndpointRegistryServer(traced registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
-	return &traceNetworkServiceEndpointRegistryServer{
-		verbose: traceverbose.NewNetworkServiceEndpointRegistryServer(traced),
-		concise: traceconcise.NewNetworkServiceEndpointRegistryServer(traced),
-	}
+	return traced
 }
 
 func (t *traceNetworkServiceEndpointRegistryServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {

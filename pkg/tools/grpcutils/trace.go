@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco Systems, Inc.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,7 +20,6 @@ package grpcutils
 
 import (
 	"context"
-	"strconv"
 
 	"google.golang.org/grpc/metadata"
 )
@@ -43,30 +44,31 @@ const (
 
 // TraceFromContext - checks if incoming metadata allows traces
 func TraceFromContext(ctx context.Context) TraceState {
-	md, ok := metadata.FromIncomingContext(ctx)
-	if ok {
-		values := md.Get(grpcTraceKey)
-		if len(values) > 0 {
-			val, err := strconv.Atoi(values[len(values)-1])
-			if err != nil {
-				return TraceUndefined
-			}
-			return TraceState(val)
-		}
-	}
+	// md, ok := metadata.FromIncomingContext(ctx)
+	// if ok {
+	// 	values := md.Get(grpcTraceKey)
+	// 	if len(values) > 0 {
+	// 		val, err := strconv.Atoi(values[len(values)-1])
+	// 		if err != nil {
+	// 			return TraceUndefined
+	// 		}
+	// 		return TraceState(val)
+	// 	}
+	// }
 	return TraceUndefined
 }
 
 // WithTrace - enable/disable traces for outgoing context
 func WithTrace(ctx context.Context, state TraceState) context.Context {
-	return metadata.AppendToOutgoingContext(ctx, grpcTraceKey, strconv.Itoa(int(state)))
+	// return metadata.AppendToOutgoingContext(ctx, grpcTraceKey, strconv.Itoa(int(state)))
+	return ctx
 }
 
 // PassTraceToOutgoing - passes trace state from incoming to outgoing context
 func PassTraceToOutgoing(ctx context.Context) context.Context {
-	if !hasOutgoingTrace(ctx) {
-		return WithTrace(ctx, TraceFromContext(ctx))
-	}
+	// if !hasOutgoingTrace(ctx) {
+	// 	return WithTrace(ctx, TraceFromContext(ctx))
+	// }
 	return ctx
 }
 
