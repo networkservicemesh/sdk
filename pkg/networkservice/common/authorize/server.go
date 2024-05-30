@@ -129,7 +129,7 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 			a.spiffeIDConnectionMap.Store(spiffeID, ids)
 		}
 	}
-	if _, ok := peer.FromContext(ctx); ok {
+	if p, ok := peer.FromContext(ctx); ok && p.AuthInfo != nil {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err
 		}
