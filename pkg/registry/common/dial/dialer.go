@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -76,7 +76,7 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	}
 	di.ClientConn = cc
 
-	di.cleanupContext, di.cleanupCancel = context.WithCancel(di.ctx)
+	di.cleanupContext, di.cleanupCancel = context.WithTimeout(di.ctx, time.Minute*5)
 
 	go func(cleanupContext context.Context, cc *grpc.ClientConn) {
 		<-cleanupContext.Done()
