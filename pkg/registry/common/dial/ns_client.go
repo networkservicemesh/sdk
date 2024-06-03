@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -149,8 +149,18 @@ func (c *dialNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuer
 		return nil, err
 	}
 
+	var stopContext, stopCancel = context.WithTimeout(resp.Context(), time.Minute/4)
+	if in.Watch {
+		stopContext = resp.Context()
+	}
+	cleanupFn = func() {
+		stopCancel()
+		clientconn.Delete(ctx)
+		_ = di.Close()
+	}
+
 	go func() {
-		<-resp.Context().Done()
+		<-stopContext.Done()
 		cleanupFn()
 	}()
 
