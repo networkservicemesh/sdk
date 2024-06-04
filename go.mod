@@ -8,7 +8,7 @@ require (
 	github.com/benbjohnson/clock v1.3.0
 	github.com/edwarnicke/exechelper v1.0.2
 	github.com/edwarnicke/genericsync v0.0.0-20220910010113-61a344f9bc29
-	github.com/edwarnicke/grpcfd v1.1.2
+	github.com/edwarnicke/grpcfd v1.1.4
 	github.com/edwarnicke/serialize v1.0.7
 	github.com/fsnotify/fsnotify v1.5.4
 	github.com/ghodss/yaml v1.0.0

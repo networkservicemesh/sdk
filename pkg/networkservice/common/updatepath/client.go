@@ -56,8 +56,15 @@ func (i *updatePathClient) Request(ctx context.Context, request *networkservice.
 		return nil, err
 	}
 
-	conn.Id = conn.Path.PathSegments[index].Id
-	conn.Path.Index = index
+	segments := conn.GetPath().GetPathSegments()
+	if segments != nil && len(segments) > int(index) {
+		conn.Id = segments[index].Id
+	}
+
+	path := conn.GetPath()
+	if path != nil {
+		path.Index = index
+	}
 
 	return conn, nil
 }

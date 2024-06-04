@@ -79,14 +79,16 @@ func (cev *eventLoop) eventLoop() {
 		if err != nil {
 			// If we get an error, we've lost our connection... Send Down update
 			connOut := cev.conn.Clone()
-			connOut.State = networkservice.State_DOWN
-			eventOut := &networkservice.ConnectionEvent{
-				Type: networkservice.ConnectionEventType_UPDATE,
-				Connections: map[string]*networkservice.Connection{
-					cev.conn.GetId(): connOut,
-				},
+			if connOut != nil {
+				connOut.State = networkservice.State_DOWN
+				eventOut := &networkservice.ConnectionEvent{
+					Type: networkservice.ConnectionEventType_UPDATE,
+					Connections: map[string]*networkservice.Connection{
+						cev.conn.GetId(): connOut,
+					},
+				}
+				_ = cev.eventConsumer.Send(eventOut)
 			}
-			_ = cev.eventConsumer.Send(eventOut)
 			return
 		}
 		_ = cev.eventConsumer.Send(eventIn)
