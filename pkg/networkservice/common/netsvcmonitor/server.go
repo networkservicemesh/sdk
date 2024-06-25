@@ -57,23 +57,24 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 		return resp, err
 	}
 
-	var monitorCtx, cancel = context.WithCancel(m.chainCtx)
+	monitorCtx, cancel := context.WithCancel(m.chainCtx)
+	minT := time.Time{}
 
-	if len(resp.GetPath().GetPathSegments()) > 0 {
-		var minT = resp.GetPath().GetPathSegments()[0].Expires.AsTime().Local()
-		for _, seg := range resp.GetPath().GetPathSegments() {
-			var t = seg.Expires.AsTime().Local()
-			if minT.Before(t) {
-				minT = t
-			}
+	for _, seg := range resp.GetPath().GetPathSegments() {
+		var t = seg.Expires.AsTime().Local()
+		if minT.Before(t) || minT.IsZero() {
+			minT = t
 		}
+	}
+
+	if !minT.IsZero() {
 		cancel()
 		monitorCtx, cancel = context.WithTimeout(m.chainCtx, time.Until(minT))
 	}
 
 	storeCancelFunction(ctx, cancel)
 
-	go m.monitorNetworkService(monitorCtx, resp.Clone())
+	go m.monitorNetworkService(monitorCtx, resp.Clone(), begin.FromContext(ctx))
 
 	return resp, err
 }
@@ -86,14 +87,14 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, resp *networkservice.Connection) {
+func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, conn *networkservice.Connection, factory begin.EventFactory) {
 	var logger = log.FromContext(monitorCtx).WithField("monitorServer", "Find")
 	for ; monitorCtx.Err() == nil; time.Sleep(time.Millisecond * 100) {
 		// nolint:govet
 		var stream, err = m.nsClient.Find(monitorCtx, &registry.NetworkServiceQuery{
 			Watch: true,
 			NetworkService: &registry.NetworkService{
-				Name: resp.GetNetworkService(),
+				Name: conn.GetNetworkService(),
 			},
 		})
 		if err != nil {
@@ -116,7 +117,7 @@ func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, resp *
 
 				nseStream, err := m.nseClient.Find(monitorCtx, &registry.NetworkServiceEndpointQuery{
 					NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-						Name: resp.GetNetworkServiceEndpointName(),
+						Name: conn.GetNetworkServiceEndpointName(),
 					},
 				})
 				if err != nil {
@@ -130,9 +131,9 @@ func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, resp *
 					continue
 				}
 
-				if len(matchutils.MatchEndpoint(resp.GetLabels(), netsvc.GetNetworkService(), nses...)) == 0 {
-					begin.FromContext(monitorCtx).Close()
-					logger.Warnf("nse %v doesn't match with networkservice: %v", resp.GetNetworkServiceEndpointName(), resp.GetNetworkService())
+				if len(matchutils.MatchEndpoint(conn.GetLabels(), netsvc.GetNetworkService(), nses...)) == 0 {
+					factory.Close()
+					logger.Warnf("nse %v doesn't match with networkservice: %v", conn.GetNetworkServiceEndpointName(), conn.GetNetworkService())
 					return
 				}
 			}
