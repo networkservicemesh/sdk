@@ -1,5 +1,7 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,6 +23,7 @@ package recvfd_test
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"os"
 	"path"
@@ -31,8 +34,10 @@ import (
 	"github.com/edwarnicke/grpcfd"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/peer"
 
 	registryserver "github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
@@ -155,4 +160,60 @@ func TestNseRecvfdServerClosesFile(t *testing.T) {
 		runtime.GC()
 		return fileClosedContext.Err() != nil
 	}, time.Second, time.Millisecond*100)
+}
+
+type myFDTransceiver struct {
+	net.Addr
+	ch chan *os.File
+}
+
+func (f *myFDTransceiver) RecvFD(dev, inode uint64) <-chan uintptr {
+	return nil
+}
+func (f *myFDTransceiver) RecvFile(dev, ino uint64) <-chan *os.File {
+	return nil
+}
+func (f *myFDTransceiver) RecvFileByURL(urlStr string) (<-chan *os.File, error) {
+	return f.ch, nil
+}
+
+func (f *myFDTransceiver) SendFD(fd uintptr) <-chan error {
+	return nil
+}
+func (f *myFDTransceiver) SendFile(file grpcfd.SyscallConn) <-chan error {
+	return nil
+}
+func (f *myFDTransceiver) SendFilename(filename string) <-chan error {
+	return nil
+}
+
+var _ grpcfd.FDTransceiver = (*myFDTransceiver)(nil)
+
+func (f *myFDTransceiver) RecvFDByURL(urlStr string) (<-chan uintptr, error) {
+	return nil, nil
+}
+
+func TestNseRecvfdServer_ClosesFile(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	f := myFDTransceiver{ch: make(chan *os.File)}
+	p := peer.Peer{
+		Addr: &f,
+	}
+	s := registryrecvfd.NewNetworkServiceEndpointRegistryServer()
+
+	defer cancel()
+
+	go func() {
+		time.Sleep(time.Second / 2)
+		close(f.ch)
+	}()
+
+	ctx = peer.NewContext(ctx, &p)
+
+	_, _ = s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "test", Url: "inode://proc/1/fd/1"})
+	_, _ = s.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "test", Url: "inode://proc/1/fd/1"})
 }
