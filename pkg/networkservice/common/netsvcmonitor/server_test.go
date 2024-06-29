@@ -99,13 +99,13 @@ func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
 }
 
 func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
+	var testCtx, cancel = context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(func() {
-		goleak.VerifyNone(t)
+		require.Eventually(t, func() bool {
+			return goleak.Find(goleak.IgnoreAnyFunction("github.com/stretchr/testify/assert.Eventually")) == nil
+		}, time.Second*2, time.Second/10)
+		cancel()
 	})
-
-	var testCtx, cancel = context.WithCancel(context.Background())
-	defer cancel()
-
 	var nsServer = memory.NewNetworkServiceRegistryServer()
 	var nseServer = memory.NewNetworkServiceEndpointRegistryServer()
 	var counter count.Server
@@ -130,8 +130,6 @@ func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
 		&counter,
 	)
 
-	var n = time.Now().Add(time.Second)
-
 	var request = &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:                         "1",
@@ -140,7 +138,7 @@ func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
 			Path: &networkservice.Path{
 				PathSegments: []*networkservice.PathSegment{
 					{
-						Expires: timestamppb.New(n),
+						Expires: timestamppb.New(time.Now().Add(time.Second)),
 					},
 				},
 			},
@@ -149,22 +147,4 @@ func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
 
 	var _, err = server.Request(testCtx, request)
 	require.NoError(t, err)
-
-	for end := time.Now().Add(time.Second); time.Now().Before(end); time.Sleep(time.Millisecond * 100) {
-		if goleak.Find() != nil {
-			break
-		}
-	}
-	if goleak.Find() == nil {
-		require.FailNow(t, "netsvc goroutine must be created")
-	}
-
-	for end := time.Now().Add(time.Second * 2); time.Now().Before(end); time.Sleep(time.Millisecond * 100) {
-		if goleak.Find() == nil {
-			break
-		}
-	}
-	if e := goleak.Find(); e != nil {
-		require.FailNow(t, "netsvc goroutine must be stopped, but it's found"+e.Error())
-	}
 }

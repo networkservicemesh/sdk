@@ -62,7 +62,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 
 	for _, seg := range resp.GetPath().GetPathSegments() {
 		var t = seg.Expires.AsTime().Local()
-		if minT.Before(t) || minT.IsZero() {
+		if minT.After(t) || minT.IsZero() {
 			minT = t
 		}
 	}
