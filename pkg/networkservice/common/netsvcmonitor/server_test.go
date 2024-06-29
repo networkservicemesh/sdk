@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco Systems, Inc.
+// Copyright (c) 2023-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,6 +25,8 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/goleak"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/netsvcmonitor"
@@ -36,6 +38,10 @@ import (
 )
 
 func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
+	t.Cleanup(func() {
+		goleak.VerifyNone(t)
+	})
+
 	var testCtx, cancel = context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
@@ -90,4 +96,55 @@ func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
 	require.Never(t, func() bool {
 		return counter.Closes() > 0
 	}, time.Millisecond*300, time.Millisecond*50)
+}
+
+func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
+	var testCtx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	t.Cleanup(func() {
+		require.Eventually(t, func() bool {
+			return goleak.Find(goleak.IgnoreAnyFunction("github.com/stretchr/testify/assert.Eventually")) == nil
+		}, time.Second*2, time.Second/10)
+		cancel()
+	})
+	var nsServer = memory.NewNetworkServiceRegistryServer()
+	var nseServer = memory.NewNetworkServiceEndpointRegistryServer()
+	var counter count.Server
+
+	_, _ = nsServer.Register(context.Background(), &registry.NetworkService{
+		Name: "service-1",
+	})
+
+	_, _ = nseServer.Register(context.Background(), &registry.NetworkServiceEndpoint{
+		Name:                "endpoint-1",
+		NetworkServiceNames: []string{"service-1"},
+	})
+
+	var server = chain.NewNetworkServiceServer(
+		metadata.NewServer(),
+		begin.NewServer(),
+		netsvcmonitor.NewServer(
+			testCtx,
+			adapters.NetworkServiceServerToClient(nsServer),
+			adapters.NetworkServiceEndpointServerToClient(nseServer),
+		),
+		&counter,
+	)
+
+	var request = &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id:                         "1",
+			NetworkService:             "service-1",
+			NetworkServiceEndpointName: "endpoint-1",
+			Path: &networkservice.Path{
+				PathSegments: []*networkservice.PathSegment{
+					{
+						Expires: timestamppb.New(time.Now().Add(time.Second)),
+					},
+				},
+			},
+		},
+	}
+
+	var _, err = server.Request(testCtx, request)
+	require.NoError(t, err)
 }
