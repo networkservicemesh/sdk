@@ -170,7 +170,6 @@ func recvFDAndSwapInodeToUnix(ctx context.Context, fileMap *perEndpointFileMap, 
 				return
 			case file, ok = <-fileCh:
 				if !ok {
-					delete(fileMap.filesByInodeURL, inodeURL.String())
 					err = errors.New("files channel was closed")
 					return
 				}
