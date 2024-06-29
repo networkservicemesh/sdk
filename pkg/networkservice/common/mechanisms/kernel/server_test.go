@@ -80,7 +80,8 @@ func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
 	s := kernel.NewServer()
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			Mechanism: kernelmech.New(""),
+			Mechanism:      kernelmech.New(""),
+			NetworkService: "nsm-dfs422343tsdf543",
 		},
 	}
 
@@ -102,7 +103,7 @@ func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
 }
 
 func TestKernelMechanismServer_FailedToGenerateRandomName(t *testing.T) {
-	s := kernel.NewServer(kernel.WithInterfaceNameGenerator(func() (string, error) {
+	s := kernel.NewServer(kernel.WithInterfaceNameGenerator(func(_ string) (string, error) {
 		return "", errors.New("failed to generate bytes")
 	}))
 	req := &networkservice.NetworkServiceRequest{

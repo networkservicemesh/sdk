@@ -81,7 +81,7 @@ func TestKernelMechanismClient_ShouldSetValidNetNSURL(t *testing.T) {
 
 func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
 	c := kernel.NewClient()
-	req := &networkservice.NetworkServiceRequest{}
+	req := &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{NetworkService: "nsm"}}
 
 	_, err := c.Request(context.Background(), req)
 	require.NoError(t, err)
@@ -96,7 +96,7 @@ func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
 }
 
 func TestKernelMechanismClient_FailedToGenerateRandomName(t *testing.T) {
-	c := kernel.NewClient(kernel.WithInterfaceNameGenerator(func() (string, error) {
+	c := kernel.NewClient(kernel.WithInterfaceNameGenerator(func(_ string) (string, error) {
 		return "", errors.New("failed to generate bytes")
 	}))
 	req := &networkservice.NetworkServiceRequest{}
