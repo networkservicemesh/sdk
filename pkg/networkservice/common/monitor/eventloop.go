@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,8 +20,9 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type eventLoop struct {
@@ -32,11 +33,11 @@ type eventLoop struct {
 	cc            grpc.ClientConnInterface
 }
 
-func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInterface, conn *networkservice.Connection) (context.CancelFunc, error) {
+func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInterface, conn *networkservice.Connection) context.CancelFunc {
 	conn = conn.Clone()
 	// Is another chain element asking for events?  If not, no need to monitor
 	if ec == nil {
-		return func() {}, nil
+		return func() {}
 	}
 
 	// Create new eventLoopCtx and store its eventLoopCancel
@@ -53,7 +54,7 @@ func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInter
 
 	// Start the eventLoop
 	go cev.eventLoop()
-	return eventLoopCancel, nil
+	return eventLoopCancel
 }
 
 func (cev *eventLoop) eventLoop() {
