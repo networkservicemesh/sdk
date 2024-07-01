@@ -22,19 +22,17 @@ import (
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 )
 
-const (
-	ifPrefix = "nsm"
-)
-
 // GenerateLinuxInterfaceName - returns a random interface name with "nsm" prefix
 // to achieve a 1% chance of name collision, you need to generate approximately 68 billon names
-func GenerateLinuxInterfaceName() (string, error) {
-	ifIDLen := kernelmech.LinuxIfMaxLength - len(ifPrefix)
+func GenerateLinuxInterfaceName(ns string) (string, error) {
+	maxServiceName := kernelmech.LinuxIfMaxLength - 5
+	if len(ns) > maxServiceName {
+		ns = ns[:maxServiceName]
+	}
+	ifIDLen := kernelmech.LinuxIfMaxLength - len(ns) - 1
 	id, err := GenerateString(ifIDLen)
 	if err != nil {
 		return "", err
 	}
-	name := fmt.Sprintf("%s%s", ifPrefix, id)
-
-	return name, nil
+	return fmt.Sprintf("%v-%v", ns, id), nil
 }

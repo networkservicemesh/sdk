@@ -20,7 +20,7 @@ package kernel
 
 type options struct {
 	interfaceName          string
-	interfaceNameGenerator func() (string, error)
+	interfaceNameGenerator func(ns string) (string, error)
 }
 
 // Option is an option pattern for kernelMechanismClient/Server
@@ -34,7 +34,7 @@ func WithInterfaceName(interfaceName string) Option {
 }
 
 // WithInterfaceNameGenerator sets a generator for generating random interface names
-func WithInterfaceNameGenerator(generator func() (string, error)) Option {
+func WithInterfaceNameGenerator(generator func(ns string) (string, error)) Option {
 	return func(o *options) {
 		o.interfaceNameGenerator = generator
 	}

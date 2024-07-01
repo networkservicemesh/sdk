@@ -36,7 +36,7 @@ import (
 
 type kernelMechanismClient struct {
 	interfaceName          string
-	interfaceNameGenerator func() (string, error)
+	interfaceNameGenerator func(ns string) (string, error)
 }
 
 // NewClient - returns client that sets kernel preferred mechanism
@@ -70,7 +70,7 @@ func (k *kernelMechanismClient) manageMechanismPreferences(request *networkservi
 	var updated = false
 	for _, m := range request.GetRequestMechanismPreferences() {
 		if mechanism := kernelmech.ToMechanism(m); mechanism != nil {
-			if err := k.updateMechanism(mechanism); err != nil {
+			if err := k.updateMechanism(request.GetConnection().GetNetworkService(), mechanism); err != nil {
 				return err
 			}
 			mechanism.SetNetNSURL(netNSURL)
@@ -83,7 +83,7 @@ func (k *kernelMechanismClient) manageMechanismPreferences(request *networkservi
 	}
 
 	mechanism := kernelmech.ToMechanism(kernelmech.New(netNSURL))
-	if err := k.updateMechanism(mechanism); err != nil {
+	if err := k.updateMechanism(request.GetConnection().GetNetworkService(), mechanism); err != nil {
 		return err
 	}
 
@@ -91,12 +91,12 @@ func (k *kernelMechanismClient) manageMechanismPreferences(request *networkservi
 	return nil
 }
 
-func (k *kernelMechanismClient) updateMechanism(mechanism *kernelmech.Mechanism) error {
+func (k *kernelMechanismClient) updateMechanism(ns string, mechanism *kernelmech.Mechanism) error {
 	if mechanism.GetInterfaceName() == "" {
 		if k.interfaceName != "" {
 			mechanism.SetInterfaceName(k.interfaceName)
 		} else {
-			ifname, err := k.interfaceNameGenerator()
+			ifname, err := k.interfaceNameGenerator(ns)
 			if err != nil {
 				return errors.Wrap(err, "Failed to generate kernel interface name")
 			}

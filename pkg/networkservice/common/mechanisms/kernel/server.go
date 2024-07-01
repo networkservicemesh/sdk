@@ -34,7 +34,7 @@ import (
 
 type kernelMechanismServer struct {
 	interfaceName          string
-	interfaceNameGenerator func() (string, error)
+	interfaceNameGenerator func(string) (string, error)
 }
 
 // NewServer - creates a NetworkServiceServer that requests a kernel interface and populates the netns inode
@@ -58,7 +58,7 @@ func (m *kernelMechanismServer) Request(ctx context.Context, request *networkser
 			if m.interfaceName != "" {
 				mechanism.SetInterfaceName(m.interfaceName)
 			} else {
-				ifname, err := m.interfaceNameGenerator()
+				ifname, err := m.interfaceNameGenerator(request.GetConnection().GetNetworkService())
 				if err != nil {
 					return nil, errors.Wrap(err, "Failed to generate kernel interface name")
 				}
