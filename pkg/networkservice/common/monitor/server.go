@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2023 Cisco Systems, Inc.
-//
 // Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,11 +24,9 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
-	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -58,7 +56,6 @@ func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.Monito
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing eventLoop
 	cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m))
 	if loaded {
@@ -88,13 +85,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	// events through from, so start an eventLoop
 	cc, ccLoaded := clientconn.Load(ctx)
 	if ccLoaded {
-		cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(EventConsumer), cc, conn)
-		if eventLoopErr != nil {
-			closeCtx, closeCancel := closeCtxFunc()
-			defer closeCancel()
-			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
-			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
-		}
+		cancelEventLoop := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(EventConsumer), cc, conn)
 		store(ctx, metadata.IsClient(m), cancelEventLoop)
 	}
 
