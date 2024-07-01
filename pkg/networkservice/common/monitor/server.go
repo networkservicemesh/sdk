@@ -24,8 +24,11 @@ import (
 	"context"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
+	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
@@ -55,7 +58,7 @@ func NewServer(chainCtx context.Context, monitorServerPtr *networkservice.Monito
 }
 
 func (m *monitorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	// closeCtxFunc := postpone.ContextWithValues(ctx)
+	closeCtxFunc := postpone.ContextWithValues(ctx)
 	// Cancel any existing eventLoop
 	cancelEventLoop, loaded := loadAndDelete(ctx, metadata.IsClient(m))
 	if loaded {
@@ -83,20 +86,17 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 
 	// If we have a clientconn ... we must be part of a passthrough server, and have a client to pass
 	// events through from, so start an eventLoop
-	// cc, ccLoaded := clientconn.Load(ctx)
-	// log.FromContext(ctx).Infof("ccLoaded")
-	// if ccLoaded {
-	// 	log.FromContext(ctx).Infof("newEventLoop")
-	// 	cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(EventConsumer), cc, conn)
-	// 	if eventLoopErr != nil {
-	// 		closeCtx, closeCancel := closeCtxFunc()
-	// 		defer closeCancel()
-	// 		_, _ = next.Client(closeCtx).Close(closeCtx, conn)
-	// 		return nil, errors.Wrap(eventLoopErr, "unable to monitor")
-	// 	}
-	// 	log.FromContext(ctx).Infof("STORE")
-	// 	store(ctx, metadata.IsClient(m), cancelEventLoop)
-	// }
+	cc, ccLoaded := clientconn.Load(ctx)
+	if ccLoaded {
+		cancelEventLoop, eventLoopErr := newEventLoop(m.chainCtx, m.MonitorConnectionServer.(EventConsumer), cc, conn)
+		if eventLoopErr != nil {
+			closeCtx, closeCancel := closeCtxFunc()
+			defer closeCancel()
+			_, _ = next.Client(closeCtx).Close(closeCtx, conn)
+			return nil, errors.Wrap(eventLoopErr, "unable to monitor")
+		}
+		store(ctx, metadata.IsClient(m), cancelEventLoop)
+	}
 
 	return conn, nil
 }
