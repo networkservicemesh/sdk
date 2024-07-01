@@ -20,7 +20,7 @@ import (
 	"context"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/pkg/errors"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"google.golang.org/grpc"
 )
 
@@ -28,7 +28,8 @@ type eventLoop struct {
 	eventLoopCtx  context.Context
 	conn          *networkservice.Connection
 	eventConsumer EventConsumer
-	client        networkservice.MonitorConnection_MonitorConnectionsClient
+	cancel        func()
+	cc            grpc.ClientConnInterface
 }
 
 func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInterface, conn *networkservice.Connection) (context.CancelFunc, error) {
@@ -42,26 +43,12 @@ func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInter
 	eventLoopCtx, eventLoopCancel := context.WithCancel(ctx)
 
 	// Create selector to only ask for events related to our Connection
-	selector := &networkservice.MonitorScopeSelector{
-		PathSegments: []*networkservice.PathSegment{
-			{
-				Id:   conn.GetCurrentPathSegment().GetId(),
-				Name: conn.GetCurrentPathSegment().GetName(),
-			},
-		},
-	}
-
-	client, err := networkservice.NewMonitorConnectionClient(cc).MonitorConnections(eventLoopCtx, selector)
-	if err != nil {
-		eventLoopCancel()
-		return nil, errors.Wrap(err, "failed to get a MonitorConnections client")
-	}
-
 	cev := &eventLoop{
 		eventLoopCtx:  eventLoopCtx,
 		conn:          conn,
 		eventConsumer: ec,
-		client:        newClientFilter(client, conn),
+		cc:            cc,
+		cancel:        eventLoopCancel,
 	}
 
 	// Start the eventLoop
@@ -70,15 +57,40 @@ func newEventLoop(ctx context.Context, ec EventConsumer, cc grpc.ClientConnInter
 }
 
 func (cev *eventLoop) eventLoop() {
+	selector := &networkservice.MonitorScopeSelector{
+		PathSegments: []*networkservice.PathSegment{
+			{
+				Id:   cev.conn.GetCurrentPathSegment().GetId(),
+				Name: cev.conn.GetCurrentPathSegment().GetName(),
+			},
+		},
+	}
+
+	client, err := networkservice.NewMonitorConnectionClient(cev.cc).MonitorConnections(cev.eventLoopCtx, selector)
+	if err != nil {
+		log.FromContext(cev.eventLoopCtx).Infof("failed to get a MonitorConnections client: %s", err.Error())
+		cev.cancel()
+		return
+	}
+
+	if client == nil {
+		log.FromContext(cev.eventLoopCtx).Infof("failed to get a MonitorConnections client: client is nil")
+		cev.cancel()
+		return
+	}
+
+	filter := newClientFilter(client, cev.conn)
+
 	// So we have a client, and can receive events
 	for {
-		eventIn, err := cev.client.Recv()
+		eventIn, err := filter.Recv()
 		if cev.eventLoopCtx.Err() != nil {
 			return
 		}
-		if err != nil {
+
+		connOut := cev.conn.Clone()
+		if err != nil && connOut != nil {
 			// If we get an error, we've lost our connection... Send Down update
-			connOut := cev.conn.Clone()
 			connOut.State = networkservice.State_DOWN
 			eventOut := &networkservice.ConnectionEvent{
 				Type: networkservice.ConnectionEventType_UPDATE,
