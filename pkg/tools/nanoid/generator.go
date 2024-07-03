@@ -26,7 +26,7 @@ import (
 
 const (
 	// DefaultAlphabet is the default alphabet for the generator which can be used to generate kernel interface names
-	DefaultAlphabet = "!\"#$&'()*+,-.012456789;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+	DefaultAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 )
 
 type generatorOpts struct {
