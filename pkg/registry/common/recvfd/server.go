@@ -111,7 +111,7 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
-	if !ok {
+	if !ok || recv == nil {
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 	}
 	// Get the fileMap
@@ -168,7 +168,11 @@ func recvFDAndSwapInodeToUnix(ctx context.Context, fileMap *perEndpointFileMap, 
 			case <-ctx.Done():
 				err = errors.Wrap(ctx.Err(), "recvFDAndSwapInodeToUnix context is done")
 				return
-			case file = <-fileCh:
+			case file, ok = <-fileCh:
+				if !ok {
+					err = errors.New("files channel was closed")
+					return
+				}
 				// If we get the file, remember it in the fileMap so we can reuse it later
 				// Note: This is done because we want to present a single consistent filename to
 				// any of the other chain elements using the information, and since that filename will be
