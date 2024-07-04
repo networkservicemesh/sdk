@@ -38,7 +38,7 @@ func newClientFilter(client networkservice.MonitorConnection_MonitorConnectionsC
 func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 	for {
 		if c == nil || c.MonitorConnection_MonitorConnectionsClient == nil {
-			return nil, nil
+			return nil, errors.New("MonitorConnections cilent is nil")
 		}
 		eventIn, err := c.MonitorConnection_MonitorConnectionsClient.Recv()
 		if err != nil {

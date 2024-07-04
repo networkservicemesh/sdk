@@ -34,8 +34,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -207,6 +209,38 @@ func TestMonitorServer_RequestConnEqualsToMonitorConn(t *testing.T) {
 
 	_, err = nsc.Close(ctx, requestConn)
 	require.NoError(t, err)
+}
+
+func TestMonitorServer_Connection(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	cc, err := grpc.Dial("1.1.1.1:5000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	require.NotNil(t, cc)
+
+	// Create monitorServer, monitorClient, and server.
+	var monitorServer networkservice.MonitorConnectionServer
+	server := chain.NewNetworkServiceServer(
+		metadata.NewServer(),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			clientconn.Store(ctx, cc)
+		}),
+		monitor.NewServer(ctx, &monitorServer),
+	)
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{Id: "id"},
+	}
+
+	conn, err := server.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	monitorClient := adapters.NewMonitorServerToClient(monitorServer)
+	client, err := monitorClient.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{})
+	require.NoError(t, err)
+	require.NotNil(t, client)
 }
 
 type metricsServer struct{}
