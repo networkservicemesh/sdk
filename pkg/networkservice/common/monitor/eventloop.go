@@ -18,7 +18,6 @@ package monitor
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
@@ -67,9 +66,7 @@ func (cev *eventLoop) eventLoop() {
 		},
 	}
 
-	fmt.Println("Trying to connect to monitor")
 	client, err := networkservice.NewMonitorConnectionClient(cev.cc).MonitorConnections(cev.eventLoopCtx, selector)
-	fmt.Println("connected (maybe)")
 	if err != nil {
 		log.FromContext(cev.eventLoopCtx).Infof("failed to get a MonitorConnections client: %s", err.Error())
 		cev.cancel()
