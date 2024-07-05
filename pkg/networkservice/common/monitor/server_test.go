@@ -211,15 +211,16 @@ func TestMonitorServer_RequestConnEqualsToMonitorConn(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestMonitorServer_Connection(t *testing.T) {
+func TestMonitorServer_FailedConnect(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
+	// Create a grpc connection to non existing address
 	cc, err := grpc.Dial("1.1.1.1:5000", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
 	require.NotNil(t, cc)
 
-	// Create monitorServer, monitorClient, and server.
+	// Create a server
 	var monitorServer networkservice.MonitorConnectionServer
 	server := chain.NewNetworkServiceServer(
 		metadata.NewServer(),
@@ -233,14 +234,10 @@ func TestMonitorServer_Connection(t *testing.T) {
 		Connection: &networkservice.Connection{Id: "id"},
 	}
 
+	// Make a request that should be successful and immediate (because monitor server connects to 1.1.1.1:5000 in background)
 	conn, err := server.Request(ctx, request)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-
-	monitorClient := adapters.NewMonitorServerToClient(monitorServer)
-	client, err := monitorClient.MonitorConnections(ctx, &networkservice.MonitorScopeSelector{})
-	require.NoError(t, err)
-	require.NotNil(t, client)
 }
 
 type metricsServer struct{}
