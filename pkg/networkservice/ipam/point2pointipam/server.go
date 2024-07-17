@@ -139,14 +139,18 @@ func (s *ipamServer) recoverAddrs(srcAddrs, dstAddrs []string, excludeIP4, exclu
 	}
 	for _, ipPool := range s.ipPools {
 		var srcAddr, dstAddr *net.IPNet
-		for _, addr := range srcAddrs {
+		for i, addr := range srcAddrs {
 			if srcAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
 				break
+			} else {
+				srcAddrs = append(srcAddrs[:i], srcAddrs[i+1:]...)
 			}
 		}
-		for _, addr := range dstAddrs {
+		for i, addr := range dstAddrs {
 			if dstAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
 				break
+			} else {
+				dstAddrs = append(dstAddrs[:i], dstAddrs[i+1:]...)
 			}
 		}
 		if srcAddr != nil && dstAddr != nil {
