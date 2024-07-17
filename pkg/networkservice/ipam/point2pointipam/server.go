@@ -142,7 +142,6 @@ func (s *ipamServer) recoverAddrs(srcAddrs, dstAddrs []string, excludeIP4, exclu
 	for _, ipPool := range s.ipPools {
 		var srcAddr, dstAddr *net.IPNet
 		for i, addr := range srcAddrs {
-
 			if srcAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
 				break
 			} else {
