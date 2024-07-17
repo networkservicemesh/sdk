@@ -238,6 +238,10 @@ func (tree *IPPool) PullIPString(ipString string, exclude ...*IPPool) (*net.IPNe
 		return nil, errors.Wrapf(err, "failed to parse %s as a CIDR", ipString)
 	}
 
+	if len(ip) != tree.ipLength {
+		return nil, errors.Errorf("length of %s is not equal to tree's ip length", ipString)
+	}
+
 	return tree.PullIP(ip, exclude...)
 }
 

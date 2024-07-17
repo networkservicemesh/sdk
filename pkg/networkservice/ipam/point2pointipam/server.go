@@ -116,6 +116,8 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 		s.Store(conn.GetId(), connInfo)
 	}
 
+	ipContext = &networkservice.IPContext{}
+
 	addAddr(&ipContext.SrcIpAddrs, connInfo.srcAddr)
 	addRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 
@@ -140,6 +142,7 @@ func (s *ipamServer) recoverAddrs(srcAddrs, dstAddrs []string, excludeIP4, exclu
 	for _, ipPool := range s.ipPools {
 		var srcAddr, dstAddr *net.IPNet
 		for i, addr := range srcAddrs {
+
 			if srcAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
 				break
 			} else {
