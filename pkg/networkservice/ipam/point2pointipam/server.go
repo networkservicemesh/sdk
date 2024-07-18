@@ -95,6 +95,8 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 
 	excludeIP4, excludeIP6 := exclude(ipContext.GetExcludedPrefixes()...)
 
+	s.validateIPContext(ipContext, excludeIP4, excludeIP6)
+
 	connInfo, loaded := s.Load(conn.GetId())
 	var err error
 	if loaded && (connInfo.shouldUpdate(excludeIP4) || connInfo.shouldUpdate(excludeIP6)) {
@@ -116,8 +118,6 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 		s.Store(conn.GetId(), connInfo)
 	}
 
-	ipContext = &networkservice.IPContext{}
-
 	addAddr(&ipContext.SrcIpAddrs, connInfo.srcAddr)
 	addRoute(&ipContext.SrcRoutes, connInfo.dstAddr)
 
@@ -135,25 +135,37 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	return conn, nil
 }
 
+func (s *ipamServer) validateIPContext(ipContext *networkservice.IPContext, excludeIP4, excludeIP6 *ippool.IPPool) {
+	for _, ipPool := range s.ipPools {
+		for _, addr := range ipContext.SrcIpAddrs {
+			if _, err := ipPool.PullIPString(addr, excludeIP4, excludeIP6); err != nil && ipPool.Belongs(addr) {
+				deleteAddr(&ipContext.SrcIpAddrs, addr)
+				deleteRoute(&ipContext.DstRoutes, addr)
+			}
+		}
+		for _, addr := range ipContext.DstIpAddrs {
+			if _, err := ipPool.PullIPString(addr, excludeIP4, excludeIP6); err != nil && ipPool.Belongs(addr) {
+				deleteAddr(&ipContext.DstIpAddrs, addr)
+				deleteRoute(&ipContext.SrcRoutes, addr)
+			}
+		}
+	}
+}
+
 func (s *ipamServer) recoverAddrs(srcAddrs, dstAddrs []string, excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {
 	if len(srcAddrs) == 0 || len(dstAddrs) == 0 {
 		return nil, errors.New("addresses cannot be empty for recovery")
 	}
 	for _, ipPool := range s.ipPools {
 		var srcAddr, dstAddr *net.IPNet
-		for i, addr := range srcAddrs {
-
+		for _, addr := range srcAddrs {
 			if srcAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
 				break
-			} else {
-				srcAddrs = append(srcAddrs[:i], srcAddrs[i+1:]...)
 			}
 		}
-		for i, addr := range dstAddrs {
+		for _, addr := range dstAddrs {
 			if dstAddr, err = ipPool.PullIPString(addr, excludeIP4, excludeIP6); err == nil {
 				break
-			} else {
-				dstAddrs = append(dstAddrs[:i], dstAddrs[i+1:]...)
 			}
 		}
 		if srcAddr != nil && dstAddr != nil {
