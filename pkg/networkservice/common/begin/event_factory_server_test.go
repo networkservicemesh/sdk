@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -142,7 +142,7 @@ func TestContextTimeout_Server(t *testing.T) {
 	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
-	ctx, cancel = context.WithDeadline(ctx, clockMock.Now().Add(time.Second*3))
+	ctx, cancel = context.WithTimeout(ctx, time.Second*3)
 	defer cancel()
 
 	eventFactoryServ := &eventFactoryServer{}
