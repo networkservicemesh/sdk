@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -55,7 +55,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			},
 		),
 	)
-	<-eventFactoryServer.executor.AsyncExec(func() {
+	select {
+	case <-eventFactoryServer.executor.AsyncExec(func() {
 		currentEventFactoryServer, _ := b.Load(request.GetConnection().GetId())
 		if currentEventFactoryServer != eventFactoryServer {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
@@ -93,7 +94,12 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 
 		eventFactoryServer.returnedConnection = conn.Clone()
 		eventFactoryServer.updateContext(ctx)
-	})
+	}):
+	case <-ctx.Done():
+		b.Delete(conn.GetId())
+		return nil, ctx.Err()
+	}
+
 	return conn, err
 }
 
@@ -107,7 +113,9 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		// If we don't have a connection to Close, just let it be
 		return &emptypb.Empty{}, nil
 	}
-	<-eventFactoryServer.executor.AsyncExec(func() {
+
+	select {
+	case <-eventFactoryServer.executor.AsyncExec(func() {
 		if eventFactoryServer.state != established || eventFactoryServer.request == nil {
 			return
 		}
@@ -120,6 +128,10 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		emp, err = next.Server(withEventFactoryCtx).Close(withEventFactoryCtx, conn)
 		eventFactoryServer.afterCloseFunc()
-	})
-	return &emptypb.Empty{}, err
+	}):
+		return &emptypb.Empty{}, err
+	case <-ctx.Done():
+		b.Delete(conn.GetId())
+		return nil, ctx.Err()
+	}
 }
