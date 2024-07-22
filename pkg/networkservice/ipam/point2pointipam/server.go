@@ -136,19 +136,29 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 }
 
 func (s *ipamServer) validateIPContext(ipContext *networkservice.IPContext, excludeIP4, excludeIP6 *ippool.IPPool) {
+	srcAddrsToDelete := make([]string, 0)
+	dstAddrsToDelete := make([]string, 0)
 	for _, ipPool := range s.ipPools {
 		for _, addr := range ipContext.SrcIpAddrs {
 			if _, err := ipPool.PullIPString(addr, excludeIP4, excludeIP6); err != nil && ipPool.Belongs(addr) {
-				deleteAddr(&ipContext.SrcIpAddrs, addr)
-				deleteRoute(&ipContext.DstRoutes, addr)
+				srcAddrsToDelete = append(srcAddrsToDelete, addr)
 			}
 		}
 		for _, addr := range ipContext.DstIpAddrs {
 			if _, err := ipPool.PullIPString(addr, excludeIP4, excludeIP6); err != nil && ipPool.Belongs(addr) {
-				deleteAddr(&ipContext.DstIpAddrs, addr)
-				deleteRoute(&ipContext.SrcRoutes, addr)
+				dstAddrsToDelete = append(dstAddrsToDelete, addr)
 			}
 		}
+	}
+
+	for _, addr := range srcAddrsToDelete {
+		deleteAddr(&ipContext.SrcIpAddrs, addr)
+		deleteRoute(&ipContext.DstRoutes, addr)
+	}
+
+	for _, addr := range dstAddrsToDelete {
+		deleteAddr(&ipContext.DstIpAddrs, addr)
+		deleteRoute(&ipContext.SrcRoutes, addr)
 	}
 }
 
