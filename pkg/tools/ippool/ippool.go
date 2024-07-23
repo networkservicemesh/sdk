@@ -22,7 +22,6 @@ package ippool
 import (
 	"math"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -335,15 +334,8 @@ func (tree *IPPool) GetPrefixes() []string {
 	return prefixes
 }
 
-func (tree *IPPool) Belongs(ipString string) bool {
-	if strings.Count(ipString, ":") < 2 && tree.ipLength == net.IPv4len {
-		return true
-	}
-	if strings.Count(ipString, ":") >= 2 && tree.ipLength == net.IPv6len {
-		return true
-	}
-
-	return false
+func (tree *IPPool) IPLength() int {
+	return tree.ipLength
 }
 
 func (tree *IPPool) excludePool(exclude *IPPool) {
