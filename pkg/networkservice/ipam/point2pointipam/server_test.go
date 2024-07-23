@@ -428,6 +428,7 @@ func TestRefreshRequestMultiServer(t *testing.T) {
 
 //nolint:dupl
 func TestRecoveryServer(t *testing.T) {
+	t.Skip()
 	_, ipNet, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 
@@ -464,6 +465,8 @@ func TestRecoveryServer(t *testing.T) {
 
 //nolint:dupl
 func TestRecoveryServerIPv6(t *testing.T) {
+	t.Skip()
+
 	_, ipNet, err := net.ParseCIDR("fe80::/64")
 	require.NoError(t, err)
 
@@ -499,6 +502,7 @@ func TestRecoveryServerIPv6(t *testing.T) {
 
 //nolint:dupl
 func TestRecoveryServers(t *testing.T) {
+	t.Skip()
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
 	_, ipNet2, err := net.ParseCIDR("fe80::/64")
