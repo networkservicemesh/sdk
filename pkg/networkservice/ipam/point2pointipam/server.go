@@ -22,6 +22,7 @@ package point2pointipam
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync"
 
 	"github.com/edwarnicke/genericsync"
@@ -135,28 +136,54 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	return conn, nil
 }
 
-func (s *ipamServer) validateIPContext(ipContext *networkservice.IPContext, excludeIP4, excludeIP6 *ippool.IPPool) {
-	srcAddrsToDelete := make([]string, 0)
-	dstAddrsToDelete := make([]string, 0)
-	for _, ipPool := range s.ipPools {
-		for _, addr := range ipContext.SrcIpAddrs {
-			if _, err := ipPool.PullIPString(addr, excludeIP4, excludeIP6); err != nil && ipPool.Belongs(addr) {
-				srcAddrsToDelete = append(srcAddrsToDelete, addr)
+func addrBelongsToIPPool(ipPool *ippool.IPPool, addr netip.Addr) bool {
+	ipLen := ipPool.IPLength()
+	return (ipLen == net.IPv4len && addr.Is4()) || (ipLen == net.IPv6len && addr.Is6())
+}
+
+func (s *ipamServer) getInvalidAddrs(addrs []string, excludeIP4, excludeIP6 *ippool.IPPool) []string {
+	invalidAddrs := make([]string, 0)
+	for _, ipString := range addrs {
+		ip, parseErr := netip.ParsePrefix(ipString)
+		if parseErr != nil {
+			invalidAddrs = append(invalidAddrs, ipString)
+			continue
+		}
+
+		versionMatches := false
+		for _, ipPool := range s.ipPools {
+			if addrBelongsToIPPool(ipPool, ip.Addr()) {
+				versionMatches = true
+				break
 			}
 		}
-		for _, addr := range ipContext.DstIpAddrs {
-			if _, err := ipPool.PullIPString(addr, excludeIP4, excludeIP6); err != nil && ipPool.Belongs(addr) {
-				dstAddrsToDelete = append(dstAddrsToDelete, addr)
+		if !versionMatches {
+			continue
+		}
+
+		valid := false
+		for _, ipPool := range s.ipPools {
+			if _, err := ipPool.PullIPString(ipString, excludeIP4, excludeIP6); err == nil {
+				valid = true
+				break
 			}
+		}
+
+		if !valid {
+			invalidAddrs = append(invalidAddrs, ipString)
 		}
 	}
 
-	for _, addr := range srcAddrsToDelete {
+	return invalidAddrs
+}
+
+func (s *ipamServer) validateIPContext(ipContext *networkservice.IPContext, excludeIP4, excludeIP6 *ippool.IPPool) {
+	for _, addr := range s.getInvalidAddrs(ipContext.SrcIpAddrs, excludeIP4, excludeIP6) {
 		deleteAddr(&ipContext.SrcIpAddrs, addr)
 		deleteRoute(&ipContext.DstRoutes, addr)
 	}
 
-	for _, addr := range dstAddrsToDelete {
+	for _, addr := range s.getInvalidAddrs(ipContext.DstIpAddrs, excludeIP4, excludeIP6) {
 		deleteAddr(&ipContext.DstIpAddrs, addr)
 		deleteRoute(&ipContext.SrcRoutes, addr)
 	}
