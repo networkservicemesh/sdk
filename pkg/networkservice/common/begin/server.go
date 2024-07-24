@@ -18,12 +18,14 @@ package begin
 
 import (
 	"context"
+	"time"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -96,7 +98,6 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		eventFactoryServer.updateContext(ctx)
 	}):
 	case <-ctx.Done():
-		b.Delete(conn.GetId())
 		return nil, ctx.Err()
 	}
 
@@ -123,15 +124,20 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		if currentServerClient != eventFactoryServer {
 			return
 		}
+
 		// Always close with the last valid EventFactory we got
 		conn = eventFactoryServer.request.Connection
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		emp, err = next.Server(withEventFactoryCtx).Close(withEventFactoryCtx, conn)
+
+		closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+		defer cancel()
+		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
+
+		emp, err = next.Server(closeCtx).Close(closeCtx, conn)
 		eventFactoryServer.afterCloseFunc()
 	}):
 		return &emptypb.Empty{}, err
 	case <-ctx.Done():
-		b.Delete(conn.GetId())
 		return nil, ctx.Err()
 	}
 }
