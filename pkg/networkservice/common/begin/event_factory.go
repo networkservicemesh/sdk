@@ -18,6 +18,7 @@ package begin
 
 import (
 	"context"
+	"time"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -139,9 +140,14 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
+			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+			defer cancel()
+
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			_, err := f.client.Close(ctx, f.request.GetConnection(), f.opts...)
+
+			closeCtx = extend.WithValuesFromContext(closeCtx, ctx)
+			_, err := f.client.Close(closeCtx, f.request.GetConnection(), f.opts...)
 			f.afterCloseFunc()
 			ch <- err
 		}
@@ -229,9 +235,13 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
+			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+			defer cancel()
+
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			_, err := f.server.Close(ctx, f.request.GetConnection())
+			closeCtx = extend.WithValuesFromContext(closeCtx, ctx)
+			_, err := f.server.Close(closeCtx, f.request.GetConnection())
 			f.afterCloseFunc()
 			ch <- err
 		}
