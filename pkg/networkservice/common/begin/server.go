@@ -79,9 +79,12 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryServer.state = closed
 			eventFactoryCtxCancel()
 		}
+		closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+		defer cancel()
 
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
+		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
+		conn, err = next.Server(closeCtx).Request(closeCtx, request)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed
@@ -124,15 +127,13 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		if currentServerClient != eventFactoryServer {
 			return
 		}
+		closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+		defer cancel()
 
 		// Always close with the last valid EventFactory we got
 		conn = eventFactoryServer.request.Connection
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-
-		closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
-		defer cancel()
 		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
-
 		emp, err = next.Server(closeCtx).Close(closeCtx, conn)
 		eventFactoryServer.afterCloseFunc()
 	}):
