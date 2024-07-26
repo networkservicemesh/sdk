@@ -140,7 +140,7 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
-			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 
 			ctx, cancel := f.ctxFunc()
@@ -235,7 +235,7 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
-			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 
 			ctx, cancel := f.ctxFunc()
