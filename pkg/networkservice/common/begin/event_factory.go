@@ -25,6 +25,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
@@ -140,14 +141,10 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
-			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
-
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
 
-			closeCtx = extend.WithValuesFromContext(closeCtx, ctx)
-			_, err := f.client.Close(closeCtx, f.request.GetConnection(), f.opts...)
+			_, err := f.client.Close(ctx, f.request.GetConnection(), f.opts...)
 			f.afterCloseFunc()
 			ch <- err
 		}
@@ -164,14 +161,16 @@ type eventFactoryServer struct {
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
+	closeTimeout       time.Duration
 	afterCloseFunc     func()
 	server             networkservice.NetworkServiceServer
 }
 
-func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
+func newEventFactoryServer(ctx context.Context, closeTimeout time.Duration, afterClose func()) *eventFactoryServer {
 	f := &eventFactoryServer{
 		server:         next.Server(ctx),
 		initialCtxFunc: postpone.Context(ctx),
+		closeTimeout:   closeTimeout,
 	}
 	f.updateContext(ctx)
 
@@ -235,11 +234,13 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 		select {
 		case <-o.cancelCtx.Done():
 		default:
-			closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
-			defer cancel()
-
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
+
+			clock := clock.FromContext(ctx)
+			closeCtx, cancel := clock.WithTimeout(context.Background(), f.closeTimeout)
+			defer cancel()
+
 			closeCtx = extend.WithValuesFromContext(closeCtx, ctx)
 			_, err := f.server.Close(closeCtx, f.request.GetConnection())
 			f.afterCloseFunc()
