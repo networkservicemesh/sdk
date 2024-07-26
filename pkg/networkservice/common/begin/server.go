@@ -31,13 +31,30 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
+const (
+	closeTimeout = time.Minute
+)
+
 type beginServer struct {
 	genericsync.Map[string, *eventFactoryServer]
+	closeTimeout time.Duration
 }
 
 // NewServer - creates a new begin chain element
-func NewServer() networkservice.NetworkServiceServer {
-	return &beginServer{}
+func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+	o := &option{
+		cancelCtx:    context.Background(),
+		reselect:     false,
+		closeTimeout: closeTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return &beginServer{
+		closeTimeout: o.closeTimeout,
+	}
 }
 
 func (b *beginServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
@@ -52,6 +69,7 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 	eventFactoryServer, _ := b.LoadOrStore(request.GetConnection().GetId(),
 		newEventFactoryServer(
 			ctx,
+			b.closeTimeout,
 			func() {
 				b.Delete(request.GetRequestConnection().GetId())
 			},
@@ -79,12 +97,9 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryServer.state = closed
 			eventFactoryCtxCancel()
 		}
-		closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
-		defer cancel()
 
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
-		conn, err = next.Server(closeCtx).Request(closeCtx, request)
+		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed
@@ -127,7 +142,7 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		if currentServerClient != eventFactoryServer {
 			return
 		}
-		closeCtx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		closeCtx, cancel := context.WithTimeout(context.Background(), b.closeTimeout)
 		defer cancel()
 
 		// Always close with the last valid EventFactory we got
