@@ -614,7 +614,6 @@ func createAuthorizedEndpoint(ctx context.Context, t *testing.T, ns string, nsmg
 }
 
 func Test_RestartDuringRefresh(t *testing.T) {
-	t.Skip()
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	var ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
