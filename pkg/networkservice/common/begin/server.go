@@ -18,6 +18,7 @@ package begin
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/edwarnicke/genericsync"
@@ -57,7 +58,10 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	}
 }
 
-func (b *beginServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
+func (b *beginServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	var conn *networkservice.Connection
+	var err error
+
 	// No connection.ID, no service
 	if request.GetConnection().GetId() == "" {
 		return nil, errors.New("request.EventFactory.Id must not be zero valued")
@@ -116,7 +120,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		eventFactoryServer.updateContext(ctx)
 	}):
 	case <-ctx.Done():
-		return nil, ctx.Err()
+		fmt.Println("test")
+		return nil, errors.New("deadline exceeded")
 	}
 
 	return conn, err
