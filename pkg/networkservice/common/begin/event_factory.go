@@ -237,8 +237,8 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
 
-			clock := clock.FromContext(ctx)
-			closeCtx, cancel := clock.WithTimeout(context.Background(), f.closeTimeout)
+			c := clock.FromContext(ctx)
+			closeCtx, cancel := c.WithTimeout(context.Background(), f.closeTimeout)
 			defer cancel()
 
 			closeCtx = extend.WithValuesFromContext(closeCtx, ctx)

@@ -19,8 +19,6 @@ package updatetoken
 
 import (
 	"context"
-	"runtime/debug"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -67,16 +65,6 @@ func (u *updateTokenServer) Request(ctx context.Context, request *networkservice
 }
 
 func (u *updateTokenServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	t, ok := ctx.Deadline()
-
-	log.FromContext(ctx).Infof("UPDATETOKEN time: %v, ok: %v", t, ok)
-	if ok {
-		dur := time.Until(t)
-		log.FromContext(ctx).Infof("UPDATETOKEN TIMEOUT: %v", dur)
-	}
-
-	debug.PrintStack()
-
 	if prev := conn.GetPrevPathSegment(); prev != nil {
 		var tok, expireTime, err = token.FromContext(ctx)
 
