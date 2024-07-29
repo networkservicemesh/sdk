@@ -18,7 +18,6 @@ package begin
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/edwarnicke/genericsync"
@@ -120,8 +119,7 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		eventFactoryServer.updateContext(ctx)
 	}):
 	case <-ctx.Done():
-		fmt.Println("test")
-		return nil, errors.New("deadline exceeded")
+		return nil, ctx.Err()
 	}
 
 	return conn, err
@@ -159,6 +157,7 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 	}):
 		return &emptypb.Empty{}, err
 	case <-ctx.Done():
+		b.Delete(conn.GetId())
 		return nil, ctx.Err()
 	}
 }
