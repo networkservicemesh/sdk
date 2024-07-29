@@ -50,10 +50,8 @@ jobs:
         "cmd-registry-proxy-dns",
         "cmd-nse-remote-vlan",
         "cmd-nse-vfio",
-        "cmd-nsc-init",
         "cmd-ipam-vl3",
         "cmd-map-ip-k8s",
-        "cmd-admission-webhook-k8s",
         "cmd-cluster-info-k8s",
         "cmd-csi-driver",
         "cmd-dashboard-backend"]
