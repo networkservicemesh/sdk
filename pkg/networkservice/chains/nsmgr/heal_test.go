@@ -30,6 +30,7 @@ import (
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -516,28 +517,17 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 }
 
 func TestNSMGR_CloseHeal(t *testing.T) {
-	var samples = []struct {
-		name              string
-		withNSEExpiration bool
-	}{
-		{
-			name: "Without NSE expiration",
-		},
-		{
-			name:              "With NSE expiration",
-			withNSEExpiration: true,
-		},
-	}
-
-	for _, sample := range samples {
-		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
-			testNSMGRCloseHeal(t, sample.withNSEExpiration)
-		})
-	}
+	t.Run("with nse token expiraiton", func(t *testing.T) {
+		// nolint:scopelint
+		testNSMGRCloseHeal(t, true)
+	})
+	t.Run("without nse token expiraiton", func(t *testing.T) {
+		// nolint:scopelint
+		testNSMGRCloseHeal(t, false)
+	})
 }
 
-func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
+func testNSMGRCloseHeal(t *testing.T, withTokenExpiration bool) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -556,11 +546,13 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 	require.NoError(t, err)
 
 	nseCtx, nseCtxCancel := context.WithTimeout(ctx, time.Second/2)
-	if withNSEExpiration {
+	if withTokenExpiration {
 		// NSE will be unregistered after (tokenTimeout - registerTimeout)
 		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateExpiringToken(time.Second))
 	} else {
-		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken)
+		var registration = defaultRegistryEndpoint(nsReg.Name)
+		registration.ExpirationTime = timestamppb.New(time.Now().Add(time.Second))
+		domain.Nodes[0].NewEndpoint(nseCtx, registration, sandbox.GenerateTestToken)
 	}
 
 	request := defaultRequest(nsReg.Name)
@@ -588,7 +580,7 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 	nseCtxCancel()
 	time.Sleep(100 * time.Millisecond)
 
-	if withNSEExpiration {
+	if withTokenExpiration {
 		// 3.1 Wait for the endpoint expiration
 		time.Sleep(time.Second)
 		c := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,

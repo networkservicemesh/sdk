@@ -1,6 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
-//
-// Copyright (c) 2021-2024 Cisco and/or its affiliates.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -16,18 +14,20 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//go:build !linux
-// +build !linux
-
 package recvfd
 
-import (
-	"github.com/networkservicemesh/api/pkg/api/registry"
+import "context"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
-)
+type options struct {
+	chainContext context.Context
+}
 
-// NewNetworkServiceEndpointRegistryClient - returns a new null client that does nothing but call next.NetworkServiceEndpointRegistryClient(ctx).
-func NewNetworkServiceEndpointRegistryClient(...Option) registry.NetworkServiceEndpointRegistryClient {
-	return null.NewNetworkServiceEndpointRegistryClient()
+// Option applies additional configuration for the recvfd chain element
+type Option func(*options)
+
+// WithChainContext sets chain context for the recvfd chain element that can be used to prevent goroutines leaks
+func WithChainContext(ctx context.Context) Option {
+	return func(rn *options) {
+		rn.chainContext = ctx
+	}
 }
