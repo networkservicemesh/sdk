@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2023 Cisco and/or its affiliates.
+// Copyright (c) 2020-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -34,8 +34,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	kernelmech "github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -207,6 +209,35 @@ func TestMonitorServer_RequestConnEqualsToMonitorConn(t *testing.T) {
 
 	_, err = nsc.Close(ctx, requestConn)
 	require.NoError(t, err)
+}
+
+func TestMonitorServer_FailedConnect(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	// Create a grpc connection to non existing address
+	cc, err := grpc.Dial("1.1.1.1:5000", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	require.NotNil(t, cc)
+
+	// Create a server
+	var monitorServer networkservice.MonitorConnectionServer
+	server := chain.NewNetworkServiceServer(
+		metadata.NewServer(),
+		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
+			clientconn.Store(ctx, cc)
+		}),
+		monitor.NewServer(ctx, &monitorServer),
+	)
+
+	request := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{Id: "id"},
+	}
+
+	// Make a request that should be successful and immediate (because monitor server connects to 1.1.1.1:5000 in background)
+	conn, err := server.Request(ctx, request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
 }
 
 type metricsServer struct{}
