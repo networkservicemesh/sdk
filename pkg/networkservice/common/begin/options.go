@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,11 +18,13 @@ package begin
 
 import (
 	"context"
+	"time"
 )
 
 type option struct {
-	cancelCtx context.Context
-	reselect  bool
+	cancelCtx    context.Context
+	reselect     bool
+	closeTimeout time.Duration
 }
 
 // Option - event option
@@ -39,5 +41,12 @@ func CancelContext(cancelCtx context.Context) Option {
 func WithReselect() Option {
 	return func(o *option) {
 		o.reselect = true
+	}
+}
+
+// WithCloseTimeout - set a custom timeout for a context in begin.Close
+func WithCloseTimeout(timeout time.Duration) Option {
+	return func(o *option) {
+		o.closeTimeout = timeout
 	}
 }

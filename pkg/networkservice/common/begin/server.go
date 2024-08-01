@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,27 +18,49 @@ package begin
 
 import (
 	"context"
+	"time"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
+const (
+	closeTimeout = time.Minute
+)
+
 type beginServer struct {
 	genericsync.Map[string, *eventFactoryServer]
+	closeTimeout time.Duration
 }
 
 // NewServer - creates a new begin chain element
-func NewServer() networkservice.NetworkServiceServer {
-	return &beginServer{}
+func NewServer(opts ...Option) networkservice.NetworkServiceServer {
+	o := &option{
+		cancelCtx:    context.Background(),
+		reselect:     false,
+		closeTimeout: closeTimeout,
+	}
+
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return &beginServer{
+		closeTimeout: o.closeTimeout,
+	}
 }
 
-func (b *beginServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
+func (b *beginServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	var conn *networkservice.Connection
+	var err error
+
 	// No connection.ID, no service
 	if request.GetConnection().GetId() == "" {
 		return nil, errors.New("request.EventFactory.Id must not be zero valued")
@@ -50,12 +72,14 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 	eventFactoryServer, _ := b.LoadOrStore(request.GetConnection().GetId(),
 		newEventFactoryServer(
 			ctx,
+			b.closeTimeout,
 			func() {
 				b.Delete(request.GetRequestConnection().GetId())
 			},
 		),
 	)
-	<-eventFactoryServer.executor.AsyncExec(func() {
+	select {
+	case <-eventFactoryServer.executor.AsyncExec(func() {
 		currentEventFactoryServer, _ := b.Load(request.GetConnection().GetId())
 		if currentEventFactoryServer != eventFactoryServer {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
@@ -78,7 +102,12 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 		}
 
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
+
+		newCloseCtx, cancel := context.WithTimeout(context.Background(), time.Minute*3)
+		defer cancel()
+		newCloseCtx = extend.WithValuesFromContext(newCloseCtx, withEventFactoryCtx)
+
+		conn, err = next.Server(newCloseCtx).Request(newCloseCtx, request)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed
@@ -93,7 +122,11 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 
 		eventFactoryServer.returnedConnection = conn.Clone()
 		eventFactoryServer.updateContext(ctx)
-	})
+	}):
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+
 	return conn, err
 }
 
@@ -107,7 +140,9 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		// If we don't have a connection to Close, just let it be
 		return &emptypb.Empty{}, nil
 	}
-	<-eventFactoryServer.executor.AsyncExec(func() {
+
+	select {
+	case <-eventFactoryServer.executor.AsyncExec(func() {
 		if eventFactoryServer.state != established || eventFactoryServer.request == nil {
 			return
 		}
@@ -115,11 +150,18 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		if currentServerClient != eventFactoryServer {
 			return
 		}
+		closeCtx, cancel := context.WithTimeout(context.Background(), b.closeTimeout)
+		defer cancel()
+
 		// Always close with the last valid EventFactory we got
 		conn = eventFactoryServer.request.Connection
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		emp, err = next.Server(withEventFactoryCtx).Close(withEventFactoryCtx, conn)
+		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
+		emp, err = next.Server(closeCtx).Close(closeCtx, conn)
 		eventFactoryServer.afterCloseFunc()
-	})
-	return &emptypb.Empty{}, err
+	}):
+		return &emptypb.Empty{}, err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
