@@ -40,6 +40,18 @@ const (
 
 var _ connectionState = zero
 
+// ReselectFunc - function for changing request parameters on reselect
+type ReselectFunc func(request *networkservice.NetworkServiceRequest)
+
+// DefaultReselectFunc - default ReselectFunc
+var DefaultReselectFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
+	if request.GetConnection() != nil {
+		request.GetConnection().Mechanism = nil
+		request.GetConnection().NetworkServiceEndpointName = ""
+		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
+	}
+}
+
 // EventFactory - allows firing off a Request or Close event from midchain
 type EventFactory interface {
 	Request(opts ...Option) <-chan error
@@ -85,7 +97,8 @@ func (f *eventFactoryClient) updateContext(valueCtx context.Context) {
 
 func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 	o := &option{
-		cancelCtx: context.Background(),
+		cancelCtx:    context.Background(),
+		reselectFunc: DefaultReselectFunc,
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -103,11 +116,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			if o.reselect {
 				ctx, cancel := f.ctxFunc()
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
-				if request.GetConnection() != nil {
-					request.GetConnection().Mechanism = nil
-					request.GetConnection().NetworkServiceEndpointName = ""
-					request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
-				}
+				o.reselectFunc(request)
 				cancel()
 			}
 			ctx, cancel := f.ctxFunc()

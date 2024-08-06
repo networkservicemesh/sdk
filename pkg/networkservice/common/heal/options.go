@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,8 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 )
 
 const (
@@ -35,6 +37,7 @@ type options struct {
 	livenessCheck         LivenessCheck
 	livenessCheckInterval time.Duration
 	livenessCheckTimeout  time.Duration
+	reselectFunc          begin.ReselectFunc
 }
 
 // Option - option for heal.NewClient() chain element
@@ -58,5 +61,12 @@ func WithLivenessCheckInterval(livenessCheckInterval time.Duration) Option {
 func WithLivenessCheckTimeout(livenessCheckTimeout time.Duration) Option {
 	return func(o *options) {
 		o.livenessCheckTimeout = livenessCheckTimeout
+	}
+}
+
+// WithReselectFunc - sets a function for changing request parameters on reselect
+func WithReselectFunc(f begin.ReselectFunc) Option {
+	return func(o *options) {
+		o.reselectFunc = f
 	}
 }

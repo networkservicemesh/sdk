@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -185,7 +185,7 @@ func (cev *eventLoop) eventLoop() {
 			var options []begin.Option
 			if reselect {
 				cev.logger.Debugf("Reconnect with reselect")
-				options = append(options, begin.WithReselect())
+				options = append(options, begin.WithReselect(), begin.WithReselectFunc(cev.heal.reselectFunc))
 			}
 			err := <-cev.eventFactory.Request(options...)
 			if err == nil {
@@ -209,7 +209,7 @@ func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
 		for {
 			select {
 			case <-ticker.C:
-				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+				deadlineCtx, deadlineCancel := context.WithDeadline(cev.eventLoopCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
 				alive := cev.heal.livenessCheck(deadlineCtx, cev.conn)
 				deadlineCancel()
 				if !alive {

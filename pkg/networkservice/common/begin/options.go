@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,8 +21,9 @@ import (
 )
 
 type option struct {
-	cancelCtx context.Context
-	reselect  bool
+	cancelCtx    context.Context
+	reselect     bool
+	reselectFunc ReselectFunc
 }
 
 // Option - event option
@@ -39,5 +40,12 @@ func CancelContext(cancelCtx context.Context) Option {
 func WithReselect() Option {
 	return func(o *option) {
 		o.reselect = true
+	}
+}
+
+// WithReselectFunc - sets a function for changing request parameters on reselect
+func WithReselectFunc(reselectFunc ReselectFunc) Option {
+	return func(o *option) {
+		o.reselectFunc = reselectFunc
 	}
 }
