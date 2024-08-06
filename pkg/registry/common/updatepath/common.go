@@ -108,12 +108,12 @@ func getIDFromToken(tokenString string) (spiffeid.ID, error) {
 	return spiffeid.FromString(subString)
 }
 
-func updatePathIds(pathIds []string, index int, id string) []string {
-	if index >= len(pathIds) {
-		pathIds = append(pathIds, id)
+func updatePathIDs(pathIDs []string, index int, id string) []string {
+	if index >= len(pathIDs) {
+		pathIDs = append(pathIDs, id)
 	} else {
-		pathIds[index] = id
+		pathIDs[index] = id
 	}
 
-	return pathIds
+	return pathIDs
 }

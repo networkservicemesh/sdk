@@ -31,14 +31,14 @@ func TestWithServiceConnectionPolicy(t *testing.T) {
 	require.NoError(t, err)
 
 	var input = authorize.MonitorOpaInput{
-		SelectorConnectionIds: []string{"conn1"},
+		SelectorConnectionIDs: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn1"},
 		},
 		ServiceSpiffeID: spiffeID,
 	}
 	var invalidInput = authorize.MonitorOpaInput{
-		SelectorConnectionIds: []string{"conn1"},
+		SelectorConnectionIDs: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn2"},
 		},

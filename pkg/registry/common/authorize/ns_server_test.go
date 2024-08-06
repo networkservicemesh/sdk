@@ -107,7 +107,7 @@ func TestNetworkServiceRegistryAuthorize_ResourcePathIdMapHaveNoLeaks(t *testing
 	server := next.NewNetworkServiceRegistryServer(
 		authorize.NewNetworkServiceRegistryServer(
 			authorize.WithPolicies("etc/nsm/opa/registry/client_allowed.rego"),
-			authorize.WithResourcePathIdsMap(&authorizeMap)),
+			authorize.WithResourcePathIDsMap(&authorizeMap)),
 		NewNetworkServiceRegistryServer(0.5),
 	)
 
