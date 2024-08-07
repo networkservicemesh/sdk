@@ -126,11 +126,12 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 }
 
 func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection) (emp *emptypb.Empty, err error) {
+	connID := conn.GetId()
 	// If some other EventFactory is already in the ctx... we are already running in an executor, and can just execute normally
 	if fromContext(ctx) != nil {
 		return next.Server(ctx).Close(ctx, conn)
 	}
-	eventFactoryServer, ok := b.Load(conn.GetId())
+	eventFactoryServer, ok := b.Load(connID)
 	if !ok {
 		// If we don't have a connection to Close, just let it be
 		return &emptypb.Empty{}, nil
@@ -141,7 +142,7 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		if eventFactoryServer.state != established || eventFactoryServer.request == nil {
 			return
 		}
-		currentServerClient, _ := b.Load(conn.GetId())
+		currentServerClient, _ := b.Load(connID)
 		if currentServerClient != eventFactoryServer {
 			return
 		}
@@ -157,7 +158,7 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 	}):
 		return &emptypb.Empty{}, err
 	case <-ctx.Done():
-		b.Delete(conn.GetId())
+		b.Delete(connID)
 		return nil, ctx.Err()
 	}
 }
