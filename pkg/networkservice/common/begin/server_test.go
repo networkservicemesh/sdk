@@ -24,10 +24,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
 const (
@@ -35,8 +36,6 @@ const (
 )
 
 type waitServer struct {
-	t *testing.T
-
 	requestDone atomic.Int32
 	closeDone   atomic.Int32
 }
@@ -80,5 +79,4 @@ func TestBeginWorksWithSmallTimeout(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return waitSrv.closeDone.Load() == 1
 	}, waitTime*2, time.Millisecond*500)
-
 }
