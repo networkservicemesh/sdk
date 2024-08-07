@@ -125,7 +125,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 	return conn, err
 }
 
-func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection) (emp *emptypb.Empty, err error) {
+func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
+	var err error
 	connID := conn.GetId()
 	// If some other EventFactory is already in the ctx... we are already running in an executor, and can just execute normally
 	if fromContext(ctx) != nil {
@@ -153,7 +154,7 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		conn = eventFactoryServer.request.Connection
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
 		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
-		emp, err = next.Server(closeCtx).Close(closeCtx, conn)
+		_, err = next.Server(closeCtx).Close(closeCtx, conn)
 		eventFactoryServer.afterCloseFunc()
 	}):
 		return &emptypb.Empty{}, err
