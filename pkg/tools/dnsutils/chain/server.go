@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,11 +21,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/trace"
+	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // NewDNSHandler - chains together a list of dnsutils.Handler with tracing
 func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
-	return next.NewDNSHandler(
-		next.NewWrappedDNSHandler(trace.NewDNSHandler, handlers...),
-	)
+	if opentelemetry.IsEnabled() {
+		return next.NewDNSHandler(
+			next.NewWrappedDNSHandler(trace.NewDNSHandler, handlers...),
+		)
+	}
+	return next.NewDNSHandler(handlers...)
 }
