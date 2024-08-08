@@ -18,12 +18,14 @@ package begin
 
 import (
 	"context"
+	"time"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
+	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
@@ -158,14 +160,16 @@ type eventFactoryServer struct {
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
+	closeTimeout       time.Duration
 	afterCloseFunc     func()
 	server             networkservice.NetworkServiceServer
 }
 
-func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
+func newEventFactoryServer(ctx context.Context, closeTimeout time.Duration, afterClose func()) *eventFactoryServer {
 	f := &eventFactoryServer{
 		server:         next.Server(ctx),
 		initialCtxFunc: postpone.Context(ctx),
+		closeTimeout:   closeTimeout,
 	}
 	f.updateContext(ctx)
 
@@ -231,7 +235,13 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 		default:
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			_, err := f.server.Close(ctx, f.request.GetConnection())
+
+			c := clock.FromContext(ctx)
+			closeCtx, cancel := c.WithTimeout(context.Background(), f.closeTimeout)
+			defer cancel()
+
+			closeCtx = extend.WithValuesFromContext(closeCtx, ctx)
+			_, err := f.server.Close(closeCtx, f.request.GetConnection())
 			f.afterCloseFunc()
 			ch <- err
 		}
