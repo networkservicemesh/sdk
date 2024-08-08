@@ -68,6 +68,7 @@ func TestBeginWorksWithSmallTimeout(t *testing.T) {
 	request := testRequest("id")
 	_, err := server.Request(requestCtx, request)
 	require.EqualError(t, err, context.DeadlineExceeded.Error())
+	require.Equal(t, int32(0), waitSrv.requestDone.Load())
 	require.Eventually(t, func() bool {
 		return waitSrv.requestDone.Load() == 1
 	}, waitTime*2, time.Millisecond*500)
@@ -76,6 +77,7 @@ func TestBeginWorksWithSmallTimeout(t *testing.T) {
 	defer cancel()
 	_, err = server.Close(closeCtx, request.Connection)
 	require.EqualError(t, err, context.DeadlineExceeded.Error())
+	require.Equal(t, int32(0), waitSrv.closeDone.Load())
 	require.Eventually(t, func() bool {
 		return waitSrv.closeDone.Load() == 1
 	}, waitTime*2, time.Millisecond*500)

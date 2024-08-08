@@ -31,10 +31,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-const (
-	closeTimeout = time.Minute
-)
-
 type beginServer struct {
 	genericsync.Map[string, *eventFactoryServer]
 	closeTimeout time.Duration
@@ -45,7 +41,7 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	o := &option{
 		cancelCtx:    context.Background(),
 		reselect:     false,
-		closeTimeout: closeTimeout,
+		closeTimeout: time.Minute,
 	}
 
 	for _, opt := range opts {
