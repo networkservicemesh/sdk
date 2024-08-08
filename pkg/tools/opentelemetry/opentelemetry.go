@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2024 Nordix Foundation.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,12 +38,21 @@ import (
 )
 
 const (
-	telemetryEnv = "TELEMETRY"
+	telemetryEnv  = "TELEMETRY"
+	prometheusEnv = "PROMETHEUS"
 )
 
 // IsEnabled returns true if opentelemetry enabled
 func IsEnabled() bool {
 	if v, err := strconv.ParseBool(os.Getenv(telemetryEnv)); err == nil {
+		return v
+	}
+	return false
+}
+
+// IsPrometheusEnabled returns true if prometheus enabled
+func IsPrometheusEnabled() bool {
+	if v, err := strconv.ParseBool(os.Getenv(prometheusEnv)); err == nil {
 		return v
 	}
 	return false
