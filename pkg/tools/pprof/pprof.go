@@ -19,36 +19,40 @@ package pprof
 
 import (
 	"context"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"fmt"
 	"net/http"
 	"net/http/pprof"
 	"time"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // Init - configures pprof http handlers
-func Init(ctx context.Context, port string) {
+func Init(ctx context.Context, port uint16) {
+	log.FromContext(ctx).Infof("Profiler is enabled. Listening on %d", port)
+	mux := http.NewServeMux()
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	mux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
+	mux.Handle("/debug/pprof/block", pprof.Handler("block"))
+	mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
+	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+	server := &http.Server{
+		Addr:         fmt.Sprintf("localhost:%d", port),
+		Handler:      mux,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+	}
+	if err := server.ListenAndServe(); err != nil {
+		log.FromContext(ctx).Errorf("Failed to start profiler: %s", err.Error())
+	}
 	go func() {
-		log.FromContext(ctx).Infof("Profiler is enabled. Listening on %s", port)
-		mux := http.NewServeMux()
-		mux.HandleFunc("/debug/pprof/", pprof.Index)
-		mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-		mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-		mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-		mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
-		mux.Handle("/debug/pprof/allocs", pprof.Handler("allocs"))
-		mux.Handle("/debug/pprof/block", pprof.Handler("block"))
-		mux.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
-		mux.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-		mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
-		mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
-		server := &http.Server{
-			Addr:         "localhost:" + port,
-			Handler:      mux,
-			ReadTimeout:  10 * time.Second,
-			WriteTimeout: 10 * time.Second,
-		}
-		if err := server.ListenAndServe(); err != nil {
-			log.FromContext(ctx).Errorf("Failed to start profiler: %s", err.Error())
-		}
+		<-ctx.Done()
+		_ = server.Close()
 	}()
 }
