@@ -102,9 +102,8 @@ func TestBeginHasExtendedTimeoutOnReselect(t *testing.T) {
 		waitSrv,
 	)
 
+	// Make a first request to create an event factory. Begin should make Request only
 	request := testRequest("id")
-	request.Connection.State = networkservice.State_RESELECT_REQUESTED
-
 	_, err := server.Request(requestCtx, request)
 	require.EqualError(t, err, context.DeadlineExceeded.Error())
 	require.Equal(t, int32(0), waitSrv.requestDone.Load())
@@ -112,11 +111,13 @@ func TestBeginHasExtendedTimeoutOnReselect(t *testing.T) {
 		return waitSrv.requestDone.Load() == 1
 	}, waitTime*2, time.Millisecond*500)
 
+	// Make a second request with RESELECT_REQUESTED. Begin should make Close with extended context first and then Request
 	requestCtx, cancel = context.WithTimeout(context.Background(), time.Millisecond*200)
 	defer cancel()
-	request.Connection.State = networkservice.State_RESELECT_REQUESTED
+	newRequest := request.Clone()
+	newRequest.Connection.State = networkservice.State_RESELECT_REQUESTED
 
-	_, err = server.Request(requestCtx, request)
+	_, err = server.Request(requestCtx, newRequest)
 	require.EqualError(t, err, context.DeadlineExceeded.Error())
 	require.Equal(t, int32(0), waitSrv.closeDone.Load())
 	require.Eventually(t, func() bool {
