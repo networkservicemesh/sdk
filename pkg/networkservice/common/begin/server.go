@@ -101,8 +101,12 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryCtxCancel()
 		}
 
+		closeCtx, cancel := context.WithTimeout(context.Background(), b.closeTimeout)
+		defer cancel()
+
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
-		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
+		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
+		conn, err = next.Server(closeCtx).Request(closeCtx, request)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed

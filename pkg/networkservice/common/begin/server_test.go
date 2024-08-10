@@ -42,8 +42,13 @@ type waitServer struct {
 }
 
 func (s *waitServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	time.Sleep(waitTime)
-	s.requestDone.Add(1)
+	afterCh := time.After(time.Second)
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case <-afterCh:
+		s.requestDone.Add(1)
+	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
