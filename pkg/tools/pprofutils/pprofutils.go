@@ -21,15 +21,14 @@ import (
 	"context"
 	"net/http"
 	"net/http/pprof"
-	"net/url"
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 // ListenAndServe - configures pprof http handlers
-func ListenAndServe(ctx context.Context, listenOn *url.URL) {
-	log.FromContext(ctx).Infof("Profiler is enabled. Listening on %s", listenOn.Host)
+func ListenAndServe(ctx context.Context, listenOn string) {
+	log.FromContext(ctx).Infof("Profiler is enabled. Listening on %s", listenOn)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -43,7 +42,7 @@ func ListenAndServe(ctx context.Context, listenOn *url.URL) {
 	mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
 	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 	server := &http.Server{
-		Addr:         listenOn.Host,
+		Addr:         listenOn,
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
