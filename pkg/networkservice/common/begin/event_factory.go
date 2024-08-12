@@ -25,7 +25,6 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/peer"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
 
@@ -160,16 +159,16 @@ type eventFactoryServer struct {
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
-	closeTimeout       time.Duration
+	contextTimeout     time.Duration
 	afterCloseFunc     func()
 	server             networkservice.NetworkServiceServer
 }
 
-func newEventFactoryServer(ctx context.Context, closeTimeout time.Duration, afterClose func()) *eventFactoryServer {
+func newEventFactoryServer(ctx context.Context, contextTimeout time.Duration, afterClose func()) *eventFactoryServer {
 	f := &eventFactoryServer{
 		server:         next.Server(ctx),
 		initialCtxFunc: postpone.Context(ctx),
-		closeTimeout:   closeTimeout,
+		contextTimeout: contextTimeout,
 	}
 	f.updateContext(ctx)
 
@@ -207,7 +206,12 @@ func (f *eventFactoryServer) Request(opts ...Option) <-chan error {
 		default:
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			conn, err := f.server.Request(ctx, f.request)
+
+			extendedCtx, cancel := context.WithTimeout(context.Background(), f.contextTimeout)
+			defer cancel()
+
+			extendedCtx = extend.WithValuesFromContext(extendedCtx, ctx)
+			conn, err := f.server.Request(extendedCtx, f.request)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
 			}
@@ -236,12 +240,11 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
 
-			c := clock.FromContext(ctx)
-			closeCtx, cancel := c.WithTimeout(context.Background(), f.closeTimeout)
+			extendedCtx, cancel := context.WithTimeout(context.Background(), f.contextTimeout)
 			defer cancel()
 
-			closeCtx = extend.WithValuesFromContext(closeCtx, ctx)
-			_, err := f.server.Close(closeCtx, f.request.GetConnection())
+			extendedCtx = extend.WithValuesFromContext(extendedCtx, ctx)
+			_, err := f.server.Close(extendedCtx, f.request.GetConnection())
 			f.afterCloseFunc()
 			ch <- err
 		}

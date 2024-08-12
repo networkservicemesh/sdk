@@ -22,9 +22,9 @@ import (
 )
 
 type option struct {
-	cancelCtx    context.Context
-	reselect     bool
-	closeTimeout time.Duration
+	cancelCtx      context.Context
+	reselect       bool
+	contextTimeout time.Duration
 }
 
 // Option - event option
@@ -44,9 +44,9 @@ func WithReselect() Option {
 	}
 }
 
-// WithCloseTimeout - set a custom timeout for a context in begin.Close
-func WithCloseTimeout(timeout time.Duration) Option {
+// WithContextTimeout - set a custom timeout for a context in begin.Close
+func WithContextTimeout(timeout time.Duration) Option {
 	return func(o *option) {
-		o.closeTimeout = timeout
+		o.contextTimeout = timeout
 	}
 }
