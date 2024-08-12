@@ -14,22 +14,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package pprof provides ability to enable pprof if required
-package pprof
+// Package pprofutils provides ability to enable pprof if required
+package pprofutils
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/pprof"
+	"net/url"
 	"time"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// Init - configures pprof http handlers
-func Init(ctx context.Context, port uint16) {
-	log.FromContext(ctx).Infof("Profiler is enabled. Listening on %d", port)
+// ListenAndServe - configures pprof http handlers
+func ListenAndServe(ctx context.Context, listenOn *url.URL) {
+	log.FromContext(ctx).Infof("Profiler is enabled. Listening on %s", listenOn.Host)
 	mux := http.NewServeMux()
 	mux.HandleFunc("/debug/pprof/", pprof.Index)
 	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
@@ -43,7 +43,7 @@ func Init(ctx context.Context, port uint16) {
 	mux.Handle("/debug/pprof/mutex", pprof.Handler("mutex"))
 	mux.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
 	server := &http.Server{
-		Addr:         fmt.Sprintf("localhost:%d", port),
+		Addr:         listenOn.Host,
 		Handler:      mux,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
