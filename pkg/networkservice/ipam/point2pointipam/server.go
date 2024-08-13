@@ -143,16 +143,16 @@ func addrBelongsToIPPool(ipPool *ippool.IPPool, addr netip.Addr) bool {
 
 func (s *ipamServer) getInvalidAddrs(addrs []string, excludeIP4, excludeIP6 *ippool.IPPool) []string {
 	invalidAddrs := make([]string, 0)
-	for _, ipString := range addrs {
-		ip, parseErr := netip.ParsePrefix(ipString)
+	for _, prefixString := range addrs {
+		prefix, parseErr := netip.ParsePrefix(prefixString)
 		if parseErr != nil {
-			invalidAddrs = append(invalidAddrs, ipString)
+			invalidAddrs = append(invalidAddrs, prefixString)
 			continue
 		}
 
 		versionMatches := false
 		for _, ipPool := range s.ipPools {
-			if addrBelongsToIPPool(ipPool, ip.Addr()) {
+			if addrBelongsToIPPool(ipPool, prefix.Addr()) {
 				versionMatches = true
 				break
 			}
@@ -161,16 +161,17 @@ func (s *ipamServer) getInvalidAddrs(addrs []string, excludeIP4, excludeIP6 *ipp
 			continue
 		}
 
+		addrString := prefix.Addr().String()
 		valid := false
 		for _, ipPool := range s.ipPools {
-			if _, err := ipPool.PullIPString(ipString, excludeIP4, excludeIP6); err == nil {
+			if ipPool.ContainsString(addrString) && !excludeIP4.ContainsString(addrString) && !excludeIP6.ContainsString(addrString) {
 				valid = true
 				break
 			}
 		}
 
 		if !valid {
-			invalidAddrs = append(invalidAddrs, ipString)
+			invalidAddrs = append(invalidAddrs, prefixString)
 		}
 	}
 
