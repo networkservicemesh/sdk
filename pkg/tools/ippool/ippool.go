@@ -192,7 +192,9 @@ func (tree *IPPool) Contains(ip net.IP) bool {
 	return tree.lookup(ipAddressFromIP(ip)) != nil
 }
 
-// ContainsString - check the pool contains ip by string value
+// ContainsString - check the pool contains ip by string value.
+// Returns true if pool can allocate address stored in string,
+// otherwise returns false
 func (tree *IPPool) ContainsString(in string) bool {
 	return tree.Contains(net.ParseIP(in))
 }
