@@ -29,9 +29,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
 )
 
-func newRequest() *networkservice.NetworkServiceRequest {
+func newRequest(connID string) *networkservice.NetworkServiceRequest {
 	return &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
+			Id: connID,
 			Context: &networkservice.ConnectionContext{
 				IpContext: new(networkservice.IPContext),
 			},
@@ -49,16 +50,16 @@ func validateConns(t *testing.T, conn *networkservice.Connection, dsts, srcs []s
 	}
 }
 
+// nolint: dupl
 func TestOverlappingAddresses(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("172.16.0.0/24")
 	require.NoError(t, err)
 
 	srv := next.NewNetworkServiceServer(filteripam.NewServer(point2pointipam.NewServer, ipNet))
 
-	emptyRequest := newRequest()
+	emptyRequest := newRequest("empty")
 
-	request := newRequest()
-	request.Connection.Id = "id"
+	request := newRequest("id")
 	request.Connection.Context.IpContext.SrcIpAddrs = []string{"172.16.0.1/32", "172.16.0.25/32"}
 	request.Connection.Context.IpContext.DstIpAddrs = []string{"172.16.0.0/32", "172.16.0.24/32"}
 	request.Connection.Context.IpContext.SrcRoutes = []*networkservice.Route{{Prefix: "172.16.0.0/32"}, {Prefix: "172.16.0.24/32"}}
@@ -80,15 +81,16 @@ func TestOverlappingAddresses(t *testing.T) {
 	validateConns(t, conn2, []string{"172.16.0.0/32", "172.16.0.24/32"}, []string{"172.16.0.1/32", "172.16.0.25/32"})
 }
 
+// nolint: dupl
 func TestOverlappingAddressesIPv6(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("fe80::/64")
 	require.NoError(t, err)
 
 	srv := next.NewNetworkServiceServer(filteripam.NewServer(point2pointipam.NewServer, ipNet))
 
-	emptyRequest := newRequest()
+	emptyRequest := newRequest("empty")
 
-	request := newRequest()
+	request := newRequest("id")
 	request.Connection.Id = "id"
 	request.Connection.Context.IpContext.SrcIpAddrs = []string{"fe80::1/128", "fe80::fa01/128"}
 	request.Connection.Context.IpContext.DstIpAddrs = []string{"fe80::/128", "fe80::fa00/128"}
