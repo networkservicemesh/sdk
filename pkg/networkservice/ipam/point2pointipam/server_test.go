@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022-2024 Cisco and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -450,7 +450,7 @@ func TestRecoveryServer(t *testing.T) {
 	// Recovery failed. Added new ones
 	conn2, err := srv.Request(context.Background(), request2)
 	require.NoError(t, err)
-	validateConns(t, conn2, []string{"192.168.0.0/32"}, []string{"192.168.0.1/32"})
+	validateConns(t, conn2, []string{"192.168.10.0/32", "192.168.0.0/32"}, []string{"192.168.10.1/32", "192.168.0.1/32"})
 
 	// Close - addresses release
 	_, err = srv.Close(context.Background(), conn1)
@@ -485,7 +485,7 @@ func TestRecoveryServerIPv6(t *testing.T) {
 	// Recovery failed. Added new ones
 	conn2, err := srv.Request(context.Background(), request2)
 	require.NoError(t, err)
-	validateConns(t, conn2, []string{"fe80::/128"}, []string{"fe80::1/128"})
+	validateConns(t, conn2, []string{"fe80::fa00/128", "fe80::/128"}, []string{"fe80::fa01/128", "fe80::1/128"})
 
 	// Close - addresses release
 	_, err = srv.Close(context.Background(), conn1)
@@ -525,7 +525,7 @@ func TestRecoveryServers(t *testing.T) {
 	// Recovery failed. Added new ones
 	conn2, err := srv.Request(context.Background(), request2)
 	require.NoError(t, err)
-	validateConns(t, conn2, []string{"192.168.0.0/32", "fe80::/128"}, []string{"192.168.0.1/32", "fe80::1/128"})
+	validateConns(t, conn2, []string{"192.168.10.0/32", "fe80::fa00/128", "192.168.0.0/32", "fe80::/128"}, []string{"192.168.10.1/32", "fe80::fa01/128", "192.168.0.1/32", "fe80::1/128"})
 
 	// Close - addresses release
 	_, err = srv.Close(context.Background(), conn1)
