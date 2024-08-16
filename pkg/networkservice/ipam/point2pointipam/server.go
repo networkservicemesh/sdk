@@ -22,7 +22,6 @@ package point2pointipam
 import (
 	"context"
 	"net"
-	"net/netip"
 	"sync"
 
 	"github.com/edwarnicke/genericsync"
@@ -96,8 +95,6 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 
 	excludeIP4, excludeIP6 := exclude(ipContext.GetExcludedPrefixes()...)
 
-	s.validateIPContext(ipContext, excludeIP4, excludeIP6)
-
 	connInfo, loaded := s.Load(conn.GetId())
 	var err error
 	if loaded && (connInfo.shouldUpdate(excludeIP4) || connInfo.shouldUpdate(excludeIP6)) {
@@ -134,60 +131,6 @@ func (s *ipamServer) Request(ctx context.Context, request *networkservice.Networ
 	}
 
 	return conn, nil
-}
-
-func addrBelongsToIPPool(ipPool *ippool.IPPool, addr netip.Addr) bool {
-	ipLen := ipPool.IPLength()
-	return (ipLen == net.IPv4len && addr.Is4()) || (ipLen == net.IPv6len && addr.Is6())
-}
-
-func (s *ipamServer) getInvalidAddrs(addrs []string, excludeIP4, excludeIP6 *ippool.IPPool) []string {
-	invalidAddrs := make([]string, 0)
-	for _, prefixString := range addrs {
-		prefix, parseErr := netip.ParsePrefix(prefixString)
-		if parseErr != nil {
-			invalidAddrs = append(invalidAddrs, prefixString)
-			continue
-		}
-
-		versionMatches := false
-		for _, ipPool := range s.ipPools {
-			if addrBelongsToIPPool(ipPool, prefix.Addr()) {
-				versionMatches = true
-				break
-			}
-		}
-		if !versionMatches {
-			continue
-		}
-
-		addrString := prefix.Addr().String()
-		valid := false
-		for _, ipPool := range s.ipPools {
-			if ipPool.ContainsString(addrString) && !excludeIP4.ContainsString(addrString) && !excludeIP6.ContainsString(addrString) {
-				valid = true
-				break
-			}
-		}
-
-		if !valid {
-			invalidAddrs = append(invalidAddrs, prefixString)
-		}
-	}
-
-	return invalidAddrs
-}
-
-func (s *ipamServer) validateIPContext(ipContext *networkservice.IPContext, excludeIP4, excludeIP6 *ippool.IPPool) {
-	for _, addr := range s.getInvalidAddrs(ipContext.SrcIpAddrs, excludeIP4, excludeIP6) {
-		deleteAddr(&ipContext.SrcIpAddrs, addr)
-		deleteRoute(&ipContext.DstRoutes, addr)
-	}
-
-	for _, addr := range s.getInvalidAddrs(ipContext.DstIpAddrs, excludeIP4, excludeIP6) {
-		deleteAddr(&ipContext.DstIpAddrs, addr)
-		deleteRoute(&ipContext.SrcRoutes, addr)
-	}
 }
 
 func (s *ipamServer) recoverAddrs(srcAddrs, dstAddrs []string, excludeIP4, excludeIP6 *ippool.IPPool) (connInfo *connectionInfo, err error) {
