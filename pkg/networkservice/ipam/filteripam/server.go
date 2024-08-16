@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package strictipam provides a networkservice.NetworkService Server chain element for building an IPAM server that
+// Package filteripam provides a networkservice.NetworkService Server chain element for building an IPAM server that
 // filters some invalid addresses and routes in IP context
 package filteripam
 
@@ -25,6 +25,7 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
@@ -33,6 +34,7 @@ type filterIPAMServer struct {
 	ipPool *ippool.IPPool
 }
 
+// NewServer - creates a new filter IPAM server
 func NewServer(newIPAMServer func(...*net.IPNet) networkservice.NetworkServiceServer, prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 	if newIPAMServer == nil {
 		panic("newIPAMServer should not be nil")
@@ -84,34 +86,9 @@ func (s *filterIPAMServer) getInvalidAddrs(addrs []string) []string {
 			continue
 		}
 
-		// versionMatches := false
-		// for _, ipPool := range s.ipPools {
-		// 	if addrBelongsToIPPool(ipPool, prefix.Addr()) {
-		// 		versionMatches = true
-		// 		break
-		// 	}
-		// }
-		// if !versionMatches {
-		// 	continue
-		// }
-
-		// addrString := prefix.Addr().String()
-		// valid := false
-		// for _, ipPool := range s.ipPools {
-		// 	if ipPool.ContainsString(addrString) {
-		// 		valid = true
-		// 		break
-		// 	}
-		// }
-
 		if !s.ipPool.ContainsString(prefix.Addr().String()) {
 			invalidAddrs = append(invalidAddrs, prefixString)
-
 		}
-
-		// if !valid {
-		// 	invalidAddrs = append(invalidAddrs, prefixString)
-		// }
 	}
 
 	return invalidAddrs
@@ -148,28 +125,12 @@ func deleteAddr(addrs *[]string, addr string) {
 }
 
 func (s *filterIPAMServer) pullAddrs(ipContext *networkservice.IPContext) {
-	// for _, addr := range ipContext.SrcIpAddrs {
-	// 	for _, ippool := range s.ipPools {
-	// 		if _, err := ippool.PullIPString(addr); err == nil {
-	// 			break
-	// 		}
-	// 	}
-	// }
-
-	// for _, addr := range ipContext.DstIpAddrs {
-	// 	for _, ippool := range s.ipPools {
-	// 		if _, err := ippool.PullIPString(addr); err == nil {
-	// 			break
-	// 		}
-	// 	}
-	// }
-
 	for _, addr := range ipContext.SrcIpAddrs {
-		s.ipPool.PullIPString(addr)
+		_, _ = s.ipPool.PullIPString(addr)
 	}
 
 	for _, addr := range ipContext.DstIpAddrs {
-		s.ipPool.PullIPString(addr)
+		_, _ = s.ipPool.PullIPString(addr)
 	}
 }
 
