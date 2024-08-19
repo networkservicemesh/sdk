@@ -88,7 +88,7 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryServer.request != nil && eventFactoryServer.request.Connection != nil {
 			log.FromContext(ctx).Info("Closing connection due to RESELECT_REQUESTED state")
 
-			closeCtx, cancel := context.WithTimeout(context.Background(), b.closeTimeout)
+			closeCtx, cancel := context.WithTimeout(context.Background(), b.contextTimeout)
 			defer cancel()
 
 			eventFactoryCtx, eventFactoryCtxCancel := eventFactoryServer.ctxFunc()
