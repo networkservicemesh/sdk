@@ -25,11 +25,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/dualstackippool"
 )
 
 type strictIPAMServer struct {
-	ipPool *ippool.IPPool
+	ipPool *dualstackippool.DualStackIPPool
 }
 
 // NewServer - returns a new ipam networkservice.NetworkServiceServer that validates the incoming IP context parameters and resets them based on the validation result.
@@ -37,7 +37,7 @@ func NewServer(newIPAMServer func(...*net.IPNet) networkservice.NetworkServiceSe
 	if newIPAMServer == nil {
 		panic("newIPAMServer should not be nil")
 	}
-	var ipPool = ippool.New(net.IPv6len)
+	var ipPool = dualstackippool.New()
 	for _, p := range prefixes {
 		ipPool.AddNet(p)
 	}
