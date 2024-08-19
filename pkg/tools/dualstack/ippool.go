@@ -14,8 +14,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package dualstackippool provides service for managing both ipv4 and ipv6 addresses
-package dualstackippool
+// Package dualstack provides tools for managing both ipv4 and ipv6 addresses
+package dualstack
 
 import (
 	"net"
@@ -25,22 +25,22 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
-// DualStackIPPool holds available IPv4 and IPv6 addresses in the structure of red-black tree
-type DualStackIPPool struct {
+// IPPool holds available IPv4 and IPv6 addresses in the structure of red-black tree
+type IPPool struct {
 	IPv4IPPool *ippool.IPPool
 	IPv6IPPool *ippool.IPPool
 }
 
 // New instantiates a dualstack ip pool as red-black tree
-func New() *DualStackIPPool {
-	pool := new(DualStackIPPool)
+func New() *IPPool {
+	pool := new(IPPool)
 	pool.IPv4IPPool = ippool.New(net.IPv4len)
 	pool.IPv6IPPool = ippool.New(net.IPv6len)
 	return pool
 }
 
 // AddNetString - adds ip addresses from network to the pool by string value
-func (p *DualStackIPPool) AddNetString(ipNetString string) {
+func (p *IPPool) AddNetString(ipNetString string) {
 	_, ipNet, err := net.ParseCIDR(ipNetString)
 	if err != nil {
 		return
@@ -49,7 +49,7 @@ func (p *DualStackIPPool) AddNetString(ipNetString string) {
 }
 
 // AddNet - adds ip addresses from network to the pool
-func (p *DualStackIPPool) AddNet(ipNet *net.IPNet) {
+func (p *IPPool) AddNet(ipNet *net.IPNet) {
 	if ipNet.IP.To4() != nil {
 		p.IPv4IPPool.AddNet(ipNet)
 		return
@@ -58,12 +58,12 @@ func (p *DualStackIPPool) AddNet(ipNet *net.IPNet) {
 }
 
 // ContainsString parses ip string and checks that pool contains ip
-func (p *DualStackIPPool) ContainsString(in string) bool {
+func (p *IPPool) ContainsString(in string) bool {
 	return p.Contains(net.ParseIP(in))
 }
 
 // Contains checks that pool contains ip
-func (p *DualStackIPPool) Contains(ip net.IP) bool {
+func (p *IPPool) Contains(ip net.IP) bool {
 	if ip.To4() != nil {
 		return p.IPv4IPPool.Contains(ip)
 	}
@@ -71,7 +71,7 @@ func (p *DualStackIPPool) Contains(ip net.IP) bool {
 }
 
 // PullIPString - returns requested IP address from the pool by string
-func (p *DualStackIPPool) PullIPString(in string) (*net.IPNet, error) {
+func (p *IPPool) PullIPString(in string) (*net.IPNet, error) {
 	ip, _, err := net.ParseCIDR(in)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s as a CIDR", in)
@@ -80,7 +80,7 @@ func (p *DualStackIPPool) PullIPString(in string) (*net.IPNet, error) {
 }
 
 // PullIP - returns requested IP address from the pool
-func (p *DualStackIPPool) PullIP(ip net.IP) (*net.IPNet, error) {
+func (p *IPPool) PullIP(ip net.IP) (*net.IPNet, error) {
 	if ip.To4() != nil {
 		return p.IPv4IPPool.PullIP(ip)
 	}
