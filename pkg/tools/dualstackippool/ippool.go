@@ -31,10 +31,17 @@ type DualStackIPPool struct {
 
 func New() *DualStackIPPool {
 	pool := new(DualStackIPPool)
-
 	pool.IPv4IPPool = ippool.New(net.IPv4len)
 	pool.IPv6IPPool = ippool.New(net.IPv6len)
 	return pool
+}
+
+func (p *DualStackIPPool) AddNetString(ipNetString string) {
+	_, ipNet, err := net.ParseCIDR(ipNetString)
+	if err != nil {
+		return
+	}
+	p.AddNet(ipNet)
 }
 
 func (p *DualStackIPPool) AddNet(ipNet *net.IPNet) {
@@ -61,10 +68,12 @@ func (p *DualStackIPPool) PullIPString(in string) (*net.IPNet, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse %s as a CIDR", in)
 	}
+	return p.PullIP(ip)
+}
 
+func (p *DualStackIPPool) PullIP(ip net.IP) (*net.IPNet, error) {
 	if ip.To4() != nil {
 		return p.IPv4IPPool.PullIP(ip)
 	}
-
 	return p.IPv6IPPool.PullIP(ip)
 }
