@@ -72,8 +72,12 @@ func (d *dialClient) Request(ctx context.Context, request *networkservice.Networ
 		return next.Client(ctx).Request(ctx, request, opts...)
 	}
 
+	di.mu.Lock()
+	dialClientURL := di.clientURL
+	di.mu.Unlock()
+
 	// If our existing dialer has a different URL close down the chain
-	if di.clientURL != nil && di.clientURL.String() != clientURL.String() {
+	if dialClientURL != nil && dialClientURL.String() != clientURL.String() {
 		closeCtx, closeCancel := closeContextFunc()
 		defer closeCancel()
 		err := di.Dial(closeCtx, di.clientURL)

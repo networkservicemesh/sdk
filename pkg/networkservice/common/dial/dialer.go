@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/url"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -37,6 +38,7 @@ type dialer struct {
 	*grpc.ClientConn
 	dialOptions []grpc.DialOption
 	dialTimeout time.Duration
+	mu          sync.Mutex
 }
 
 func newDialer(ctx context.Context, dialTimeout time.Duration, dialOptions ...grpc.DialOption) *dialer {
@@ -56,8 +58,10 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 		di.cleanupCancel()
 	}
 
+	di.mu.Lock()
 	// Set the clientURL
 	di.clientURL = clientURL
+	di.mu.Unlock()
 
 	// Setup dialTimeout if needed
 	dialCtx := ctx
