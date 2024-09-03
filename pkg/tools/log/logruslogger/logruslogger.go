@@ -107,7 +107,7 @@ func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
 	return logger
 }
 
-// New - create a logruslogger
+// New - create a logruslogger.
 func New(ctx context.Context, fields ...logrus.Fields) log.Logger {
 	entry := logrus.NewEntry(logrus.StandardLogger())
 	for _, f := range fields {
@@ -272,9 +272,10 @@ func (s *traceLogger) getTraceInfo() string {
 }
 
 // FromSpan - creates a new logruslogger from context, operation and span
-// and returns context with it, logger, and a function to defer
+// and returns context with it, logger, and a function to defer.
 func FromSpan(
-	ctx context.Context, span spanlogger.Span, operation string, fields []*log.Field) (context.Context, log.Logger, func()) {
+	ctx context.Context, span spanlogger.Span, operation string, fields []*log.Field,
+) (context.Context, log.Logger, func()) {
 	var info *traceCtxInfo
 	deleteFunc := func() {}
 	if log.IsTracingEnabled() && logrus.GetLevel() == logrus.TraceLevel {

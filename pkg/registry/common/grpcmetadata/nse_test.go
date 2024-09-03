@@ -83,7 +83,7 @@ func (p *pathCheckerNSEClient) Unregister(ctx context.Context, in *registry.Netw
 }
 
 // This test checks that registry Path is correctly updated and passed through grpc metadata
-// Test scheme: client ---> proxyServer ---> server
+// Test scheme: client ---> proxyServer ---> server.
 func TestGRPCMetadataNetworkServiceEndpoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

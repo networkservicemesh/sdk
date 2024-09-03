@@ -33,7 +33,7 @@ type injectErrorNSEServer struct {
 	registerErrorSupplier, findErrorSupplier, unregisterErrorSupplier *errorSupplier
 }
 
-// NewNetworkServiceEndpointRegistryServer returns a server chain element returning error on Register/Find/Unregister on given times
+// NewNetworkServiceEndpointRegistryServer returns a server chain element returning error on Register/Find/Unregister on given times.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	o := &options{
 		err:                  errors.New("error originates in injectErrorNSEServer"),

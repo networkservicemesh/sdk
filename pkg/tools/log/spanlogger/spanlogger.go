@@ -29,7 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
-// spanlogger - provides a way to log via opentelemetry spans
+// spanlogger - provides a way to log via opentelemetry spans.
 type spanLogger struct {
 	span Span
 	lock sync.RWMutex
@@ -129,7 +129,7 @@ func (s *spanLogger) logf(level, format string, v ...interface{}) {
 	}
 }
 
-// FromContext - creates a new spanLogger from context and operation
+// FromContext - creates a new spanLogger from context and operation.
 func FromContext(ctx context.Context, operation, methodName string, fields []*log.Field) (context.Context, log.Logger, Span, func()) {
 	var span Span
 	if opentelemetry.IsEnabled() {
@@ -141,7 +141,7 @@ func FromContext(ctx context.Context, operation, methodName string, fields []*lo
 	return ctx, newLog, span, func() { newLog.finish() }
 }
 
-// finish - closes spanLogger
+// finish - closes spanLogger.
 func (s *spanLogger) finish() {
 	s.lock.Lock()
 	defer s.lock.Unlock()

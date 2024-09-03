@@ -40,7 +40,7 @@ type vl3MtuServer struct {
 }
 
 // NewServer - returns a new vl3mtu server chain element.
-// It stores a minimum mtu of the vl3 and sends connectionEvent if refresh required
+// It stores a minimum mtu of the vl3 and sends connectionEvent if refresh required.
 func NewServer() networkservice.NetworkServiceServer {
 	return &vl3MtuServer{
 		minMtu:      jumboFrameSize,
@@ -54,7 +54,7 @@ func (v *vl3MtuServer) Request(ctx context.Context, request *networkservice.Netw
 		request.GetConnection().Context = &networkservice.ConnectionContext{}
 	}
 	<-v.executor.AsyncExec(func() {
-		if request.GetConnection().GetContext().MTU > v.minMtu || request.GetConnection().GetContext().MTU == 0 {
+		if request.GetConnection().GetContext().GetMTU() > v.minMtu || request.GetConnection().GetContext().GetMTU() == 0 {
 			request.GetConnection().GetContext().MTU = v.minMtu
 		}
 	})
@@ -68,8 +68,8 @@ func (v *vl3MtuServer) Request(ctx context.Context, request *networkservice.Netw
 	v.executor.AsyncExec(func() {
 		// We need to update minimum mtu of the vl3 network and send notifications to the already connected clients.
 		logger := log.FromContext(ctx).WithField("vl3MtuServer", "Request")
-		if conn.GetContext().MTU < v.minMtu {
-			v.minMtu = conn.GetContext().MTU
+		if conn.GetContext().GetMTU() < v.minMtu {
+			v.minMtu = conn.GetContext().GetMTU()
 			logger.Debug("MTU was updated")
 
 			connections := make(map[string]*networkservice.Connection)

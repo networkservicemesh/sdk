@@ -71,7 +71,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("127.0.0.1")
@@ -103,7 +103,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1)
 		defer reqClose()
 
-		req := defaultRequest(nsReg.Name)
+		req := defaultRequest(nsReg.GetName())
 		req.Connection.Id = uuid.New().String()
 
 		req.Connection.Labels["podName"] = nscName + fmt.Sprint(i)
@@ -113,7 +113,7 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 
 		req.Connection = resp.Clone()
 		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
-		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].GetDnsServerIps(), 1)
 
 		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
@@ -143,7 +143,7 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 		Build()
 
 	var records genericsync.Map[string, []net.IP]
-	var dnsServer = memory.NewDNSHandler(&records)
+	dnsServer := memory.NewDNSHandler(&records)
 
 	records.Store("nsc1.vl3.", []net.IP{net.ParseIP("1.1.1.1")})
 
@@ -154,8 +154,8 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	var dnsConfigs = new(genericsync.Map[string, []*networkservice.DNSConfig])
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
+	dnsConfigs := new(genericsync.Map[string, []*networkservice.DNSConfig])
 	dnsServerIPCh := make(chan net.IP, 1)
 	dnsServerIPCh <- net.ParseIP("0.0.0.0")
 
@@ -188,15 +188,15 @@ func Test_vl3NSE_ConnectsTo_vl3NSE(t *testing.T) {
 	clientIpam := vl3.NewIPAM("127.0.0.1/32")
 	vl3ServerClient := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(vl3dns.NewClient(net.ParseIP("127.0.0.1"), dnsConfigs), vl3.NewClient(ctx, clientIpam)))
 
-	req := defaultRequest(nsReg.Name)
+	req := defaultRequest(nsReg.GetName())
 	req.Connection.Id = uuid.New().String()
 
 	req.Connection.Labels["podName"] = nscName
 
 	resp, err := vl3ServerClient.Request(ctx, req)
 	require.NoError(t, err)
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
-	require.Equal(t, "127.0.0.1", resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps[0])
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].GetDnsServerIps(), 1)
+	require.Equal(t, "127.0.0.1", resp.GetContext().GetDnsContext().GetConfigs()[0].GetDnsServerIps()[0])
 
 	require.Equal(t, "127.0.0.1/32", resp.GetContext().GetIpContext().GetSrcIpAddrs()[0])
 	req.Connection = resp.Clone()
@@ -239,7 +239,7 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 	dnsServerIPCh := make(chan net.IP, 1)
 
 	ipam := vl3.NewIPAM("10.0.0.1/24")
@@ -256,7 +256,7 @@ func Test_NSC_GetsVl3DnsAddressDelay(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	req := defaultRequest(nsReg.Name)
+	req := defaultRequest(nsReg.GetName())
 	req.Connection.Labels["podName"] = nscName
 	go func() {
 		// Add a delay
@@ -284,7 +284,7 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 	dnsServerIPCh := make(chan net.IP, 1)
 
 	ipam := vl3.NewIPAM("10.0.0.1/24")
@@ -299,8 +299,8 @@ func Test_vl3NSE_ConnectsTo_Itself(t *testing.T) {
 		vl3.NewServer(ctx, ipam))
 
 	// Connection to itself. This allows us to assign a dns address to ourselves.
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithName(nseReg.Name))
-	req := defaultRequest(nsReg.Name)
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithName(nseReg.GetName()))
+	req := defaultRequest(nsReg.GetName())
 
 	_, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
@@ -312,7 +312,7 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -333,7 +333,7 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 	}
 
 	dnsServerIPCh := make(chan net.IP, 1)
@@ -369,7 +369,7 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             uuid.New().String(),
-			NetworkService: fmt.Sprint(nsReg.Name, "@", cluster2.Name),
+			NetworkService: fmt.Sprint(nsReg.GetName(), "@", cluster2.Name),
 			Labels:         map[string]string{"podName": nscName},
 		},
 	}
@@ -379,10 +379,10 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 
 	req.Connection = resp.Clone()
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains, 1)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].GetDnsServerIps(), 1)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].GetSearchDomains(), 1)
 
-	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains[0]
+	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].GetSearchDomains()[0]
 	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
 	resp, err = nsc.Request(ctx, req)
@@ -403,7 +403,7 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -464,7 +464,7 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             uuid.New().String(),
-			NetworkService: fmt.Sprint(nsReg.Name),
+			NetworkService: fmt.Sprint(nsReg.GetName()),
 			Labels:         map[string]string{"podName": nscName},
 		},
 	}
@@ -474,10 +474,10 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 
 	req.Connection = resp.Clone()
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains, 3)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].GetDnsServerIps(), 1)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].GetSearchDomains(), 3)
 
-	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains[0]
+	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].GetSearchDomains()[0]
 
 	requireIPv4Lookup(ctx, t, &resolver, fmt.Sprintf("%s.%s", nscName, searchDomain), "10.0.0.1")
 
@@ -510,7 +510,7 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	prefix1 := "10.0.0.0/24"
 	prefix2 := "10.10.0.0/24"
@@ -526,18 +526,18 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	req := defaultRequest(nsReg.Name)
+	req := defaultRequest(nsReg.GetName())
 	conn, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
-	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
+	require.True(t, checkIPContext(conn.GetContext().GetIpContext(), prefix1))
 
 	// Refresh
 	clonedConn := conn.Clone()
 	req.Connection = conn
 	conn, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
-	require.True(t, checkIPContext(conn.Context.IpContext, prefix1))
-	require.True(t, proto.Equal(clonedConn.GetContext().IpContext, conn.GetContext().IpContext))
+	require.True(t, checkIPContext(conn.GetContext().GetIpContext(), prefix1))
+	require.True(t, proto.Equal(clonedConn.GetContext().GetIpContext(), conn.GetContext().GetIpContext()))
 
 	// Reset ipam with a new prefix
 	err = serverIpam.Reset(prefix2)
@@ -547,26 +547,26 @@ func Test_NSC_ConnectsTo_vl3NSE_With_Invalid_IpContext(t *testing.T) {
 	conn, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
 
-	require.False(t, checkIPContext(conn.Context.IpContext, prefix1))
-	require.True(t, checkIPContext(conn.Context.IpContext, prefix2))
+	require.False(t, checkIPContext(conn.GetContext().GetIpContext(), prefix1))
+	require.True(t, checkIPContext(conn.GetContext().GetIpContext(), prefix2))
 
 	// Refresh
 	clonedConn = conn.Clone()
 	req.Connection = conn
 	conn, err = nsc.Request(ctx, req)
 	require.NoError(t, err)
-	require.True(t, checkIPContext(conn.Context.IpContext, prefix2))
-	require.True(t, proto.Equal(clonedConn.GetContext().IpContext, conn.GetContext().IpContext))
+	require.True(t, checkIPContext(conn.GetContext().GetIpContext(), prefix2))
+	require.True(t, proto.Equal(clonedConn.GetContext().GetIpContext(), conn.GetContext().GetIpContext()))
 }
 
 func checkIPContext(ipContext *networkservice.IPContext, prefix string) bool {
 	pool := ippool.NewWithNetString(prefix)
-	for _, addr := range ipContext.SrcIpAddrs {
+	for _, addr := range ipContext.GetSrcIpAddrs() {
 		if !pool.ContainsNetString(addr) {
 			return false
 		}
 	}
-	for _, addr := range ipContext.DstIpAddrs {
+	for _, addr := range ipContext.GetDstIpAddrs() {
 		if !pool.ContainsNetString(addr) {
 			return false
 		}

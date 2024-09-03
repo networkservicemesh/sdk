@@ -32,7 +32,7 @@ type injectClockClient struct {
 	clock.Clock
 }
 
-// NewClient - client that injects clk into the context as it passes through the chain element
+// NewClient - client that injects clk into the context as it passes through the chain element.
 func NewClient(clk clock.Clock) networkservice.NetworkServiceClient {
 	return &injectClockClient{
 		Clock: clk,

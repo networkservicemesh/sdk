@@ -34,7 +34,7 @@ type traceNetworkServiceEndpointRegistryClient struct {
 	concise registry.NetworkServiceEndpointRegistryClient
 }
 
-// NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing
+// NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing.
 func NewNetworkServiceEndpointRegistryClient(traced registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	return &traceNetworkServiceEndpointRegistryClient{
 		verbose: traceverbose.NewNetworkServiceEndpointRegistryClient(traced),
@@ -48,6 +48,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 	}
 	return t.concise.Register(ctx, in, opts...)
 }
+
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	if logrus.GetLevel() == logrus.TraceLevel {
 		return t.verbose.Find(ctx, in, opts...)
@@ -67,7 +68,7 @@ type traceNetworkServiceEndpointRegistryServer struct {
 	concise registry.NetworkServiceEndpointRegistryServer
 }
 
-// NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing
+// NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing.
 func NewNetworkServiceEndpointRegistryServer(traced registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	return &traceNetworkServiceEndpointRegistryServer{
 		verbose: traceverbose.NewNetworkServiceEndpointRegistryServer(traced),

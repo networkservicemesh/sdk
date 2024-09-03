@@ -59,10 +59,10 @@ type serverOptions struct {
 	dialOptions                []grpc.DialOption
 }
 
-// Option modifies server option value
+// Option modifies server option value.
 type Option func(o *serverOptions)
 
-// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
+// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element.
 func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registry.NetworkServiceRegistryServer) Option {
 	if authorizeNSRegistryServer == nil {
 		panic("authorizeNSRegistryServer cannot be nil")
@@ -72,7 +72,7 @@ func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registry.NetworkSer
 	}
 }
 
-// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element
+// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element.
 func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registry.NetworkServiceEndpointRegistryServer) Option {
 	if authorizeNSERegistryServer == nil {
 		panic("authorizeNSERegistryServer cannot be nil")
@@ -82,7 +82,7 @@ func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registry.NetworkS
 	}
 }
 
-// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element.
 func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registry.NetworkServiceRegistryClient) Option {
 	if authorizeNSRegistryClient == nil {
 		panic("authorizeNSRegistryClient cannot be nil")
@@ -92,7 +92,7 @@ func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registry.NetworkSer
 	}
 }
 
-// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element.
 func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient) Option {
 	if authorizeNSERegistryClient == nil {
 		panic("authorizeNSERegistryClient cannot be nil")
@@ -102,28 +102,28 @@ func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registry.NetworkS
 	}
 }
 
-// WithDefaultExpiration sets the default expiration for endpoints
+// WithDefaultExpiration sets the default expiration for endpoints.
 func WithDefaultExpiration(d time.Duration) Option {
 	return func(o *serverOptions) {
 		o.defaultExpiration = d
 	}
 }
 
-// WithProxyRegistryURL sets URL to reach the proxy registry
+// WithProxyRegistryURL sets URL to reach the proxy registry.
 func WithProxyRegistryURL(proxyRegistryURL *url.URL) Option {
 	return func(o *serverOptions) {
 		o.proxyRegistryURL = proxyRegistryURL
 	}
 }
 
-// WithDialOptions sets grpc.DialOptions for the server
+// WithDialOptions sets grpc.DialOptions for the server.
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
 		o.dialOptions = dialOptions
 	}
 }
 
-// NewServer creates new registry server based on memory storage
+// NewServer creates new registry server based on memory storage.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) registryserver.Registry {
 	opts := &serverOptions{
 		authorizeNSRegistryServer:  registryauthorize.NewNetworkServiceRegistryServer(registryauthorize.Any()),

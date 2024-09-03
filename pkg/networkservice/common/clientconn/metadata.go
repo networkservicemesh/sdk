@@ -32,7 +32,7 @@ func Store(ctx context.Context, cc grpc.ClientConnInterface) {
 	metadata.Map(ctx, true).Store(key{}, cc)
 }
 
-// Delete deletes the grpc.ClientConnInterface stored in per Connection.Id metadata
+// Delete deletes the grpc.ClientConnInterface stored in per Connection.Id metadata.
 func Delete(ctx context.Context) {
 	metadata.Map(ctx, true).Delete(key{})
 }

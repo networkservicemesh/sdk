@@ -35,7 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/fs"
 )
 
-// nolint:goconst
+//nolint:goconst
 func TestSwapIPClient_Request(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
@@ -54,23 +54,23 @@ func TestSwapIPClient_Request(t *testing.T) {
 	ch1 := convertBytesChToMapCh(fs.WatchFile(ctx, p1))
 	ch2 := convertBytesChToMapCh(fs.WatchFile(ctx, p2))
 
-	var testChain = next.NewNetworkServiceClient(
+	testChain := next.NewNetworkServiceClient(
 		/* Source side */
 		checkresponse.NewClient(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, "172.16.2.10", c.Mechanism.Parameters[common.SrcIP])
-			require.Equal(t, "", c.Mechanism.Parameters[common.SrcOriginalIP])
-			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstIP])
-			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstOriginalIP])
+			require.Equal(t, "172.16.2.10", c.GetMechanism().GetParameters()[common.SrcIP])
+			require.Equal(t, "", c.GetMechanism().GetParameters()[common.SrcOriginalIP])
+			require.Equal(t, "172.16.2.100", c.GetMechanism().GetParameters()[common.DstIP])
+			require.Equal(t, "172.16.2.100", c.GetMechanism().GetParameters()[common.DstOriginalIP])
 		}),
 		swapip.NewClient(ch1),
 		checkrequest.NewClient(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
-			require.Equal(t, "172.16.1.10", r.Connection.Mechanism.Parameters[common.SrcIP])
-			require.Equal(t, "172.16.2.10", r.Connection.Mechanism.Parameters[common.SrcOriginalIP])
+			require.Equal(t, "172.16.1.10", r.GetConnection().GetMechanism().GetParameters()[common.SrcIP])
+			require.Equal(t, "172.16.2.10", r.GetConnection().GetMechanism().GetParameters()[common.SrcOriginalIP])
 		}),
 		/* Destination side */
 		checkresponse.NewClient(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, "172.16.1.10", c.Mechanism.Parameters[common.SrcIP])
-			require.Equal(t, "172.16.2.10", c.Mechanism.Parameters[common.SrcOriginalIP])
+			require.Equal(t, "172.16.1.10", c.GetMechanism().GetParameters()[common.SrcIP])
+			require.Equal(t, "172.16.2.10", c.GetMechanism().GetParameters()[common.SrcOriginalIP])
 		}),
 		swapip.NewClient(ch2),
 		checkrequest.NewClient(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {

@@ -16,17 +16,17 @@
 
 package externalips
 
-// Option option for externalips server
+// Option option for externalips server.
 type Option func(*externalIPsServer)
 
-// WithFilePath means listen file by passed path
+// WithFilePath means listen file by passed path.
 func WithFilePath(p string) Option {
 	return func(server *externalIPsServer) {
 		server.updateCh = monitorMapFromFile(server.chainCtx, p)
 	}
 }
 
-// WithUpdateChannel passed to server specific channel for listening updates
+// WithUpdateChannel passed to server specific channel for listening updates.
 func WithUpdateChannel(ch <-chan map[string]string) Option {
 	return func(server *externalIPsServer) {
 		server.updateCh = ch

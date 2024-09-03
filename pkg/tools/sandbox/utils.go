@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	// DialTimeout is a default dial timeout for the sandbox tests
+	// DialTimeout is a default dial timeout for the sandbox tests.
 	DialTimeout = 2 * time.Second
 )
 
@@ -73,7 +73,7 @@ func WithInsecureStreamRPCCredentials() grpc.DialOption {
 	})
 }
 
-// GenerateTestToken generates test token
+// GenerateTestToken generates test token.
 func GenerateTestToken(_ credentials.AuthInfo) (string, time.Time, error) {
 	expireTime := time.Now().Add(time.Hour)
 
@@ -101,12 +101,12 @@ func GenerateExpiringToken(duration time.Duration) token.GeneratorFunc {
 	}
 }
 
-// UniqueName creates unique name with the given prefix
+// UniqueName creates unique name with the given prefix.
 func UniqueName(prefix string) string {
 	return fmt.Sprintf("%s-%s", prefix, uuid.New().String())
 }
 
-// SetupDefaultNode setups NSMgr and default Forwarder on the given node
+// SetupDefaultNode setups NSMgr and default Forwarder on the given node.
 func SetupDefaultNode(ctx context.Context, tokenGenerator token.GeneratorFunc, node *Node, supplyNSMgr SupplyNSMgrFunc) {
 	node.NewNSMgr(ctx, UniqueName("nsmgr"), nil, tokenGenerator, supplyNSMgr)
 

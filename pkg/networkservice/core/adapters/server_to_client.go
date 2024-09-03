@@ -36,7 +36,7 @@ type (
 	}
 )
 
-// NewServerToClient - returns a new networkservice.NetworkServiceClient that is a wrapper around server
+// NewServerToClient - returns a new networkservice.NetworkServiceClient that is a wrapper around server.
 func NewServerToClient(server networkservice.NetworkServiceServer) networkservice.NetworkServiceClient {
 	return &serverToClient{server: server}
 }

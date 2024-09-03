@@ -69,7 +69,7 @@ func (c *countClient) Request(ctx context.Context, request *networkservice.Netwo
 	if atomic.AddInt32(&c.count, 1) == 1 {
 		conn.NetworkServiceEndpointName = endpointName
 	} else {
-		assert.Equal(c.t, endpointName, conn.NetworkServiceEndpointName)
+		assert.Equal(c.t, endpointName, conn.GetNetworkServiceEndpointName())
 	}
 
 	c.mutex.Lock()
@@ -190,7 +190,7 @@ func (t *refreshTesterServer) Request(ctx context.Context, request *networkservi
 	}()
 	t.checkUnlocked()
 
-	marker := request.Connection.Context.ExtraContext[connectionMarker]
+	marker := request.GetConnection().GetContext().GetExtraContext()[connectionMarker]
 	assert.NotEmpty(t.t, marker, "Marker is empty")
 
 	switch t.state {

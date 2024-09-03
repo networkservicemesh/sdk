@@ -51,7 +51,7 @@ domain1:                                                           domain2:
 |                                                           | Find |                 |
 |  local registry -> nsmgr proxy registry -> proxy registry | ---> | local registry  |
 |                                                           |      |                 |
-------------------------------------------------------------       ------------------
+------------------------------------------------------------       ------------------.
 */
 func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -94,7 +94,7 @@ func TestInterdomainNetworkServiceRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, "ns-1@"+domain2.Name, list[0].Name)
+	require.Equal(t, "ns-1@"+domain2.Name, list[0].GetName())
 }
 
 /*
@@ -112,7 +112,7 @@ domain1:                                                             domain1				
 |                                                           | 2.Find |                 | 1. Register  |                                                           |
 |  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
 |                                                           |        |                 |              |                                                           |
-------------------------------------------------------------         ------------------               ------------------------------------------------------------
+------------------------------------------------------------         ------------------               ------------------------------------------------------------.
 */
 func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -145,7 +145,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 
 	stream, err := client2.Find(context.Background(), &registryapi.NetworkServiceQuery{
 		NetworkService: &registryapi.NetworkService{
-			Name: expected.Name,
+			Name: expected.GetName(),
 		},
 	})
 
@@ -154,7 +154,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, "ns-1@cluster.local", list[0].Name)
+	require.Equal(t, "ns-1@cluster.local", list[0].GetName())
 }
 
 /*
@@ -231,5 +231,5 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, "ns-1@"+domain3.Name, list[0].Name)
+	require.Equal(t, "ns-1@"+domain3.Name, list[0].GetName())
 }

@@ -93,6 +93,7 @@ func TestNSServerBranches(t *testing.T) {
 		assert.Equal(t, expects[i], visitValue(eventSrv.Context()), fmt.Sprintf("sample index: %v", i))
 	}
 }
+
 func TestDataRaceMonitorConnectionServer(t *testing.T) {
 	s := next.NewMonitorConnectionServer(emptyMCServer())
 	wg := sync.WaitGroup{}

@@ -25,13 +25,13 @@ import (
 	"github.com/pkg/errors"
 )
 
-// resolveConfig provides API for editing / reading resolv.conf
+// resolveConfig provides API for editing / reading resolv.conf.
 type resolveConfig struct {
 	path       string
 	properties map[string][]string
 }
 
-// openResolveConfig reads resolve config file from specific path
+// openResolveConfig reads resolve config file from specific path.
 func openResolveConfig(p string) (*resolveConfig, error) {
 	r := &resolveConfig{
 		path:       p,
@@ -59,12 +59,12 @@ func (r *resolveConfig) readProperties() error {
 	return nil
 }
 
-// Value returns value of property
+// Value returns value of property.
 func (r *resolveConfig) Value(k string) []string {
 	return r.properties[k]
 }
 
-// SetValue sets value for specific property
+// SetValue sets value for specific property.
 func (r *resolveConfig) SetValue(k string, values ...string) {
 	if len(values) == 0 {
 		delete(r.properties, k)
@@ -73,7 +73,7 @@ func (r *resolveConfig) SetValue(k string, values ...string) {
 	}
 }
 
-// String serializes resolve config
+// String serializes resolve config.
 func (r *resolveConfig) String() string {
 	var sb strings.Builder
 	var index int
@@ -88,10 +88,10 @@ func (r *resolveConfig) String() string {
 }
 
 const (
-	// searchProperty means search list for host-name lookup
+	// searchProperty means search list for host-name lookup.
 	searchProperty = "search"
-	// nameserverProperty means name server IP address
+	// nameserverProperty means name server IP address.
 	nameserverProperty = "nameserver"
-	// optionsProperty  allows certain internal resolver variables to be modified
+	// optionsProperty  allows certain internal resolver variables to be modified.
 	optionsProperty = "options"
 )

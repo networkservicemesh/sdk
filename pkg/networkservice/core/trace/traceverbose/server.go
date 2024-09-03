@@ -35,7 +35,7 @@ type beginTraceServer struct {
 
 type endTraceServer struct{}
 
-// NewNetworkServiceServer - wraps tracing around the supplied traced
+// NewNetworkServiceServer - wraps tracing around the supplied traced.
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return next.NewNetworkServiceServer(
 		&beginTraceServer{traced: traced},

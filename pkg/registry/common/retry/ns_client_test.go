@@ -36,10 +36,10 @@ import (
 func TestNSRetryClient_Register(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var callCounter = &count.CallCounter{}
-	var counter = count.NewNetworkServiceRegistryClient(callCounter)
+	callCounter := &count.CallCounter{}
+	counter := count.NewNetworkServiceRegistryClient(callCounter)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
@@ -48,7 +48,7 @@ func TestNSRetryClient_Register(t *testing.T) {
 		injecterror.NewNetworkServiceRegistryClient(injecterror.WithRegisterErrorTimes(0, 1, 2, 3, 4)),
 	)
 
-	var _, err = client.Register(context.Background(), nil)
+	_, err := client.Register(context.Background(), nil)
 	require.NoError(t, err)
 	require.Equal(t, 6, callCounter.Registers())
 }
@@ -66,7 +66,7 @@ func TestNSRetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
 
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(context.Background(), retry.WithTryTimeout(time.Hour)),
 		checkcontext.NewNSClient(t, func(t *testing.T, c context.Context) {
 			v, ok := c.Deadline()
@@ -74,7 +74,7 @@ func TestNSRetryClient_Register_ContextHasCorrectDeadline(t *testing.T) {
 			require.Equal(t, expectedDeadline, v)
 		}))
 
-	var _, err = client.Register(ctx, nil)
+	_, err := client.Register(ctx, nil)
 	require.NoError(t, err)
 }
 
@@ -91,7 +91,7 @@ func TestNSRetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
 
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(context.Background(), retry.WithTryTimeout(time.Hour)),
 		checkcontext.NewNSClient(t, func(t *testing.T, c context.Context) {
 			v, ok := c.Deadline()
@@ -99,17 +99,17 @@ func TestNSRetryClient_Unregister_ContextHasCorrectDeadline(t *testing.T) {
 			require.Equal(t, expectedDeadline, v)
 		}))
 
-	var _, err = client.Unregister(ctx, nil)
+	_, err := client.Unregister(ctx, nil)
 	require.NoError(t, err)
 }
 
 func TestNSRetryClient_Unregister(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var callCounter = &count.CallCounter{}
-	var counter = count.NewNetworkServiceRegistryClient(callCounter)
+	callCounter := &count.CallCounter{}
+	counter := count.NewNetworkServiceRegistryClient(callCounter)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
@@ -118,7 +118,7 @@ func TestNSRetryClient_Unregister(t *testing.T) {
 		injecterror.NewNetworkServiceRegistryClient(injecterror.WithUnregisterErrorTimes(0, 1, 2, 3, 4)),
 	)
 
-	var _, err = client.Unregister(context.Background(), nil)
+	_, err := client.Unregister(context.Background(), nil)
 	require.NoError(t, err)
 	require.Equal(t, 6, callCounter.Unregisters())
 }
@@ -126,10 +126,10 @@ func TestNSRetryClient_Unregister(t *testing.T) {
 func TestNSRetryClient_Find(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var callCounter = &count.CallCounter{}
-	var counter = count.NewNetworkServiceRegistryClient(callCounter)
+	callCounter := &count.CallCounter{}
+	counter := count.NewNetworkServiceRegistryClient(callCounter)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
@@ -138,7 +138,7 @@ func TestNSRetryClient_Find(t *testing.T) {
 		injecterror.NewNetworkServiceRegistryClient(injecterror.WithFindErrorTimes(0, 1, 2, 3, 4)),
 	)
 
-	var _, err = client.Find(context.Background(), nil)
+	_, err := client.Find(context.Background(), nil)
 	require.NoError(t, err)
 	require.Equal(t, 6, callCounter.Finds())
 }
@@ -146,10 +146,10 @@ func TestNSRetryClient_Find(t *testing.T) {
 func TestNSRetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var callCounter = &count.CallCounter{}
-	var counter = count.NewNetworkServiceRegistryClient(callCounter)
+	callCounter := &count.CallCounter{}
+	counter := count.NewNetworkServiceRegistryClient(callCounter)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
@@ -158,10 +158,10 @@ func TestNSRetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 		injecterror.NewNetworkServiceRegistryClient(),
 	)
 
-	var ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*55)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*55)
 	defer cancel()
 
-	var _, err = client.Register(ctx, nil)
+	_, err := client.Register(ctx, nil)
 	require.Error(t, err)
 	require.Greater(t, callCounter.Registers(), 0)
 }
@@ -169,10 +169,10 @@ func TestNSRetryClient_RegisterCompletesOnParentContextTimeout(t *testing.T) {
 func TestNSRetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var callCounter = &count.CallCounter{}
-	var counter = count.NewNetworkServiceRegistryClient(callCounter)
+	callCounter := &count.CallCounter{}
+	counter := count.NewNetworkServiceRegistryClient(callCounter)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
@@ -181,10 +181,10 @@ func TestNSRetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
 		injecterror.NewNetworkServiceRegistryClient(),
 	)
 
-	var ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*55)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*55)
 	defer cancel()
 
-	var _, err = client.Unregister(ctx, nil)
+	_, err := client.Unregister(ctx, nil)
 	require.Error(t, err)
 	require.Greater(t, callCounter.Unregisters(), 0)
 }
@@ -192,10 +192,10 @@ func TestNSRetryClient_UnregisterCompletesOnParentContextTimeout(t *testing.T) {
 func TestNSRetryClient_FindCompletesOnParentContextTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var callCounter = &count.CallCounter{}
-	var counter = count.NewNetworkServiceRegistryClient(callCounter)
+	callCounter := &count.CallCounter{}
+	counter := count.NewNetworkServiceRegistryClient(callCounter)
 
-	var client = chain.NewNetworkServiceRegistryClient(
+	client := chain.NewNetworkServiceRegistryClient(
 		retry.NewNetworkServiceRegistryClient(
 			context.Background(),
 			retry.WithInterval(time.Millisecond*10),
@@ -204,10 +204,10 @@ func TestNSRetryClient_FindCompletesOnParentContextTimeout(t *testing.T) {
 		injecterror.NewNetworkServiceRegistryClient(),
 	)
 
-	var ctx, cancel = context.WithTimeout(context.Background(), time.Millisecond*55)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Millisecond*55)
 	defer cancel()
 
-	var _, err = client.Find(ctx, nil)
+	_, err := client.Find(ctx, nil)
 	require.Error(t, err)
 	require.Greater(t, callCounter.Finds(), 0)
 }

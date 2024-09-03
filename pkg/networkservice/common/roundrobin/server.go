@@ -51,24 +51,24 @@ func (s *selectEndpointServer) Request(ctx context.Context, request *networkserv
 	}
 	candidates := discover.Candidates(ctx)
 
-	var candidatesErr = errors.New("all candidates have failed")
+	candidatesErr := errors.New("all candidates have failed")
 
 	for i := 0; i < len(candidates.Endpoints); i++ {
 		endpoint := s.selector.selectEndpoint(candidates.NetworkService, candidates.Endpoints)
 		if endpoint == nil {
 			return nil, errors.Errorf("failed to select endpoint for Network Service: %v %v", candidates.NetworkService, candidates.Endpoints)
 		}
-		u, err := url.Parse(endpoint.Url)
+		u, err := url.Parse(endpoint.GetUrl())
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse url %s", endpoint.Url)
+			return nil, errors.Wrapf(err, "failed to parse url %s", endpoint.GetUrl())
 		}
 		ctx = clienturlctx.WithClientURL(ctx, u)
-		request.GetConnection().NetworkServiceEndpointName = endpoint.Name
+		request.GetConnection().NetworkServiceEndpointName = endpoint.GetName()
 		resp, err := next.Server(ctx).Request(ctx, request.Clone())
 		if err == nil {
 			return resp, nil
 		}
-		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select endpoint %v --> %v", i, endpoint.Name, err.Error())
+		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select endpoint %v --> %v", i, endpoint.GetName(), err.Error())
 	}
 	return nil, candidatesErr
 }

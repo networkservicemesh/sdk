@@ -95,10 +95,10 @@ func TestMock_SetSpeed(t *testing.T) {
 	}
 
 	for _, sample := range samples {
-		// nolint:scopelint
+		//nolint:scopelint
 		t.Run(sample.name, func(t *testing.T) {
 			for _, speed := range speeds {
-				// nolint:scopelint
+				//nolint:scopelint
 				t.Run(speed.name, func(t *testing.T) {
 					testMockSetSpeed(t, sample.firstSpeed*speed.multiplier, sample.secondSpeed*speed.multiplier)
 				})

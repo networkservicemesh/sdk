@@ -18,10 +18,10 @@
 
 package vni
 
-// Option is an option pattern for vni server/client
+// Option is an option pattern for vni server/client.
 type Option func(o *vniOpions)
 
-// WithTunnelPort sets VxLAN port
+// WithTunnelPort sets VxLAN port.
 func WithTunnelPort(tunnelPort uint16) Option {
 	return func(o *vniOpions) {
 		if tunnelPort != 0 {

@@ -40,17 +40,17 @@ type option struct {
 	fEntries   []*federatedEntry
 }
 
-// Option for spire
+// Option for spire.
 type Option func(*option)
 
-// WithContext - use ctx as context for starting spire
+// WithContext - use ctx as context for starting spire.
 func WithContext(ctx context.Context) Option {
 	return func(o *option) {
 		o.ctx = ctx
 	}
 }
 
-// WithAgentID - agentID for starting spire
+// WithAgentID - agentID for starting spire.
 func WithAgentID(agentID string) Option {
 	return func(o *option) {
 		o.agentID = agentID
@@ -77,21 +77,21 @@ func WithFederatedEntry(spiffeID, selector, federatesWith string) Option {
 	}
 }
 
-// WithAgentConfig - adds agent config
+// WithAgentConfig - adds agent config.
 func WithAgentConfig(conf string) Option {
 	return func(o *option) {
 		o.agentConf = conf
 	}
 }
 
-// WithServerConfig - adds server config
+// WithServerConfig - adds server config.
 func WithServerConfig(conf string) Option {
 	return func(o *option) {
 		o.serverConf = conf
 	}
 }
 
-// WithRoot - sets root folder
+// WithRoot - sets root folder.
 func WithRoot(root string) Option {
 	return func(o *option) {
 		o.spireRoot = root

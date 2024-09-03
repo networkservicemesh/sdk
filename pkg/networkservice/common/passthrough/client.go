@@ -25,7 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 )
 
-// NewClient returns a combination for passthrough cases
+// NewClient returns a combination for passthrough cases.
 func NewClient(labels map[string]string) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		replacelabels.NewClient(labels),

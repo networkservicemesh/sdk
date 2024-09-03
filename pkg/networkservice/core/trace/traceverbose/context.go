@@ -45,7 +45,7 @@ type traceInfo struct {
 	Response proto.Message
 }
 
-// withLog - provides corresponding logger in context
+// withLog - provides corresponding logger in context.
 func withLog(parent context.Context, operation, methodName, connectionID string) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -71,7 +71,7 @@ func withLog(parent context.Context, operation, methodName, connectionID string)
 	}
 }
 
-// withConnectionInfo - Provides a traceInfo in context
+// withConnectionInfo - Provides a traceInfo in context.
 func withTrace(parent context.Context) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -84,7 +84,7 @@ func withTrace(parent context.Context) context.Context {
 	return context.WithValue(parent, traceInfoKey, &traceInfo{})
 }
 
-// trace - return traceInfo from context
+// trace - return traceInfo from context.
 func trace(ctx context.Context) (*traceInfo, bool) {
 	val, ok := ctx.Value(traceInfoKey).(*traceInfo)
 	return val, ok

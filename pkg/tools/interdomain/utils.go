@@ -20,7 +20,7 @@ import "strings"
 
 const identifier = "@"
 
-// Is returns true if passed string can be represented as interdomain URL
+// Is returns true if passed string can be represented as interdomain URL.
 func Is(s string) bool {
 	return strings.Contains(s, identifier)
 }
@@ -30,12 +30,12 @@ func Not(s string) bool {
 	return !Is(s)
 }
 
-// Join concatenates strings with intedomain identifier
+// Join concatenates strings with intedomain identifier.
 func Join(s ...string) string {
 	return strings.Join(s, identifier)
 }
 
-// Domain returns domain name from interdomain query
+// Domain returns domain name from interdomain query.
 func Domain(s string) string {
 	pieces := strings.SplitN(s, identifier, 2)
 	if len(pieces) < 2 {
@@ -44,7 +44,7 @@ func Domain(s string) string {
 	return pieces[1]
 }
 
-// Target returns target name from interdomain query
+// Target returns target name from interdomain query.
 func Target(s string) string {
 	pieces := strings.SplitN(s, identifier, 2)
 	return pieces[0]

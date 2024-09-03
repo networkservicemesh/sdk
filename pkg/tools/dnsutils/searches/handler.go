@@ -27,8 +27,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type searchDomainsHandler struct {
-}
+type searchDomainsHandler struct{}
 
 func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, m *dns.Msg) {
 	for _, d := range append([]string{""}, SearchDomains(ctx)...) {
@@ -54,7 +53,7 @@ func (h *searchDomainsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWrit
 	dns.HandleFailed(rw, m)
 }
 
-// NewDNSHandler creates a new dns handler that makes requests to all subdomains received from dns configs
+// NewDNSHandler creates a new dns handler that makes requests to all subdomains received from dns configs.
 func NewDNSHandler() dnsutils.Handler {
 	return new(searchDomainsHandler)
 }

@@ -30,14 +30,14 @@ func TestWithServiceConnectionPolicy(t *testing.T) {
 	p, err := opa.PolicyFromFile("etc/nsm/opa/monitor/service_connection.rego")
 	require.NoError(t, err)
 
-	var input = authorize.MonitorOpaInput{
+	input := authorize.MonitorOpaInput{
 		SelectorConnectionIds: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn1"},
 		},
 		ServiceSpiffeID: spiffeID,
 	}
-	var invalidInput = authorize.MonitorOpaInput{
+	invalidInput := authorize.MonitorOpaInput{
 		SelectorConnectionIds: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn2"},

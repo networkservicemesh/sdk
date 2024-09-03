@@ -23,8 +23,10 @@ import (
 
 type contextKey string
 
-const internalToExternalKey contextKey = "internal-external"
-const externalToInternalKey contextKey = "external-internal"
+const (
+	internalToExternalKey contextKey = "internal-external"
+	externalToInternalKey contextKey = "external-internal"
+)
 
 func withInternalReplacer(ctx context.Context, replacer func(net.IP) net.IP) context.Context {
 	return context.WithValue(ctx, internalToExternalKey, replacer)
@@ -34,7 +36,7 @@ func withExternalReplacer(ctx context.Context, replacer func(net.IP) net.IP) con
 	return context.WithValue(ctx, externalToInternalKey, replacer)
 }
 
-// ToInternal resolves a external IP to internal
+// ToInternal resolves a external IP to internal.
 func ToInternal(ctx context.Context, ip net.IP) net.IP {
 	if v := ctx.Value(externalToInternalKey); v != nil {
 		return v.(func(net.IP) net.IP)(ip)
@@ -42,7 +44,7 @@ func ToInternal(ctx context.Context, ip net.IP) net.IP {
 	return nil
 }
 
-// FromInternal resolves a internal IP to external
+// FromInternal resolves a internal IP to external.
 func FromInternal(ctx context.Context, ip net.IP) net.IP {
 	if v := ctx.Value(internalToExternalKey); v != nil {
 		return v.(func(net.IP) net.IP)(ip)

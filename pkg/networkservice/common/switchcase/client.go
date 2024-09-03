@@ -27,7 +27,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-// ClientCase is a case type for the switch-case client chain element
+// ClientCase is a case type for the switch-case client chain element.
 type ClientCase struct {
 	Condition Condition
 	Client    networkservice.NetworkServiceClient
@@ -37,7 +37,7 @@ type switchClient struct {
 	cases []*ClientCase
 }
 
-// NewClient returns a new switch-case client chain element
+// NewClient returns a new switch-case client chain element.
 func NewClient(cases ...*ClientCase) networkservice.NetworkServiceClient {
 	return &switchClient{
 		cases: cases,

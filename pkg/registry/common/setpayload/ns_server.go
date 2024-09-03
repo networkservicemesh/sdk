@@ -31,7 +31,7 @@ type setPayloadNSServer struct {
 }
 
 func (s *setPayloadNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	if ns.Payload == "" {
+	if ns.GetPayload() == "" {
 		ns.Payload = s.defaultPayload
 	}
 
@@ -46,7 +46,7 @@ func (s *setPayloadNSServer) Unregister(ctx context.Context, ns *registry.Networ
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
 
-// NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which sets the passed options
+// NewNetworkServiceRegistryServer creates new instance of NetworkServiceRegistryServer which sets the passed options.
 func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
 	payloadServer := &setPayloadNSServer{defaultPayload: payload.IP}
 

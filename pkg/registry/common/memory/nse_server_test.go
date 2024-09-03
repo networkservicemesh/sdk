@@ -364,7 +364,7 @@ func TestNetworkServiceEndpointRegistryServer_ShouldReceiveAllUnregisters(t *tes
 				switch {
 				case err != nil:
 					assert.Equal(t, io.EOF, err)
-				case nseResp.Deleted:
+				case nseResp.GetDeleted():
 					return
 				default:
 					exists = true

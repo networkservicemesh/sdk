@@ -49,10 +49,10 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 	if !v.pool.isInitialized() {
 		return nil, errors.New("prefix pool is initializing")
 	}
-	if request.Connection == nil {
+	if request.GetConnection() == nil {
 		request.Connection = new(networkservice.Connection)
 	}
-	var conn = request.GetConnection()
+	conn := request.GetConnection()
 	if conn.GetContext() == nil {
 		conn.Context = new(networkservice.ConnectionContext)
 	}
@@ -60,7 +60,7 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 		conn.GetContext().IpContext = new(networkservice.IPContext)
 	}
 
-	var ipContext = conn.GetContext().GetIpContext()
+	ipContext := conn.GetContext().GetIpContext()
 
 	if prevAddress, ok := v.subnetMap.Load(conn.GetId()); ok {
 		// Remove previous prefix from IP Context if a current server prefix has changed
@@ -86,7 +86,7 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 
 	addRoute(&ipContext.SrcRoutes, v.pool.selfAddress().String(), v.pool.selfAddress().IP.String())
 	addRoute(&ipContext.SrcRoutes, v.pool.selfPrefix().String(), v.pool.selfAddress().IP.String())
-	for _, srcAddr := range ipContext.SrcIpAddrs {
+	for _, srcAddr := range ipContext.GetSrcIpAddrs() {
 		addRoute(&ipContext.DstRoutes, srcAddr, "")
 	}
 	addAddr(&ipContext.DstIpAddrs, v.pool.selfAddress().String())
@@ -108,7 +108,7 @@ func (v *vl3Server) Close(ctx context.Context, conn *networkservice.Connection) 
 
 func addRoute(routes *[]*networkservice.Route, prefix, nextHop string) {
 	for _, route := range *routes {
-		if route.Prefix == prefix {
+		if route.GetPrefix() == prefix {
 			return
 		}
 	}
@@ -131,7 +131,7 @@ func removePreviousPrefixFromIPContext(ipContext *networkservice.IPContext, prev
 	prevIPPool := ippool.NewWithNetString(prevAddress)
 
 	var srcIPAddrs []string
-	for _, ip := range ipContext.SrcIpAddrs {
+	for _, ip := range ipContext.GetSrcIpAddrs() {
 		if !prevIPPool.ContainsNetString(ip) {
 			srcIPAddrs = append(srcIPAddrs, ip)
 		}
@@ -139,7 +139,7 @@ func removePreviousPrefixFromIPContext(ipContext *networkservice.IPContext, prev
 	ipContext.SrcIpAddrs = srcIPAddrs
 
 	var dstIPAddrs []string
-	for _, ip := range ipContext.DstIpAddrs {
+	for _, ip := range ipContext.GetDstIpAddrs() {
 		if !prevIPPool.ContainsNetString(ip) {
 			dstIPAddrs = append(dstIPAddrs, ip)
 		}
@@ -147,16 +147,16 @@ func removePreviousPrefixFromIPContext(ipContext *networkservice.IPContext, prev
 	ipContext.DstIpAddrs = dstIPAddrs
 
 	var srcRoutes []*networkservice.Route
-	for _, r := range ipContext.SrcRoutes {
-		if !prevIPPool.ContainsNetString(r.Prefix) {
+	for _, r := range ipContext.GetSrcRoutes() {
+		if !prevIPPool.ContainsNetString(r.GetPrefix()) {
 			srcRoutes = append(srcRoutes, r)
 		}
 	}
 	ipContext.SrcRoutes = srcRoutes
 
 	var dstRoutes []*networkservice.Route
-	for _, r := range ipContext.DstRoutes {
-		if !prevIPPool.ContainsNetString(r.Prefix) {
+	for _, r := range ipContext.GetDstRoutes() {
+		if !prevIPPool.ContainsNetString(r.GetPrefix()) {
 			dstRoutes = append(dstRoutes, r)
 		}
 	}

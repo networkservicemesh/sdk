@@ -28,7 +28,7 @@ import (
 type trimpathServer struct{}
 
 // NewServer - returns a trimpath server chain element that will truncate the Connection.Path at the server
-// that contains it *unless* it is part of a passthrough that utilizes a client containing trimpath.NewClient()
+// that contains it *unless* it is part of a passthrough that utilizes a client containing trimpath.NewClient().
 func NewServer() networkservice.NetworkServiceServer {
 	return &trimpathServer{}
 }

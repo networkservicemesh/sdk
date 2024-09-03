@@ -28,14 +28,14 @@ import (
 )
 
 func Test_DNSConfigsDecoder_ShouldBeParsedFromJson(t *testing.T) {
-	var expected = []*networkservice.DNSConfig{
+	expected := []*networkservice.DNSConfig{
 		{
 			SearchDomains: []string{"d1"},
 			DnsServerIps:  []string{"ip1", "ip2"},
 		},
 	}
 	var decoder dnsconfig.Decoder
-	var err = decoder.Decode(`[{"dns_server_ips": ["ip1", "ip2"], "search_domains": ["d1"]}]`)
+	err := decoder.Decode(`[{"dns_server_ips": ["ip1", "ip2"], "search_domains": ["d1"]}]`)
 	require.NoError(t, err)
 	require.Equal(t, expected, []*networkservice.DNSConfig(decoder))
 }

@@ -34,7 +34,7 @@ import (
 // MatchEndpoint filters input nses by network service configuration.
 // Returns the same nses list if no matches are declared in the network service.
 func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses ...*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
-	if len(ns.Matches) == 0 {
+	if len(ns.GetMatches()) == 0 {
 		return nses
 	}
 	for _, match := range ns.GetMatches() {
@@ -47,10 +47,10 @@ func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses
 		for _, destination := range match.GetRoutes() {
 			// Each NSE should be matched against that destination
 			for _, nse := range nses {
-				var candidateNetworkServiceLabels = nse.GetNetworkServiceLabels()[ns.GetName()]
+				candidateNetworkServiceLabels := nse.GetNetworkServiceLabels()[ns.GetName()]
 				var labels map[string]string
 				if candidateNetworkServiceLabels != nil {
-					labels = candidateNetworkServiceLabels.Labels
+					labels = candidateNetworkServiceLabels.GetLabels()
 				}
 				if IsSubset(labels, destination.GetDestinationSelector(), nsLabels) {
 					nseCandidates = append(nseCandidates, nse)
@@ -58,11 +58,11 @@ func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses
 			}
 		}
 
-		if match.Fallthrough && len(nseCandidates) == 0 {
+		if match.GetFallthrough() && len(nseCandidates) == 0 {
 			continue
 		}
 
-		if match.GetMetadata() != nil && len(match.Routes) == 0 && len(nseCandidates) == 0 {
+		if match.GetMetadata() != nil && len(match.GetRoutes()) == 0 && len(nseCandidates) == 0 {
 			return nses
 		}
 
@@ -72,20 +72,20 @@ func MatchEndpoint(nsLabels map[string]string, ns *registry.NetworkService, nses
 	return nil
 }
 
-// MatchNetworkServices returns true if two network services are matched
+// MatchNetworkServices returns true if two network services are matched.
 func MatchNetworkServices(left, right *registry.NetworkService) bool {
-	return (left.Name == "" || right.Name == left.Name) &&
-		(left.Payload == "" || left.Payload == right.Payload) &&
-		(left.Matches == nil || cmp.Equal(left.Matches, right.Matches, cmp.Comparer(proto.Equal)))
+	return (left.GetName() == "" || right.GetName() == left.GetName()) &&
+		(left.GetPayload() == "" || left.GetPayload() == right.GetPayload()) &&
+		(left.Matches == nil || cmp.Equal(left.GetMatches(), right.GetMatches(), cmp.Comparer(proto.Equal)))
 }
 
-// MatchNetworkServiceEndpoints  returns true if two network service endpoints are matched
+// MatchNetworkServiceEndpoints  returns true if two network service endpoints are matched.
 func MatchNetworkServiceEndpoints(left, right *registry.NetworkServiceEndpoint) bool {
-	return (left.Name == "" || right.Name == left.Name) &&
-		(left.NetworkServiceLabels == nil || labelsContains(right.NetworkServiceLabels, left.NetworkServiceLabels)) &&
-		(left.ExpirationTime == nil || left.ExpirationTime.Seconds == right.ExpirationTime.Seconds) &&
-		(left.NetworkServiceNames == nil || contains(right.NetworkServiceNames, left.NetworkServiceNames)) &&
-		(left.Url == "" || strings.Contains(right.Url, left.Url))
+	return (left.GetName() == "" || right.GetName() == left.GetName()) &&
+		(left.NetworkServiceLabels == nil || labelsContains(right.GetNetworkServiceLabels(), left.GetNetworkServiceLabels())) &&
+		(left.GetExpirationTime() == nil || left.GetExpirationTime().GetSeconds() == right.GetExpirationTime().GetSeconds()) &&
+		(left.NetworkServiceNames == nil || contains(right.GetNetworkServiceNames(), left.GetNetworkServiceNames())) &&
+		(left.GetUrl() == "" || strings.Contains(right.GetUrl(), left.GetUrl()))
 }
 
 // IsSubset checks if B is a subset of A.
@@ -108,7 +108,6 @@ func IsSubset(a, b, values map[string]string) bool {
 // processLabels generates matches based on destination label selectors that specify templating.
 func processLabels(str string, vars interface{}) string {
 	tmpl, err := template.New("tmpl").Parse(str)
-
 	if err != nil {
 		return str
 	}
@@ -137,8 +136,8 @@ func labelsContains(where, what map[string]*registry.NetworkServiceLabels) bool 
 		if !ok {
 			return false
 		}
-		for lKey, lVal := range lLabels.Labels {
-			rVal, ok := rService.Labels[lKey]
+		for lKey, lVal := range lLabels.GetLabels() {
+			rVal, ok := rService.GetLabels()[lKey]
 			if !ok || lVal != rVal {
 				return false
 			}

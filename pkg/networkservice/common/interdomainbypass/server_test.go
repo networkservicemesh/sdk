@@ -45,7 +45,7 @@ func Test_StoreUrlNSEServer(t *testing.T) {
 
 	var storeRegServer registry.NetworkServiceEndpointRegistryServer
 
-	var s = chain.NewNetworkServiceServer(
+	s := chain.NewNetworkServiceServer(
 		interdomainbypass.NewServer(&storeRegServer, new(url.URL)),
 		checkcontext.NewServer(t, func(t *testing.T, c context.Context) {
 			v := clienturlctx.ClientURL(c)

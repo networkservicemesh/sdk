@@ -28,10 +28,10 @@ type options struct {
 	resourcePathIdsMap *genericsync.Map[string, []string]
 }
 
-// Option is authorization option for server
+// Option is authorization option for server.
 type Option func(*options)
 
-// Any authorizes any call of request/close
+// Any authorizes any call of request/close.
 func Any() Option {
 	return func(o *options) {
 		o.policies = nil
@@ -39,7 +39,7 @@ func Any() Option {
 }
 
 // WithPolicies sets custom policies for registry.
-// policyPaths can be combination of both policy files and dirs with policies
+// policyPaths can be combination of both policy files and dirs with policies.
 func WithPolicies(policyPaths ...string) Option {
 	return func(o *options) {
 		policies, err := opa.PoliciesByFileMask(policyPaths...)
@@ -53,7 +53,7 @@ func WithPolicies(policyPaths ...string) Option {
 	}
 }
 
-// WithResourcePathIdsMap sets map to keep resourcePathIdsMap to authorize connections with Registry Authorize Chain Element
+// WithResourcePathIdsMap sets map to keep resourcePathIdsMap to authorize connections with Registry Authorize Chain Element.
 func WithResourcePathIdsMap(m *genericsync.Map[string, []string]) Option {
 	return func(o *options) {
 		o.resourcePathIdsMap = m

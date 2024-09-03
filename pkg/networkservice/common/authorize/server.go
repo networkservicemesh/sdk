@@ -63,7 +63,7 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 		policyList = append(policyList, p)
 	}
 
-	var s = &authorizeServer{
+	s := &authorizeServer{
 		policies:              policyList,
 		spiffeIDConnectionMap: o.spiffeIDConnectionMap,
 	}
@@ -72,8 +72,8 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 
 func (a *authorizeServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	conn := request.GetConnection()
-	var index = conn.GetPath().GetIndex()
-	var leftSide = &networkservice.Path{
+	index := conn.GetPath().GetIndex()
+	leftSide := &networkservice.Path{
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}
@@ -103,8 +103,8 @@ func (a *authorizeServer) Request(ctx context.Context, request *networkservice.N
 }
 
 func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	var index = conn.GetPath().GetIndex()
-	var leftSide = &networkservice.Path{
+	index := conn.GetPath().GetIndex()
+	leftSide := &networkservice.Path{
 		Index:        index,
 		PathSegments: conn.GetPath().GetPathSegments()[:index+1],
 	}

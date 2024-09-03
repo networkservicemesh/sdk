@@ -51,7 +51,7 @@ type vniServer struct {
 	genericsync.Map[vniKey, *vniKey]
 }
 
-// NewServer - set the DstIP *and* VNI for the vxlan mechanism
+// NewServer - set the DstIP *and* VNI for the vxlan mechanism.
 func NewServer(tunnelIP net.IP, options ...Option) networkservice.NetworkServiceServer {
 	opts := &vniOpions{
 		tunnelPort: vxlanPort,

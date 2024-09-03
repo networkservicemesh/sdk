@@ -54,7 +54,7 @@ func kernelMechanism() *networkservice.Mechanism {
 		},
 	}
 	_, _ = kernel.NewClient(kernel.WithInterfaceName(clientIfName)).Request(context.Background(), request)
-	return request.MechanismPreferences[0]
+	return request.GetMechanismPreferences()[0]
 }
 
 func TestMechanismTranslationClient(t *testing.T) {
@@ -95,7 +95,7 @@ func TestMechanismTranslationClient(t *testing.T) {
 
 	conn, err := client.Request(context.Background(), request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, request.Connection.String(), conn.String())
+	require.Equal(t, request.GetConnection().String(), conn.String())
 
 	captureRequest := request.Clone()
 	captureRequest.MechanismPreferences = nil
@@ -106,7 +106,7 @@ func TestMechanismTranslationClient(t *testing.T) {
 
 	conn, err = client.Request(context.Background(), request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, request.Connection.String(), conn.String())
+	require.Equal(t, request.GetConnection().String(), conn.String())
 
 	captureRequest = request.Clone()
 	captureRequest.MechanismPreferences = nil
@@ -118,7 +118,7 @@ func TestMechanismTranslationClient(t *testing.T) {
 	_, err = client.Close(context.Background(), conn.Clone())
 	require.NoError(t, err)
 
-	require.Equal(t, captureRequest.Connection.String(), capture.conn.String())
+	require.Equal(t, captureRequest.GetConnection().String(), capture.conn.String())
 }
 
 func TestMechanismTranslationClient_CloseOnError(t *testing.T) {
@@ -130,9 +130,9 @@ func TestMechanismTranslationClient_CloseOnError(t *testing.T) {
 		checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 			switch count {
 			case 0, 2:
-				require.Nil(t, request.Connection.Mechanism)
+				require.Nil(t, request.GetConnection().GetMechanism())
 			case 1:
-				require.Equal(t, request.Connection.Mechanism.String(), kernelMechanism().String())
+				require.Equal(t, request.GetConnection().GetMechanism().String(), kernelMechanism().String())
 			}
 			count++
 		}),

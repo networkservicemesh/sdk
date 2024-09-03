@@ -35,8 +35,8 @@ type endpointURLsServer struct {
 }
 
 func (e *endpointURLsServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	if u, err := url.Parse(endpoint.Url); err == nil {
-		e.nses.Store(*u, endpoint.Name)
+	if u, err := url.Parse(endpoint.GetUrl()); err == nil {
+		e.nses.Store(*u, endpoint.GetName())
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 }
@@ -46,13 +46,13 @@ func (e *endpointURLsServer) Find(query *registry.NetworkServiceEndpointQuery, s
 }
 
 func (e *endpointURLsServer) Unregister(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if u, err := url.Parse(endpoint.Url); err == nil {
+	if u, err := url.Parse(endpoint.GetUrl()); err == nil {
 		e.nses.Delete(*u)
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, endpoint)
 }
 
-// NewNetworkServiceEndpointRegistryServer returns new registry.NetworkServiceEndpointRegistryServer with injected endpoint urls nses
+// NewNetworkServiceEndpointRegistryServer returns new registry.NetworkServiceEndpointRegistryServer with injected endpoint urls nses.
 func NewNetworkServiceEndpointRegistryServer(m *genericsync.Map[url.URL, string]) registry.NetworkServiceEndpointRegistryServer {
 	return &endpointURLsServer{nses: m}
 }

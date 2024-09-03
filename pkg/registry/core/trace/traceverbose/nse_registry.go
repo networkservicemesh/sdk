@@ -49,7 +49,6 @@ func (t *traceNetworkServiceEndpointRegistryFindClient) Recv() (*registry.Networ
 
 	s := streamcontext.NetworkServiceEndpointRegistryFindClient(ctx, t.NetworkServiceEndpointRegistry_FindClient)
 	rv, err := s.Recv()
-
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil, errors.WithStack(err)
@@ -76,6 +75,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Register(ctx context.Context
 	logObjectTrace(ctx, "register-response", rv)
 	return rv, nil
 }
+
 func (t *traceNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	operation := typeutils.GetFuncName(t.traced, methodNameFind)
 	ctx, finish := withLog(ctx, operation, methodNameFind)
@@ -109,7 +109,7 @@ func (t *traceNetworkServiceEndpointRegistryClient) Unregister(ctx context.Conte
 	return rv, nil
 }
 
-// NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing
+// NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing.
 func NewNetworkServiceEndpointRegistryClient(traced registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	return &traceNetworkServiceEndpointRegistryClient{traced: traced}
 }
@@ -170,7 +170,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Conte
 	return rv, nil
 }
 
-// NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing
+// NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing.
 func NewNetworkServiceEndpointRegistryServer(traced registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	return &traceNetworkServiceEndpointRegistryServer{traced: traced}
 }
@@ -184,7 +184,7 @@ func (t *traceNetworkServiceEndpointRegistryFindServer) Send(nseResp *registry.N
 	ctx, finish := withLog(t.Context(), t.operation, methodNameSend)
 	defer finish()
 
-	logObjectTrace(ctx, "network service endpoint", nseResp.NetworkServiceEndpoint)
+	logObjectTrace(ctx, "network service endpoint", nseResp.GetNetworkServiceEndpoint())
 	s := streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, t.NetworkServiceEndpointRegistry_FindServer)
 	err := s.Send(nseResp)
 	if err != nil {

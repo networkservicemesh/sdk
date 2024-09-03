@@ -123,7 +123,7 @@ func (e *externalIPsServer) build(ips map[string]string) error {
 }
 
 func monitorMapFromFile(ctx context.Context, path string) <-chan map[string]string {
-	var ch = make(chan map[string]string)
+	ch := make(chan map[string]string)
 	go func() {
 		for bytes := range fs.WatchFile(ctx, path) {
 			var m map[string]string

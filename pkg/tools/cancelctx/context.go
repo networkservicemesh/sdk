@@ -25,7 +25,7 @@ const (
 
 type contextKeyType string
 
-// WithCancel creates a context with cancel func and injects it into the context
+// WithCancel creates a context with cancel func and injects it into the context.
 func WithCancel(parent context.Context) (context.Context, context.CancelFunc) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -37,7 +37,7 @@ func WithCancel(parent context.Context) (context.Context, context.CancelFunc) {
 	return ctx, cancel
 }
 
-// FromContext returns a cancel func for the context
+// FromContext returns a cancel func for the context.
 func FromContext(ctx context.Context) context.CancelFunc {
 	if cancel, ok := ctx.Value(cancelKey).(context.CancelFunc); ok {
 		return cancel

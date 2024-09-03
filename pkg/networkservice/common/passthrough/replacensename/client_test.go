@@ -44,10 +44,10 @@ func TestClient(t *testing.T) {
 		replacensename.NewClient(),
 		&setNSENameClient{name: "nse-name1"},
 		checkrequest.NewClient(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
-			require.Equal(t, "nse-name1", r.Connection.NetworkServiceEndpointName)
+			require.Equal(t, "nse-name1", r.GetConnection().GetNetworkServiceEndpointName())
 		}),
 		checkclose.NewClient(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, "nse-name1", c.NetworkServiceEndpointName)
+			require.Equal(t, "nse-name1", c.GetNetworkServiceEndpointName())
 		}),
 	)
 	req := &networkservice.NetworkServiceRequest{
@@ -59,20 +59,20 @@ func TestClient(t *testing.T) {
 	// Change NetworkServiceEndpointName to another name
 	conn.NetworkServiceEndpointName = "nse-name2"
 	conn, err = client.Request(context.Background(), req)
-	require.Equal(t, "nse-name2", conn.NetworkServiceEndpointName)
+	require.Equal(t, "nse-name2", conn.GetNetworkServiceEndpointName())
 	require.NoError(t, err)
 
 	_, err = client.Close(context.Background(), conn)
 	require.NoError(t, err)
 }
 
-// setNSENameClient sets NetworkServiceEndpointName only if it is empty
+// setNSENameClient sets NetworkServiceEndpointName only if it is empty.
 type setNSENameClient struct {
 	name string
 }
 
 func (s *setNSENameClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if request.GetConnection().NetworkServiceEndpointName == "" {
+	if request.GetConnection().GetNetworkServiceEndpointName() == "" {
 		request.GetConnection().NetworkServiceEndpointName = s.name
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)

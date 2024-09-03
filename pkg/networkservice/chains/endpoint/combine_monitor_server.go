@@ -99,7 +99,7 @@ func processInitEvent(
 		case <-ctx.Done():
 			return
 		case event := <-initCh:
-			for id, conn := range event.Connections {
+			for id, conn := range event.GetConnections() {
 				initEvent.Connections[id] = conn
 			}
 		}
@@ -123,7 +123,7 @@ type combineMonitorConnectionsServer struct {
 }
 
 func (m *combineMonitorConnectionsServer) Send(event *networkservice.ConnectionEvent) error {
-	switch event.Type {
+	switch event.GetType() {
 	case networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER:
 		err := errors.New("double sending initial state transfer")
 		m.initOnce.Do(func() {

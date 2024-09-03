@@ -65,7 +65,7 @@ var nseSamples = []*nseSample{
 			require.NotNil(t, nse)
 
 			equalJSON(t, want, path)
-			equalJSON(t, []string{clientID, serverID}, nse.PathIds)
+			equalJSON(t, []string{clientID, serverID}, nse.GetPathIds())
 		},
 	},
 	{
@@ -121,7 +121,7 @@ var nseSamples = []*nseSample{
 			require.NotNil(t, nse)
 
 			equalJSON(t, want, path)
-			equalJSON(t, []string{clientID, proxyID, serverID}, nse.PathIds)
+			equalJSON(t, []string{clientID, proxyID, serverID}, nse.GetPathIds())
 		},
 	},
 	{
@@ -167,7 +167,7 @@ var nseSamples = []*nseSample{
 			require.NotNil(t, nse)
 
 			equalJSON(t, want, path)
-			equalJSON(t, []string{clientID, proxyID, serverID}, nse.PathIds)
+			equalJSON(t, []string{clientID, proxyID, serverID}, nse.GetPathIds())
 		},
 	},
 }

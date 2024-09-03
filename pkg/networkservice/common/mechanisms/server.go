@@ -63,7 +63,7 @@ func (ms *mechanismsServer) Request(ctx context.Context, request *networkservice
 		}
 		return nil, errors.WithStack(errUnsupportedMech)
 	}
-	var err = errCannotSupportMech
+	err := errCannotSupportMech
 	for _, mechanism := range request.GetMechanismPreferences() {
 		srv, ok := ms.mechanisms[mechanism.GetType()]
 		if ok {

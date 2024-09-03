@@ -86,16 +86,16 @@ func findFilesByPath(mask string) ([]string, error) {
 	}
 
 	var result []string
-	var set = make(map[string]struct{})
-	var r, err = regexp.Compile("^" + mask + "$")
+	set := make(map[string]struct{})
+	r, err := regexp.Compile("^" + mask + "$")
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to compile regexp: ^%s$", mask)
 	}
 
-	var dir = filepath.Dir(mask)
+	dir := filepath.Dir(mask)
 
-	var walkFS = func(dir string, fileSystem fs.FS) {
+	walkFS := func(dir string, fileSystem fs.FS) {
 		_ = fs.WalkDir(fileSystem, ".", func(p string, d fs.DirEntry, err error) error {
 			if d == nil {
 				return nil

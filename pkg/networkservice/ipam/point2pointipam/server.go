@@ -177,7 +177,7 @@ func (s *ipamServer) getP2PAddrs(excludeIP4, excludeIP6 *ippool.IPPool) (connInf
 
 func deleteRoute(routes *[]*networkservice.Route, prefix string) {
 	for i, route := range *routes {
-		if route.Prefix == prefix {
+		if route.GetPrefix() == prefix {
 			*routes = append((*routes)[:i], (*routes)[i+1:]...)
 			return
 		}
@@ -186,7 +186,7 @@ func deleteRoute(routes *[]*networkservice.Route, prefix string) {
 
 func addRoute(routes *[]*networkservice.Route, prefix string) {
 	for _, route := range *routes {
-		if route.Prefix == prefix {
+		if route.GetPrefix() == prefix {
 			return
 		}
 	}

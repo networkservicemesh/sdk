@@ -29,17 +29,15 @@ import (
 
 const pathKey = "path"
 
-type grpcMetadataNSServer struct {
-}
+type grpcMetadataNSServer struct{}
 
-// NewNetworkServiceRegistryServer - returns grpcmetadata NS server that receives metadata from client and sends it back
+// NewNetworkServiceRegistryServer - returns grpcmetadata NS server that receives metadata from client and sends it back.
 func NewNetworkServiceRegistryServer() registry.NetworkServiceRegistryServer {
 	return &grpcMetadataNSServer{}
 }
 
 func (s *grpcMetadataNSServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
 	path, err := fromContext(ctx)
-
 	if err != nil {
 		log.FromContext(ctx).Warnf("Register: failed to load grpc metadata from context: %v", err.Error())
 		return next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
@@ -63,7 +61,6 @@ func (s *grpcMetadataNSServer) Find(query *registry.NetworkServiceQuery, server 
 
 func (s *grpcMetadataNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
 	path, err := fromContext(ctx)
-
 	if err != nil {
 		log.FromContext(ctx).Warnf("Unregister: failed to load grpc metadata from context: %v", err.Error())
 		return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)

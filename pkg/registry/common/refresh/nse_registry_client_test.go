@@ -81,8 +81,8 @@ func Test_NetworkServiceEndpointRefreshClient_ShouldWorkCorrectlyWithFloatingSce
 			NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
 			register: func(c context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 				resp := nse.Clone()
-				resp.Name = interdomain.Target(nse.Name)
-				require.Equal(t, "nse-1@my.domain.com", nse.Name)
+				resp.Name = interdomain.Target(nse.GetName())
+				require.Equal(t, "nse-1@my.domain.com", nse.GetName())
 				atomic.AddInt32(&registerCount, 1)
 				return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, resp, opts...)
 			},
@@ -235,7 +235,7 @@ func Test_RefreshNSEClient_SetsCorrectExpireTime(t *testing.T) {
 		refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 		countClient,
 		checknse.NewClient(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			nse.ExpirationTime = testNSE(clockMock).ExpirationTime
+			nse.ExpirationTime = testNSE(clockMock).GetExpirationTime()
 		}),
 	)
 
@@ -278,8 +278,8 @@ func Test_RefreshNSEClient_CorrectInitialRegTime(t *testing.T) {
 		&injectNSERegisterClient{
 			NetworkServiceEndpointRegistryClient: null.NewNetworkServiceEndpointRegistryClient(),
 			register: func(c context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-				require.NotNil(t, nse.InitialRegistrationTime)
-				require.True(t, nse.InitialRegistrationTime.AsTime().Equal(regTime))
+				require.NotNil(t, nse.GetInitialRegistrationTime())
+				require.True(t, nse.GetInitialRegistrationTime().AsTime().Equal(regTime))
 				atomic.AddInt32(&registerCount, 1)
 				return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
 			},

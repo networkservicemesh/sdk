@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-// Client is a client type for counting Requests/Closes
+// Client is a client type for counting Requests/Closes.
 type Client struct {
 	totalForwardRequests, totalForwardCloses   int32
 	totalBackwardRequests, totalBackwardCloses int32
@@ -40,7 +40,7 @@ type Client struct {
 	forwardMu, backwardMu                      sync.Mutex
 }
 
-// Request performs request and increments requests count
+// Request performs request and increments requests count.
 func (c *Client) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	/* Forward pass*/
 	c.forwardMu.Lock()
@@ -69,7 +69,7 @@ func (c *Client) Request(ctx context.Context, request *networkservice.NetworkSer
 	return conn, err
 }
 
-// Close performs close and increments closes count
+// Close performs close and increments closes count.
 func (c *Client) Close(ctx context.Context, connection *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	/* Forward pass*/
 	c.forwardMu.Lock()
@@ -98,27 +98,27 @@ func (c *Client) Close(ctx context.Context, connection *networkservice.Connectio
 	return r, err
 }
 
-// Requests returns forward requests count
+// Requests returns forward requests count.
 func (c *Client) Requests() int {
 	return int(atomic.LoadInt32(&c.totalForwardRequests))
 }
 
-// Closes returns forward closes count
+// Closes returns forward closes count.
 func (c *Client) Closes() int {
 	return int(atomic.LoadInt32(&c.totalForwardCloses))
 }
 
-// BackwardRequests returns backward requests count
+// BackwardRequests returns backward requests count.
 func (c *Client) BackwardRequests() int {
 	return int(atomic.LoadInt32(&c.totalBackwardRequests))
 }
 
-// BackwardCloses returns backward closes count
+// BackwardCloses returns backward closes count.
 func (c *Client) BackwardCloses() int {
 	return int(atomic.LoadInt32(&c.totalBackwardCloses))
 }
 
-// UniqueRequests returns unique forward requests count
+// UniqueRequests returns unique forward requests count.
 func (c *Client) UniqueRequests() int {
 	c.forwardMu.Lock()
 	defer c.forwardMu.Unlock()
@@ -129,7 +129,7 @@ func (c *Client) UniqueRequests() int {
 	return len(c.forwardRequests)
 }
 
-// UniqueCloses returns unique forward closes count
+// UniqueCloses returns unique forward closes count.
 func (c *Client) UniqueCloses() int {
 	c.forwardMu.Lock()
 	defer c.forwardMu.Unlock()
@@ -140,7 +140,7 @@ func (c *Client) UniqueCloses() int {
 	return len(c.forwardCloses)
 }
 
-// UniqueBackwardRequests returns unique backward requests count
+// UniqueBackwardRequests returns unique backward requests count.
 func (c *Client) UniqueBackwardRequests() int {
 	c.backwardMu.Lock()
 	defer c.backwardMu.Unlock()
@@ -151,7 +151,7 @@ func (c *Client) UniqueBackwardRequests() int {
 	return len(c.backwardRequests)
 }
 
-// UniqueBackwardCloses returns unique backward closes count
+// UniqueBackwardCloses returns unique backward closes count.
 func (c *Client) UniqueBackwardCloses() int {
 	c.backwardMu.Lock()
 	defer c.backwardMu.Unlock()

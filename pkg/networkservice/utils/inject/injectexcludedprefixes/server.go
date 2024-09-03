@@ -48,7 +48,7 @@ func (ieps *injectExcludedPrefixesServer) Close(ctx context.Context, connection 
 	return next.Server(ctx).Close(ctx, connection)
 }
 
-// NewServer - creates a networkservice.NetworkServiceServer chain element injecting specified excluded prefixes on Request into IP context
+// NewServer - creates a networkservice.NetworkServiceServer chain element injecting specified excluded prefixes on Request into IP context.
 func NewServer(excludedPrefixes []string) networkservice.NetworkServiceServer {
 	return &injectExcludedPrefixesServer{
 		prefixes: excludedPrefixes,

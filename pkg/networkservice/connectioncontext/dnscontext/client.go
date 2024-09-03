@@ -44,7 +44,7 @@ type dnsContextClient struct {
 
 // NewClient creates a new DNS client chain component. Setups all DNS traffic to the localhost. Monitors DNS configs from connections.
 func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
-	var c = &dnsContextClient{
+	c := &dnsContextClient{
 		chainContext:        context.Background(),
 		defaultNameServerIP: "127.0.0.1",
 		resolveConfigPath:   "/etc/resolv.conf",
@@ -59,15 +59,15 @@ func NewClient(options ...DNSOption) networkservice.NetworkServiceClient {
 }
 
 func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if request.Connection == nil {
+	if request.GetConnection() == nil {
 		request.Connection = &networkservice.Connection{}
 	}
-	if request.Connection.GetContext() == nil {
+	if request.GetConnection().GetContext() == nil {
 		request.Connection.Context = &networkservice.ConnectionContext{
 			DnsContext: &networkservice.DNSContext{},
 		}
 	}
-	if request.Connection.GetContext().GetDnsContext() == nil {
+	if request.GetConnection().GetContext().GetDnsContext() == nil {
 		request.Connection.Context.DnsContext = &networkservice.DNSContext{}
 	}
 
@@ -76,12 +76,12 @@ func (c *dnsContextClient) Request(ctx context.Context, request *networkservice.
 		return nil, err
 	}
 
-	c.dnsConfigsMap.Store(rv.Id, append(rv.GetContext().GetDnsContext().Configs, c.resolvconfDNSConfig))
+	c.dnsConfigsMap.Store(rv.GetId(), append(rv.GetContext().GetDnsContext().Configs, c.resolvconfDNSConfig))
 	return rv, nil
 }
 
 func (c *dnsContextClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
-	c.dnsConfigsMap.Delete(conn.Id)
+	c.dnsConfigsMap.Delete(conn.GetId())
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 

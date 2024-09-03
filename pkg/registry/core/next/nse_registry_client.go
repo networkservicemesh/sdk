@@ -24,10 +24,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-// NetworkServiceEndpointRegistryClientWrapper - function that wraps a registry server
+// NetworkServiceEndpointRegistryClientWrapper - function that wraps a registry server.
 type NetworkServiceEndpointRegistryClientWrapper func(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient
 
-// NetworkServiceEndpointRegistryClientChainer - function that chains registry servers
+// NetworkServiceEndpointRegistryClientChainer - function that chains registry servers.
 type NetworkServiceEndpointRegistryClientChainer func(clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient
 
 type nextNetworkServiceEndpointRegistryClient struct {
@@ -36,7 +36,7 @@ type nextNetworkServiceEndpointRegistryClient struct {
 	nextParent registry.NetworkServiceEndpointRegistryClient
 }
 
-// NewWrappedNetworkServiceEndpointRegistryClient - creates a chain of servers with each one wrapped in wrapper
+// NewWrappedNetworkServiceEndpointRegistryClient - creates a chain of servers with each one wrapped in wrapper.
 func NewWrappedNetworkServiceEndpointRegistryClient(wrapper NetworkServiceEndpointRegistryClientWrapper, clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	rv := &nextNetworkServiceEndpointRegistryClient{clients: make([]registry.NetworkServiceEndpointRegistryClient, 0, len(clients))}
 	for _, c := range clients {
@@ -45,7 +45,7 @@ func NewWrappedNetworkServiceEndpointRegistryClient(wrapper NetworkServiceEndpoi
 	return rv
 }
 
-// NewNetworkServiceEndpointRegistryClient - creates a chain of servers
+// NewNetworkServiceEndpointRegistryClient - creates a chain of servers.
 func NewNetworkServiceEndpointRegistryClient(clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	return NewWrappedNetworkServiceEndpointRegistryClient(func(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 		return client

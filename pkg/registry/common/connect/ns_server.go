@@ -80,7 +80,7 @@ func (c *connectNSServer) Unregister(ctx context.Context, in *registry.NetworkSe
 	return &empty.Empty{}, serverErr
 }
 
-// NewNetworkServiceRegistryServer - returns a connect chain element
+// NewNetworkServiceRegistryServer - returns a connect chain element.
 func NewNetworkServiceRegistryServer(client registry.NetworkServiceRegistryClient, callOptions ...grpc.CallOption) registry.NetworkServiceRegistryServer {
 	return &connectNSServer{
 		client:      client,

@@ -221,13 +221,13 @@ type randomErrorServer struct {
 	errorChance float32
 }
 
-// NewServer returns a server chain element returning error on Close/Request on given times
+// NewServer returns a server chain element returning error on Close/Request on given times.
 func NewServer(errorChance float32) networkservice.NetworkServiceServer {
 	return &randomErrorServer{errorChance: errorChance}
 }
 
 func (s randomErrorServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	// nolint
+	//nolint
 	val := mathrand.Float32()
 	if val > s.errorChance {
 		return nil, errors.New("random error")

@@ -34,22 +34,22 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// SupplyNSMgrProxyFunc nsmgr proxy
+// SupplyNSMgrProxyFunc nsmgr proxy.
 type SupplyNSMgrProxyFunc func(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...nsmgrproxy.Option) nsmgr.Nsmgr
 
-// SupplyNSMgrFunc supplies NSMGR
+// SupplyNSMgrFunc supplies NSMGR.
 type SupplyNSMgrFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr
 
-// SupplyRegistryFunc supplies Registry
+// SupplyRegistryFunc supplies Registry.
 type SupplyRegistryFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, defaultExpiration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
 
-// SupplyRegistryProxyFunc supplies registry proxy
+// SupplyRegistryProxyFunc supplies registry proxy.
 type SupplyRegistryProxyFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...proxydns.Option) registry.Registry
 
-// SetupNodeFunc setups each node on Builder.Build() stage
+// SetupNodeFunc setups each node on Builder.Build() stage.
 type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
 
-// RegistryEntry is pair of registry.Registry and url.URL
+// RegistryEntry is pair of registry.Registry and url.URL.
 type RegistryEntry struct {
 	URL *url.URL
 
@@ -57,7 +57,7 @@ type RegistryEntry struct {
 	registry.Registry
 }
 
-// NSMgrEntry is pair of nsmgr.Nsmgr and url.URL
+// NSMgrEntry is pair of nsmgr.Nsmgr and url.URL.
 type NSMgrEntry struct {
 	Name string
 	URL  *url.URL
@@ -66,7 +66,7 @@ type NSMgrEntry struct {
 	nsmgr.Nsmgr
 }
 
-// EndpointEntry is pair of endpoint.Endpoint and url.URL
+// EndpointEntry is pair of endpoint.Endpoint and url.URL.
 type EndpointEntry struct {
 	Name string
 	URL  *url.URL
@@ -76,7 +76,7 @@ type EndpointEntry struct {
 	registryapi.NetworkServiceEndpointRegistryClient
 }
 
-// Domain contains attached to domain nodes, registry
+// Domain contains attached to domain nodes, registry.
 type Domain struct {
 	Nodes         []*Node
 	NSMgrProxy    *NSMgrEntry
@@ -89,7 +89,7 @@ type Domain struct {
 	supplyURL func(prefix string) *url.URL
 }
 
-// NewNSRegistryClient creates new NS registry client for the domain
+// NewNSRegistryClient creates new NS registry client for the domain.
 func (d *Domain) NewNSRegistryClient(ctx context.Context, generatorFunc token.GeneratorFunc, opts ...registryclient.Option) registryapi.NetworkServiceRegistryClient {
 	var registryURL *url.URL
 	switch {

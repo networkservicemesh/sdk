@@ -24,7 +24,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// notifier - notifies all subscribers of an event
+// notifier - notifies all subscribers of an event.
 type notifier struct {
 	executor serialize.Executor
 	channels map[string]chan struct{}
@@ -85,7 +85,7 @@ func (n *notifier) Notify(ctx context.Context, initiatorID string) {
 	})
 }
 
-// Notifier - interface for local notifications sending
+// Notifier - interface for local notifications sending.
 type Notifier interface {
 	Notify(ctx context.Context, initiatorID string)
 }

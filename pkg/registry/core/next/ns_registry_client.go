@@ -24,10 +24,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-// NetworkServiceRegistryClientWrapper - function that wraps a registry server
+// NetworkServiceRegistryClientWrapper - function that wraps a registry server.
 type NetworkServiceRegistryClientWrapper func(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient
 
-// NetworkServiceRegistryClientChainer - function that chains registry servers
+// NetworkServiceRegistryClientChainer - function that chains registry servers.
 type NetworkServiceRegistryClientChainer func(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient
 
 type nextNetworkServiceRegistryClient struct {
@@ -36,7 +36,7 @@ type nextNetworkServiceRegistryClient struct {
 	nextParent registry.NetworkServiceRegistryClient
 }
 
-// NewWrappedNetworkServiceRegistryClient - creates a chain of servers with each one wrapped in wrapper
+// NewWrappedNetworkServiceRegistryClient - creates a chain of servers with each one wrapped in wrapper.
 func NewWrappedNetworkServiceRegistryClient(wrapper NetworkServiceRegistryClientWrapper, clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	rv := &nextNetworkServiceRegistryClient{clients: make([]registry.NetworkServiceRegistryClient, 0, len(clients))}
 	for _, c := range clients {
@@ -45,7 +45,7 @@ func NewWrappedNetworkServiceRegistryClient(wrapper NetworkServiceRegistryClient
 	return rv
 }
 
-// NewNetworkServiceRegistryClient - creates a chain of servers
+// NewNetworkServiceRegistryClient - creates a chain of servers.
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	return NewWrappedNetworkServiceRegistryClient(func(client registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 		return client

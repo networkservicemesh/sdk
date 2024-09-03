@@ -54,8 +54,8 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		return
 	}
 
-	var name = dns.Name(msg.Question[0].Name).String()
-	var resp = new(dns.Msg)
+	name := dns.Name(msg.Question[0].Name).String()
+	resp := new(dns.Msg)
 	resp.SetReply(msg)
 	resp.Authoritative = true
 
@@ -88,15 +88,16 @@ func (f *memoryHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 	}
 }
 
-// NewDNSHandler creates a new dns handler instance that stores a/aaaa answers
+// NewDNSHandler creates a new dns handler instance that stores a/aaaa answers.
 func NewDNSHandler(records *genericsync.Map[string, []net.IP]) dnsutils.Handler {
 	if records == nil {
 		panic("records cannot be nil")
 	}
 	return &memoryHandler{records: records}
 }
+
 func (f *memoryHandler) a(domain string) []dns.RR {
-	var ips, _ = f.records.Load(domain)
+	ips, _ := f.records.Load(domain)
 	var answers []dns.RR
 	for _, ip := range ips {
 		if ip.To4() == nil {
@@ -111,7 +112,7 @@ func (f *memoryHandler) a(domain string) []dns.RR {
 }
 
 func (f *memoryHandler) aaaa(domain string) []dns.RR {
-	var ips, _ = f.records.Load(domain)
+	ips, _ := f.records.Load(domain)
 	var answers []dns.RR
 	for _, ip := range ips {
 		if ip.To4() != nil {

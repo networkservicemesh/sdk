@@ -83,11 +83,11 @@ func TestFilterMechanismsClient_Request(t *testing.T) {
 		req := request()
 		_, err := s.Request(ctx, req)
 		require.NoError(t, err)
-		require.NotEmpty(t, req.MechanismPreferences)
+		require.NotEmpty(t, req.GetMechanismPreferences())
 
 		if sample.ClsResult != "" {
-			for _, m := range req.MechanismPreferences {
-				require.Equal(t, sample.ClsResult, m.Cls, "filtermechanisms chain element should properly filter mechanisms")
+			for _, m := range req.GetMechanismPreferences() {
+				require.Equal(t, sample.ClsResult, m.GetCls(), "filtermechanisms chain element should properly filter mechanisms")
 			}
 		} else {
 			require.Equal(t, request().String(), req.String())

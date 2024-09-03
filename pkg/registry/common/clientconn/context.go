@@ -25,8 +25,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 )
 
-type mapKey struct{}
-type nameKey struct{}
+type (
+	mapKey  struct{}
+	nameKey struct{}
+)
 
 func withClientConnMetadata(ctx context.Context, m *genericsync.Map[string, grpc.ClientConnInterface], key string) context.Context {
 	ctx = context.WithValue(ctx, nameKey{}, key)

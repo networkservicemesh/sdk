@@ -20,7 +20,7 @@ type options struct {
 	localNotifier *notifier
 }
 
-// Option - option for upstreamrefresh chain element
+// Option - option for upstreamrefresh chain element.
 type Option func(o *options)
 
 // WithLocalNotifications - allows all connections to receive events, if at least one of them received an event from upstream.

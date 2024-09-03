@@ -27,12 +27,12 @@ type defaultLogger struct {
 	prefix string
 }
 
-// Default - provides a default logger
+// Default - provides a default logger.
 func Default() Logger {
 	return &defaultLogger{}
 }
 
-// IsDefault - true if the logger is a default logger
+// IsDefault - true if the logger is a default logger.
 func IsDefault(logger Logger) bool {
 	_, ok := logger.(*defaultLogger)
 	return ok

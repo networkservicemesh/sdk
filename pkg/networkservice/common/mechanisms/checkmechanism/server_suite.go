@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 )
 
-// ServerSuite - test suite to check that a NetworkServiceServer implementing a Mechanism meets basic contracts
+// ServerSuite - test suite to check that a NetworkServiceServer implementing a Mechanism meets basic contracts.
 type ServerSuite struct {
 	suite.Suite
 	serverUnderTest  networkservice.NetworkServiceServer
@@ -72,7 +72,7 @@ func NewServerSuite(
 	}
 }
 
-// TestPropagatesError - tests that the serverUnderTest returns an error when the next element in the chain returned an error to it
+// TestPropagatesError - tests that the serverUnderTest returns an error when the next element in the chain returned an error to it.
 func (m *ServerSuite) TestPropagatesError() {
 	contract := checkerror.CheckPropogatesErrorServer(m.T(), m.serverUnderTest)
 	_, err := contract.Request(m.configureContext(context.Background()), m.Request.Clone())
@@ -81,7 +81,7 @@ func (m *ServerSuite) TestPropagatesError() {
 	assert.NotNil(m.T(), err)
 }
 
-// TestContextAfter - tests that the serverUnderTest has all needed side effects on the context.Context before it calls the next element in the chain
+// TestContextAfter - tests that the serverUnderTest has all needed side effects on the context.Context before it calls the next element in the chain.
 func (m *ServerSuite) TestContextAfter() {
 	contract := CheckContextAfterServer(m.T(),
 		m.serverUnderTest,

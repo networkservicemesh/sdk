@@ -67,8 +67,8 @@ func (s *updatePathNSEServer) Register(ctx context.Context, nse *registry.Networ
 	if idErr != nil {
 		return nil, idErr
 	}
-	nse.PathIds = updatePathIds(nse.PathIds, int(path.Index-1), peerID.String())
-	nse.PathIds = updatePathIds(nse.PathIds, int(path.Index), id.String())
+	nse.PathIds = updatePathIds(nse.GetPathIds(), int(path.Index-1), peerID.String())
+	nse.PathIds = updatePathIds(nse.GetPathIds(), int(path.Index), id.String())
 
 	ctx = withExpirationTime(ctx, &expirationTime)
 
@@ -110,8 +110,8 @@ func (s *updatePathNSEServer) Unregister(ctx context.Context, nse *registry.Netw
 	if idErr != nil {
 		return nil, idErr
 	}
-	nse.PathIds = updatePathIds(nse.PathIds, int(path.Index-1), peerID.String())
-	nse.PathIds = updatePathIds(nse.PathIds, int(path.Index), id.String())
+	nse.PathIds = updatePathIds(nse.GetPathIds(), int(path.Index-1), peerID.String())
+	nse.PathIds = updatePathIds(nse.GetPathIds(), int(path.Index), id.String())
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 	path.Index = index

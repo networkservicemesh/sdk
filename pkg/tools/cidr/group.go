@@ -37,10 +37,10 @@ import (
 type Groups [][]*net.IPNet
 
 const (
-	// inside - means that we are inside a group
+	// inside - means that we are inside a group.
 	inside int = iota
 
-	// outside - means that we are outside a group
+	// outside - means that we are outside a group.
 	outside
 )
 

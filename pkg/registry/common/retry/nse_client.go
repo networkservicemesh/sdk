@@ -36,7 +36,7 @@ type retryNSEClient struct {
 	chainCtx   context.Context
 }
 
-// NewNetworkServiceEndpointRegistryClient - returns a retry chain element
+// NewNetworkServiceEndpointRegistryClient - returns a retry chain element.
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	clientOpts := &options{
 		interval:   time.Millisecond * 200,
@@ -88,11 +88,10 @@ func (r *retryNSEClient) Find(ctx context.Context, query *registry.NetworkServic
 
 	cloneQuery := query
 	if query != nil {
-		cloneQuery.NetworkServiceEndpoint = query.NetworkServiceEndpoint.Clone()
+		cloneQuery.NetworkServiceEndpoint = query.GetNetworkServiceEndpoint().Clone()
 	}
 	for ctx.Err() == nil && r.chainCtx.Err() == nil {
 		stream, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, cloneQuery, opts...)
-
 		if err != nil {
 			logger.Errorf("try attempt has failed: %v", err.Error())
 			<-c.After(r.interval)

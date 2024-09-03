@@ -109,9 +109,9 @@ func TestMechanismPriorityClient_Request(t *testing.T) {
 			_, err := c.Request(context.Background(), req)
 			require.NoError(t, err)
 
-			require.Equal(t, len(sample.ExpectedResult), len(req.MechanismPreferences))
-			for i := range req.MechanismPreferences {
-				require.Equal(t, sample.ExpectedResult[i], req.MechanismPreferences[i].Type)
+			require.Equal(t, len(sample.ExpectedResult), len(req.GetMechanismPreferences()))
+			for i := range req.GetMechanismPreferences() {
+				require.Equal(t, sample.ExpectedResult[i], req.GetMechanismPreferences()[i].GetType())
 			}
 		})
 	}

@@ -18,10 +18,10 @@ package querycache
 
 import "time"
 
-// Option is an option for cache
+// Option is an option for cache.
 type Option func(c *cache)
 
-// WithExpireTimeout sets cache expire timeout
+// WithExpireTimeout sets cache expire timeout.
 func WithExpireTimeout(expireTimeout time.Duration) Option {
 	return func(c *cache) {
 		c.expireTimeout = expireTimeout

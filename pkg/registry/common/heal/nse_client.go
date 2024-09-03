@@ -36,7 +36,7 @@ type healNSEClient struct {
 	genericsync.Map[string, context.CancelFunc]
 }
 
-// NewNetworkServiceEndpointRegistryClient returns a new NSE registry client responsible for healing
+// NewNetworkServiceEndpointRegistryClient returns a new NSE registry client responsible for healing.
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
 	return &healNSEClient{
 		ctx: ctx,
@@ -45,7 +45,6 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context) registry.Netwo
 
 func (c *healNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse.Clone(), opts...)
-
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +79,7 @@ func (c *healNSEClient) Register(ctx context.Context, nse *registry.NetworkServi
 }
 
 func (c *healNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	if !query.Watch || isNSEFindHealing(ctx) {
+	if !query.GetWatch() || isNSEFindHealing(ctx) {
 		return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 	}
 
@@ -116,7 +115,7 @@ func (c *healNSEClient) Find(ctx context.Context, query *registry.NetworkService
 }
 
 func (c *healNSEClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if v, loaded := c.LoadAndDelete(nse.Name); loaded {
+	if v, loaded := c.LoadAndDelete(nse.GetName()); loaded {
 		v()
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, nse, opts...)

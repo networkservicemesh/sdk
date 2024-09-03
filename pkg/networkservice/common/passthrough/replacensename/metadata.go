@@ -24,12 +24,12 @@ import (
 
 type keyType struct{}
 
-// store - stores the next network service endpoint name
+// store - stores the next network service endpoint name.
 func store(ctx context.Context, nseName string) {
 	metadata.Map(ctx, true).Store(keyType{}, nseName)
 }
 
-// load - returns the next network service endpoint name
+// load - returns the next network service endpoint name.
 func load(ctx context.Context) (value string, ok bool) {
 	rawValue, ok := metadata.Map(ctx, true).Load(keyType{})
 	if !ok {
@@ -39,7 +39,7 @@ func load(ctx context.Context) (value string, ok bool) {
 	return value, ok
 }
 
-// loadAndDelete - returns the next network service endpoint name and deletes it from the metadata
+// loadAndDelete - returns the next network service endpoint name and deletes it from the metadata.
 func loadAndDelete(ctx context.Context) (value string, ok bool) {
 	rawValue, ok := metadata.Map(ctx, true).LoadAndDelete(keyType{})
 	if !ok {

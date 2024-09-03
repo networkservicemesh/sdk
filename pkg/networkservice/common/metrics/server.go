@@ -38,9 +38,9 @@ type metricServer struct {
 	meter metric.Meter
 }
 
-// NewServer returns a new metric server chain element
+// NewServer returns a new metric server chain element.
 func NewServer() networkservice.NetworkServiceServer {
-	var res = &metricServer{}
+	res := &metricServer{}
 	if opentelemetry.IsEnabled() {
 		res.meter = otel.Meter("")
 	}
@@ -82,14 +82,14 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				counter: make(map[string]metric.Int64Counter),
 			}
 			metrics, _ := loadOrStore(ctx, &k)
-			for metricName, metricValue := range pathSegment.Metrics {
+			for metricName, metricValue := range pathSegment.GetMetrics() {
 				/* Works with integers only */
 				recVal, err := strconv.ParseInt(metricValue, 10, 64)
 				if err != nil {
 					continue
 				}
 
-				counterName := fmt.Sprintf("%s_%s", pathSegment.Name, metricName)
+				counterName := fmt.Sprintf("%s_%s", pathSegment.GetName(), metricName)
 				_, ok := metrics.counter[metricName]
 				if !ok {
 					var counter metric.Int64Counter
@@ -104,7 +104,7 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				previousValueKey := fmt.Sprintf(
 					"%s.%s",
 					counterName,
-					path.GetPathSegments()[0].Id,
+					path.GetPathSegments()[0].GetId(),
 				)
 				var previousValueInt int64
 				previousValue, ok := metrics.previous.Load(previousValueKey)
@@ -115,7 +115,7 @@ func (t *metricServer) writeMetrics(ctx context.Context, path *networkservice.Pa
 				metrics.counter[metricName].Add(
 					ctx,
 					recVal-previousValueInt,
-					metric.WithAttributes(attribute.String("connection", path.GetPathSegments()[0].Id)),
+					metric.WithAttributes(attribute.String("connection", path.GetPathSegments()[0].GetId())),
 				)
 				metrics.previous.Store(previousValueKey, metricValue)
 			}

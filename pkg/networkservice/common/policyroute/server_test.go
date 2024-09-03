@@ -39,7 +39,7 @@ import (
 
 const defaultPrefixesFileName = "policies.yaml"
 
-// newPolicyRoutesGetter - is an object that can be dynamically updated
+// newPolicyRoutesGetter - is an object that can be dynamically updated.
 func newPolicyRoutesGetter(ctx context.Context, configPath string) *policyRoutesGetter {
 	p := &policyRoutesGetter{
 		ctx: ctx,
@@ -129,11 +129,11 @@ func TestCheckReloadedPolicies(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := server.Request(context.Background(), req)
 		require.NoError(t, err)
-		ipCtx := req.Connection.Context.IpContext
-		return isEqual(ipCtx.Policies, policies) &&
-			len(ipCtx.SrcIpAddrs) == 2 &&
-			ipCtx.SrcIpAddrs[0] == srcIPAddr &&
-			ipCtx.SrcIpAddrs[1] == policies[0].From
+		ipCtx := req.GetConnection().GetContext().GetIpContext()
+		return isEqual(ipCtx.GetPolicies(), policies) &&
+			len(ipCtx.GetSrcIpAddrs()) == 2 &&
+			ipCtx.GetSrcIpAddrs()[0] == srcIPAddr &&
+			ipCtx.GetSrcIpAddrs()[1] == policies[0].GetFrom()
 	}, time.Second, time.Millisecond*100)
 
 	// Update policies - remove the first one
@@ -144,10 +144,10 @@ func TestCheckReloadedPolicies(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, err := server.Request(context.Background(), req)
 		require.NoError(t, err)
-		ipCtx := req.Connection.Context.IpContext
-		return isEqual(ipCtx.Policies, policies) &&
-			len(ipCtx.SrcIpAddrs) == 1 &&
-			ipCtx.SrcIpAddrs[0] == srcIPAddr
+		ipCtx := req.GetConnection().GetContext().GetIpContext()
+		return isEqual(ipCtx.GetPolicies(), policies) &&
+			len(ipCtx.GetSrcIpAddrs()) == 1 &&
+			ipCtx.GetSrcIpAddrs()[0] == srcIPAddr
 	}, time.Second, time.Millisecond*100)
 
 	// Delete config file
@@ -157,8 +157,8 @@ func TestCheckReloadedPolicies(t *testing.T) {
 	require.Eventually(t, func() bool {
 		_, reqErr := server.Request(context.Background(), req)
 		require.NoError(t, reqErr)
-		ipCtx := req.Connection.Context.IpContext
-		return len(ipCtx.Policies) == 0 && len(ipCtx.SrcIpAddrs) == 1
+		ipCtx := req.GetConnection().GetContext().GetIpContext()
+		return len(ipCtx.GetPolicies()) == 0 && len(ipCtx.GetSrcIpAddrs()) == 1
 	}, time.Second, time.Millisecond*100)
 }
 

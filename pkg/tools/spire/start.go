@@ -80,7 +80,7 @@ func AddEntry(ctx context.Context, parentID, spiffeID, selector, federatesWith s
 	)
 }
 
-// Start - start a spire-server and spire-agent with the given agentId
+// Start - start a spire-server and spire-agent with the given agentId.
 func Start(options ...Option) <-chan error {
 	errCh := make(chan error, 4)
 	defaultRoot, err := os.MkdirTemp("", "spire")
@@ -242,7 +242,7 @@ func Start(options ...Option) <-chan error {
 	return errCh
 }
 
-// writeConfigFiles - write config files into configRoot
+// writeConfigFiles - write config files into configRoot.
 func writeConfigFiles(ctx context.Context, agentConfig, serverConfig, spireRoot string) error {
 	configFiles := map[string]string{
 		spireServerConfFileName: serverConfig,
@@ -282,7 +282,7 @@ func execHealthCheck(ctx context.Context, cmdStr string, options ...*exechelper.
 	}
 }
 
-// PeerSpiffeIDFromContext - returns spiffe ID of the service from the peer context
+// PeerSpiffeIDFromContext - returns spiffe ID of the service from the peer context.
 func PeerSpiffeIDFromContext(ctx context.Context) (spiffeid.ID, error) {
 	p, ok := peer.FromContext(ctx)
 	var cert *x509.Certificate

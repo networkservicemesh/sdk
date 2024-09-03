@@ -34,7 +34,7 @@ type clientURLServer struct {
 	u *url.URL
 }
 
-// NewServer - returns a new server chain element that sets client URL in context
+// NewServer - returns a new server chain element that sets client URL in context.
 func NewServer(u *url.URL) networkservice.NetworkServiceServer {
 	return &clientURLServer{u: u}
 }

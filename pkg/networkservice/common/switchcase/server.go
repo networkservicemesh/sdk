@@ -26,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-// ServerCase is a case type for the switch-case server chain element
+// ServerCase is a case type for the switch-case server chain element.
 type ServerCase struct {
 	Condition Condition
 	Server    networkservice.NetworkServiceServer
@@ -36,7 +36,7 @@ type switchServer struct {
 	cases []*ServerCase
 }
 
-// NewServer returns a new switch-case server chain element
+// NewServer returns a new switch-case server chain element.
 func NewServer(cases ...*ServerCase) networkservice.NetworkServiceServer {
 	return &switchServer{
 		cases: cases,

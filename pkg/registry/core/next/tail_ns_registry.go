@@ -27,7 +27,7 @@ import (
 )
 
 // tailNetworkServiceRegistryServer is a simple implementation of registry.NetworkServiceRegistryServer that is called at the end
-// of a chain to ensure that we never call a method on a nil object
+// of a chain to ensure that we never call a method on a nil object.
 type tailNetworkServiceRegistryServer struct{}
 
 func (t *tailNetworkServiceRegistryServer) Register(_ context.Context, r *registry.NetworkService) (*registry.NetworkService, error) {
@@ -45,7 +45,7 @@ func (t *tailNetworkServiceRegistryServer) Unregister(context.Context, *registry
 var _ registry.NetworkServiceRegistryServer = &tailNetworkServiceRegistryServer{}
 
 // tailNetworkServiceRegistryClient is a simple implementation of registry.NetworkServiceRegistryServer that is called at the end
-// of a chain to ensure that we never call a method on a nil object
+// of a chain to ensure that we never call a method on a nil object.
 type tailNetworkServiceRegistryClient struct{}
 
 func (t *tailNetworkServiceRegistryClient) Register(_ context.Context, in *registry.NetworkService, _ ...grpc.CallOption) (*registry.NetworkService, error) {

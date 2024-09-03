@@ -36,7 +36,7 @@ type refreshNSEClient struct {
 }
 
 // NewNetworkServiceEndpointRegistryClient creates new NetworkServiceEndpointRegistryClient that will refresh expiration
-// time for registered NSEs
+// time for registered NSEs.
 func NewNetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
 	return &refreshNSEClient{
 		ctx: ctx,
@@ -44,26 +44,25 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context) registry.Netwo
 }
 
 func (c *refreshNSEClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	var factory = begin.FromContext(ctx)
+	factory := begin.FromContext(ctx)
 
 	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, nse, opts...)
-
 	if err != nil {
 		return nil, err
 	}
 
 	refreshCtx, cancel := context.WithCancel(c.ctx)
 
-	if cancelPrevious, ok := c.LoadAndDelete(nse.Name); ok {
+	if cancelPrevious, ok := c.LoadAndDelete(nse.GetName()); ok {
 		cancelPrevious()
 	}
 
-	c.Store(nse.Name, cancel)
+	c.Store(nse.GetName(), cancel)
 
-	var clockTime = clock.FromContext(ctx)
+	clockTime := clock.FromContext(ctx)
 
 	if resp.GetExpirationTime() != nil {
-		var refreshCh = clockTime.After(2 * clockTime.Until(resp.GetExpirationTime().AsTime().Local()) / 3)
+		refreshCh := clockTime.After(2 * clockTime.Until(resp.GetExpirationTime().AsTime().Local()) / 3)
 
 		go func() {
 			select {

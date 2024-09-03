@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 )
 
-// GetDNSConfigsFunc gets dns configs
+// GetDNSConfigsFunc gets dns configs.
 type GetDNSConfigsFunc func() []*networkservice.DNSConfig
 
 type dnsContextServer struct {
@@ -48,7 +48,7 @@ func (d *dnsContextServer) Request(ctx context.Context, request *networkservice.
 	}
 
 	for _, config := range d.configs {
-		if !dnsutils.ContainsDNSConfig(request.GetConnection().GetContext().GetDnsContext().Configs, config) {
+		if !dnsutils.ContainsDNSConfig(request.GetConnection().GetContext().GetDnsContext().GetConfigs(), config) {
 			request.GetConnection().GetContext().GetDnsContext().Configs = append(request.GetConnection().GetContext().GetDnsContext().Configs, config)
 		}
 	}

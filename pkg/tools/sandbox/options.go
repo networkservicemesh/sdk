@@ -25,17 +25,17 @@ type forwarderOptions struct {
 	additionalFunctionalityClient []networkservice.NetworkServiceClient
 }
 
-// ForwarderOption is an option to configure a forwarder for sandbox
+// ForwarderOption is an option to configure a forwarder for sandbox.
 type ForwarderOption func(*forwarderOptions)
 
-// WithForwarderAdditionalFunctionalityServer adds an additionalFunctionality to server chain
+// WithForwarderAdditionalFunctionalityServer adds an additionalFunctionality to server chain.
 func WithForwarderAdditionalFunctionalityServer(a ...networkservice.NetworkServiceServer) ForwarderOption {
 	return func(o *forwarderOptions) {
 		o.additionalFunctionalityServer = a
 	}
 }
 
-// WithForwarderAdditionalFunctionalityClient adds an additionalFunctionality to client chain
+// WithForwarderAdditionalFunctionalityClient adds an additionalFunctionality to client chain.
 func WithForwarderAdditionalFunctionalityClient(a ...networkservice.NetworkServiceClient) ForwarderOption {
 	return func(o *forwarderOptions) {
 		o.additionalFunctionalityClient = a

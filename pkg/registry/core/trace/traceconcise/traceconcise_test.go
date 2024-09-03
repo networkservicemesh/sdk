@@ -74,15 +74,14 @@ func TestOutput(t *testing.T) {
 	_, err = s.Unregister(context.Background(), nse)
 	require.NoError(t, err)
 
-	expectedOutput :=
-		" [INFO] [type:registry] nse-server-register={\"name\":\"a\"}\n" +
-			" [INFO] [type:registry] nse-server-register-response={\"name\":\"a\"}\n" +
-			" [INFO] [type:registry] nse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			" [INFO] [type:registry] nse-server-send={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			" [INFO] [type:registry] nse-server-send-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			" [INFO] [type:registry] nse-server-find-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			" [INFO] [type:registry] nse-server-unregister={\"name\":\"a\"}\n" +
-			" [INFO] [type:registry] nse-server-unregister-response={\"name\":\"a\"}\n"
+	expectedOutput := " [INFO] [type:registry] nse-server-register={\"name\":\"a\"}\n" +
+		" [INFO] [type:registry] nse-server-register-response={\"name\":\"a\"}\n" +
+		" [INFO] [type:registry] nse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+		" [INFO] [type:registry] nse-server-send={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+		" [INFO] [type:registry] nse-server-send-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+		" [INFO] [type:registry] nse-server-find-response={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+		" [INFO] [type:registry] nse-server-unregister={\"name\":\"a\"}\n" +
+		" [INFO] [type:registry] nse-server-unregister-response={\"name\":\"a\"}\n"
 
 	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)
@@ -128,13 +127,12 @@ func TestErrorOutput(t *testing.T) {
 	_, err = s.Unregister(context.Background(), nse)
 	require.Error(t, err)
 
-	expectedOutput :=
-		" [INFO] [type:registry] nse-server-register={\"name\":\"a\"}\n" +
-			" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Register: test error\n" +
-			" [INFO] [type:registry] nse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
-			" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Find: test error\n" +
-			" [INFO] [type:registry] nse-server-unregister=null\n" +
-			" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Unregister: test error\n"
+	expectedOutput := " [INFO] [type:registry] nse-server-register={\"name\":\"a\"}\n" +
+		" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Register: test error\n" +
+		" [INFO] [type:registry] nse-server-find={\"network_service_endpoint\":{\"name\":\"a\"}}\n" +
+		" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Find: test error\n" +
+		" [INFO] [type:registry] nse-server-unregister=null\n" +
+		" [ERRO] [type:registry] Error returned from sdk/pkg/registry/utils/inject/injecterror/injectErrorNSEServer.Unregister: test error\n"
 
 	result := testutil.TrimLogTime(&buff)
 	require.Equal(t, expectedOutput, result)

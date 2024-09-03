@@ -40,9 +40,9 @@ type dnsNSResolveServer struct {
 	registryService string
 }
 
-// NewNetworkServiceRegistryServer creates new NetworkServiceRegistryServer that can resolve passed domain to clienturl
+// NewNetworkServiceRegistryServer creates new NetworkServiceRegistryServer that can resolve passed domain to clienturl.
 func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
-	var serverOptions = &options{
+	serverOptions := &options{
 		resolver:        net.DefaultResolver,
 		registryService: DefaultRegistryService,
 	}
@@ -60,19 +60,19 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 }
 
 func (d *dnsNSResolveServer) Register(ctx context.Context, ns *registry.NetworkService) (*registry.NetworkService, error) {
-	domain := interdomain.Domain(ns.Name)
+	domain := interdomain.Domain(ns.GetName())
 	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
-	ns.Name = interdomain.Target(ns.Name)
+	ns.Name = interdomain.Target(ns.GetName())
 	resp, err := next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	if err != nil {
 		return nil, err
 	}
 
-	resp.Name = interdomain.Join(resp.Name, domain)
+	resp.Name = interdomain.Join(resp.GetName(), domain)
 
 	return resp, nil
 }
@@ -83,13 +83,13 @@ type dnsFindNSServer struct {
 }
 
 func (s *dnsFindNSServer) Send(nseResp *registry.NetworkServiceResponse) error {
-	nseResp.NetworkService.Name = interdomain.Join(nseResp.NetworkService.Name, s.domain)
+	nseResp.NetworkService.Name = interdomain.Join(nseResp.GetNetworkService().GetName(), s.domain)
 	return s.NetworkServiceRegistry_FindServer.Send(nseResp)
 }
 
 func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
 	ctx := s.Context()
-	domain := interdomain.Domain(q.NetworkService.Name)
+	domain := interdomain.Domain(q.GetNetworkService().GetName())
 	if domain == "" {
 		return errors.New("domain cannot be empty")
 	}
@@ -99,20 +99,20 @@ func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.Ne
 	}
 	ctx = clienturlctx.WithClientURL(s.Context(), url)
 	s = streamcontext.NetworkServiceRegistryFindServer(ctx, s)
-	q.NetworkService.Name = interdomain.Target(q.NetworkService.Name)
+	q.NetworkService.Name = interdomain.Target(q.GetNetworkService().GetName())
 	return next.NetworkServiceRegistryServer(s.Context()).Find(q, &dnsFindNSServer{domain: domain, NetworkServiceRegistry_FindServer: s})
 }
 
 func (d *dnsNSResolveServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	domain := interdomain.Domain(ns.Name)
+	domain := interdomain.Domain(ns.GetName())
 	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
-	ns.Name = interdomain.Target(ns.Name)
+	ns.Name = interdomain.Target(ns.GetName())
 	defer func() {
-		ns.Name = interdomain.Join(ns.Name, domain)
+		ns.Name = interdomain.Join(ns.GetName(), domain)
 	}()
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

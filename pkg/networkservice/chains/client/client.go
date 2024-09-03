@@ -39,7 +39,7 @@ import (
 // NewClient - returns case NSM client.
 //   - ctx    - context for the lifecycle of the *Client* itself.  Cancel when discarding the client.
 func NewClient(ctx context.Context, clientOpts ...Option) networkservice.NetworkServiceClient {
-	var opts = &clientOptions{
+	opts := &clientOptions{
 		name:            "client-" + uuid.New().String(),
 		authorizeClient: null.NewClient(),
 		healClient:      null.NewClient(),

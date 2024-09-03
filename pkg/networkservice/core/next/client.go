@@ -33,13 +33,13 @@ type nextClient struct {
 	nextParent networkservice.NetworkServiceClient
 }
 
-// ClientWrapper - a function that wraps around a networkservice.NetworkServiceClient
+// ClientWrapper - a function that wraps around a networkservice.NetworkServiceClient.
 type ClientWrapper func(networkservice.NetworkServiceClient) networkservice.NetworkServiceClient
 
-// ClientChainer - a function that chains together a list of networkservice.NetworkServiceClients
+// ClientChainer - a function that chains together a list of networkservice.NetworkServiceClients.
 type ClientChainer func(...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient
 
-// NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one
+// NewWrappedNetworkServiceClient chains together clients with wrapper wrapped around each one.
 func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	rv := &nextClient{clients: make([]networkservice.NetworkServiceClient, 0, len(clients))}
 	for _, c := range clients {
@@ -48,7 +48,7 @@ func NewWrappedNetworkServiceClient(wrapper ClientWrapper, clients ...networkser
 	return rv
 }
 
-// NewNetworkServiceClient - chains together clients into a single networkservice.NetworkServiceClient
+// NewNetworkServiceClient - chains together clients into a single networkservice.NetworkServiceClient.
 func NewNetworkServiceClient(clients ...networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return NewWrappedNetworkServiceClient(func(client networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 		return client

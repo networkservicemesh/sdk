@@ -59,6 +59,7 @@ func TestOverriddenPolicy(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, policies, 8)
 }
+
 func Test_NoPoliciesPassed(t *testing.T) {
 	policies, err := opa.PoliciesByFileMask()
 	require.NoError(t, err)

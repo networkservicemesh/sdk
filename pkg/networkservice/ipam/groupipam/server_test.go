@@ -41,12 +41,12 @@ func Test_NewServer_ShouldFailIfOptionIsNil(t *testing.T) {
 func Test_NewServer_UsesPoint2pointIPAMByDefault(t *testing.T) {
 	requireConns := func(t *testing.T, conn *networkservice.Connection, dsts, srcs []string) {
 		for i, dst := range dsts {
-			require.Equal(t, conn.Context.IpContext.DstIpAddrs[i], dst)
-			require.Equal(t, conn.Context.IpContext.SrcRoutes[i].Prefix, dst)
+			require.Equal(t, conn.GetContext().GetIpContext().GetDstIpAddrs()[i], dst)
+			require.Equal(t, conn.GetContext().GetIpContext().GetSrcRoutes()[i].GetPrefix(), dst)
 		}
 		for i, src := range srcs {
-			require.Equal(t, conn.Context.IpContext.SrcIpAddrs[i], src)
-			require.Equal(t, conn.Context.IpContext.DstRoutes[i].Prefix, src)
+			require.Equal(t, conn.GetContext().GetIpContext().GetSrcIpAddrs()[i], src)
+			require.Equal(t, conn.GetContext().GetIpContext().GetDstRoutes()[i].GetPrefix(), src)
 		}
 	}
 
@@ -84,9 +84,9 @@ func Test_NewServer_UsesPoint2pointIPAMByDefault(t *testing.T) {
 
 func Test_NewServer_GroupOfCustomIPAMServers(t *testing.T) {
 	requireConns := func(t *testing.T, conn *networkservice.Connection, srcs []string) {
-		require.Equal(t, len(srcs), len(conn.Context.IpContext.SrcIpAddrs))
+		require.Equal(t, len(srcs), len(conn.GetContext().GetIpContext().GetSrcIpAddrs()))
 		for i, src := range srcs {
-			require.Equal(t, src, conn.Context.IpContext.SrcIpAddrs[i])
+			require.Equal(t, src, conn.GetContext().GetIpContext().GetSrcIpAddrs()[i])
 		}
 	}
 

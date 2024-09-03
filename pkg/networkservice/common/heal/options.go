@@ -28,7 +28,7 @@ const (
 	livenessCheckTimeout  = 100 * time.Millisecond
 )
 
-// LivenessCheck - function that returns true of conn is 'live' and false otherwise
+// LivenessCheck - function that returns true of conn is 'live' and false otherwise.
 type LivenessCheck func(deadlineCtx context.Context, conn *networkservice.Connection) bool
 
 type options struct {
@@ -37,24 +37,24 @@ type options struct {
 	livenessCheckTimeout  time.Duration
 }
 
-// Option - option for heal.NewClient() chain element
+// Option - option for heal.NewClient() chain element.
 type Option func(o *options)
 
-// WithLivenessCheck - sets the data plane liveness checker
+// WithLivenessCheck - sets the data plane liveness checker.
 func WithLivenessCheck(livenessCheck LivenessCheck) Option {
 	return func(o *options) {
 		o.livenessCheck = livenessCheck
 	}
 }
 
-// WithLivenessCheckInterval - sets livenessCheckInterval
+// WithLivenessCheckInterval - sets livenessCheckInterval.
 func WithLivenessCheckInterval(livenessCheckInterval time.Duration) Option {
 	return func(o *options) {
 		o.livenessCheckInterval = livenessCheckInterval
 	}
 }
 
-// WithLivenessCheckTimeout - sets livenessCheckTimeout
+// WithLivenessCheckTimeout - sets livenessCheckTimeout.
 func WithLivenessCheckTimeout(livenessCheckTimeout time.Duration) Option {
 	return func(o *options) {
 		o.livenessCheckTimeout = livenessCheckTimeout

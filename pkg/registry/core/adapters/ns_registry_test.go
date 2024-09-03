@@ -42,7 +42,7 @@ func (t *echoNetworkServiceClient) Register(_ context.Context, in *registry.Netw
 func (t *echoNetworkServiceClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, _ ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkServiceResponse)
 	go func() {
-		ch <- &registry.NetworkServiceResponse{NetworkService: in.NetworkService}
+		ch <- &registry.NetworkServiceResponse{NetworkService: in.GetNetworkService()}
 		close(ch)
 	}()
 	return streamchannel.NewNetworkServiceFindClient(ctx, ch), nil
@@ -60,7 +60,7 @@ func (e echoNetworkServiceServer) Register(ctx context.Context, service *registr
 
 func (e echoNetworkServiceServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
 	nsResp := &registry.NetworkServiceResponse{
-		NetworkService: query.NetworkService,
+		NetworkService: query.GetNetworkService(),
 	}
 	return server.Send(nsResp)
 }
@@ -111,7 +111,7 @@ func TestNetworkServiceFind(t *testing.T) {
 		s := streamchannel.NewNetworkServiceFindServer(context.Background(), ch)
 		err := server.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{Name: "test"}}, s)
 		require.Nil(t, err)
-		require.Equal(t, "test", (<-ch).NetworkService.Name)
+		require.Equal(t, "test", (<-ch).GetNetworkService().GetName())
 		close(ch)
 	}
 }
@@ -134,8 +134,7 @@ type contextKeyType string
 
 const testKey contextKeyType = "TestContext"
 
-type writeNSServer struct {
-}
+type writeNSServer struct{}
 
 func (w *writeNSServer) Register(ctx context.Context, service *registry.NetworkService) (*registry.NetworkService, error) {
 	ctx = context.WithValue(ctx, testKey, true)
@@ -169,8 +168,7 @@ func TestNSClientPassingContext(t *testing.T) {
 	require.NoError(t, err)
 }
 
-type writeNSClient struct {
-}
+type writeNSClient struct{}
 
 func (w *writeNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	ctx = context.WithValue(ctx, testKey, true)

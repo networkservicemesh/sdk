@@ -111,7 +111,7 @@ func TestLabelsServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	for _, tc := range testCases {
-		// nolint:scopelint
+		//nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
 			testLabelsServer(t, tc.envs, tc.expected, tc.input)
 		})
@@ -122,7 +122,7 @@ func testLabelsServer(t *testing.T, envs, want, input map[string]string) {
 	nsReg := registry.NetworkService{Name: "ns-1"}
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name: "nse-1",
-		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{nsReg.Name: {
+		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{nsReg.GetName(): {
 			Labels: input,
 		}},
 	}
@@ -135,7 +135,7 @@ func testLabelsServer(t *testing.T, envs, want, input map[string]string) {
 	// Register
 	nseReg, err = server.Register(context.Background(), nseReg)
 	require.NoError(t, err)
-	require.Equal(t, want, nseReg.NetworkServiceLabels[nsReg.Name].Labels)
+	require.Equal(t, want, nseReg.GetNetworkServiceLabels()[nsReg.GetName()].GetLabels())
 
 	// Unregister
 	_, err = server.Unregister(context.Background(), nseReg)

@@ -33,7 +33,7 @@ import (
 type clientInfo struct{}
 
 // NewClient - creates a new networkservice.NetworkServiceClient chain element that adds pod, node and cluster names
-// to request from corresponding environment variables
+// to request from corresponding environment variables.
 func NewClient() networkservice.NetworkServiceClient {
 	return &clientInfo{}
 }
@@ -43,7 +43,7 @@ func (a *clientInfo) Request(ctx context.Context, request *networkservice.Networ
 	if conn.Labels == nil {
 		conn.Labels = make(map[string]string)
 	}
-	clientinfo.AddClientInfo(ctx, conn.Labels)
+	clientinfo.AddClientInfo(ctx, conn.GetLabels())
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 

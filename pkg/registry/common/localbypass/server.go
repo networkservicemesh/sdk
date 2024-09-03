@@ -39,11 +39,11 @@ type localBypassNSEFindServer struct {
 }
 
 func (s *localBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
-	if u, ok := s.nseURLs.Load(nseResp.NetworkServiceEndpoint.Name); ok {
+	if u, ok := s.nseURLs.Load(nseResp.GetNetworkServiceEndpoint().GetName()); ok {
 		nseResp.NetworkServiceEndpoint.Url = u.String()
 	}
 
-	if nseResp.GetNetworkServiceEndpoint().GetUrl() == s.nsmgrURL && !nseResp.Deleted {
+	if nseResp.GetNetworkServiceEndpoint().GetUrl() == s.nsmgrURL && !nseResp.GetDeleted() {
 		return nil
 	}
 
@@ -56,7 +56,7 @@ type localBypassNSEServer struct {
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new instance of NetworkServiceEndpointRegistryServer which sets
-// NSMgr URL to endpoints on registration and sets back endpoints URLs on find
+// NSMgr URL to endpoints on registration and sets back endpoints URLs on find.
 func NewNetworkServiceEndpointRegistryServer(nsmgrURL string) registry.NetworkServiceEndpointRegistryServer {
 	return &localBypassNSEServer{
 		nsmgrURL: nsmgrURL,
@@ -64,16 +64,16 @@ func NewNetworkServiceEndpointRegistryServer(nsmgrURL string) registry.NetworkSe
 }
 
 func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (reg *registry.NetworkServiceEndpoint, err error) {
-	u, loaded := s.nseURLs.Load(nse.Name)
-	if !loaded || u.String() != nse.Url {
-		u, err = url.Parse(nse.Url)
+	u, loaded := s.nseURLs.Load(nse.GetName())
+	if !loaded || u.String() != nse.GetUrl() {
+		u, err = url.Parse(nse.GetUrl())
 		if err != nil {
-			return nil, errors.Wrapf(err, "cannot register NSE with passed URL: %s", nse.Url)
+			return nil, errors.Wrapf(err, "cannot register NSE with passed URL: %s", nse.GetUrl())
 		}
 		if u.String() == "" {
-			return nil, errors.Errorf("cannot register NSE with passed URL: %s", nse.Url)
+			return nil, errors.Errorf("cannot register NSE with passed URL: %s", nse.GetUrl())
 		}
-		s.nseURLs.Store(nse.Name, u)
+		s.nseURLs.Store(nse.GetName(), u)
 	}
 
 	nse.Url = s.nsmgrURL
@@ -81,13 +81,13 @@ func (s *localBypassNSEServer) Register(ctx context.Context, nse *registry.Netwo
 	reg, err = next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
 	if err != nil {
 		if !loaded {
-			s.nseURLs.Delete(nse.Name)
+			s.nseURLs.Delete(nse.GetName())
 		}
 		return nil, err
 	}
 
 	reg.Url = u.String()
-	s.nseURLs.Store(reg.Name, u)
+	s.nseURLs.Store(reg.GetName(), u)
 
 	return reg, nil
 }
@@ -100,12 +100,12 @@ func (s *localBypassNSEServer) Find(query *registry.NetworkServiceEndpointQuery,
 }
 
 func (s *localBypassNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (_ *empty.Empty, err error) {
-	if _, ok := s.nseURLs.Load(nse.Name); ok {
+	if _, ok := s.nseURLs.Load(nse.GetName()); ok {
 		nse.Url = s.nsmgrURL
 
 		_, err = next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 		if err == nil {
-			s.nseURLs.Delete(nse.Name)
+			s.nseURLs.Delete(nse.GetName())
 		}
 	}
 	return new(empty.Empty), err

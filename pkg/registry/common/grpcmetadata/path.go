@@ -16,18 +16,18 @@
 
 package grpcmetadata
 
-// Path represents a private path that is passed via grpcmetadata during NS and NSE registration
+// Path represents a private path that is passed via grpcmetadata during NS and NSE registration.
 type Path struct {
 	Index        uint32
 	PathSegments []*PathSegment
 }
 
-// PathSegment represents segment of a private path
+// PathSegment represents segment of a private path.
 type PathSegment struct {
 	Token string `json:"token"`
 }
 
-// GetCurrentPathSegment returns path.Index segment if it exists
+// GetCurrentPathSegment returns path.Index segment if it exists.
 func (p *Path) GetCurrentPathSegment() *PathSegment {
 	if p == nil {
 		return nil
@@ -41,7 +41,7 @@ func (p *Path) GetCurrentPathSegment() *PathSegment {
 	return p.PathSegments[p.Index]
 }
 
-// Clone clones Path
+// Clone clones Path.
 func (p *Path) Clone() *Path {
 	result := &Path{
 		Index: p.Index,

@@ -96,10 +96,10 @@ func (f *updateTokenServerSuite) TestNewServer_IndexInLastPositionAddNewSegment(
 	server := next.NewNetworkServiceServer(updatepath.NewServer("nsc-2"), updatetoken.NewServer(TokenGenerator))
 	conn, err := server.Request(context.Background(), request)
 	require.NoError(t, err)
-	require.Equal(t, 3, len(conn.Path.PathSegments))
-	require.Equal(t, "nsc-2", conn.Path.PathSegments[2].Name)
-	require.Equal(t, f.Token, conn.Path.PathSegments[2].Token)
-	equalJSON(t, f.ExpiresProto, conn.Path.PathSegments[2].Expires)
+	require.Equal(t, 3, len(conn.GetPath().GetPathSegments()))
+	require.Equal(t, "nsc-2", conn.GetPath().GetPathSegments()[2].GetName())
+	require.Equal(t, f.Token, conn.GetPath().GetPathSegments()[2].GetToken())
+	equalJSON(t, f.ExpiresProto, conn.GetPath().GetPathSegments()[2].GetExpires())
 }
 
 func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
@@ -127,7 +127,7 @@ func (f *updateTokenServerSuite) TestNewServer_ValidIndexOverwriteValues() {
 		},
 	}
 
-	expected := request.Connection.Clone()
+	expected := request.GetConnection().Clone()
 	expected.Path.PathSegments[2].Token = f.Token
 	expected.Path.PathSegments[2].Expires = f.ExpiresProto
 
@@ -212,18 +212,18 @@ func (f *updateTokenServerSuite) TestChain() {
 	server := next.NewNetworkServiceServer(elements...)
 
 	got, err := server.Request(context.Background(), request)
-	require.Equal(t, 3, len(got.Path.PathSegments))
-	require.Equal(t, 0, int(got.Path.Index))
-	for i, s := range got.Path.PathSegments {
-		require.Equal(t, want.Path.PathSegments[i].Name, s.Name)
-		require.Equal(t, want.Path.PathSegments[i].Token, s.Token)
-		equalJSON(t, want.Path.PathSegments[i].Expires, s.Expires)
+	require.Equal(t, 3, len(got.GetPath().GetPathSegments()))
+	require.Equal(t, 0, int(got.GetPath().GetIndex()))
+	for i, s := range got.GetPath().GetPathSegments() {
+		require.Equal(t, want.GetPath().GetPathSegments()[i].GetName(), s.GetName())
+		require.Equal(t, want.GetPath().GetPathSegments()[i].GetToken(), s.GetToken())
+		equalJSON(t, want.GetPath().GetPathSegments()[i].GetExpires(), s.GetExpires())
 	}
 	require.NoError(t, err)
 }
 
 // In order for 'go test' to run this suite, we need to create
-// a normal test function and pass our suite to suite.Run
+// a normal test function and pass our suite to suite.Run.
 func TestUpdateTokenServerTestSuite(t *testing.T) {
 	suite.Run(t, new(updateTokenServerSuite))
 }

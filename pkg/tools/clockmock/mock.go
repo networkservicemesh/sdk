@@ -31,7 +31,7 @@ import (
 
 var _ clock.Clock = (*Mock)(nil)
 
-// Mock is a mock implementation of the Clock
+// Mock is a mock implementation of the Clock.
 type Mock struct {
 	ctx     context.Context
 	speedCh chan float64
@@ -39,7 +39,7 @@ type Mock struct {
 	lock    sync.RWMutex
 }
 
-// New returns a new mocked clock
+// New returns a new mocked clock.
 func New(ctx context.Context) *Mock {
 	m := &Mock{
 		ctx:     ctx,
@@ -48,7 +48,7 @@ func New(ctx context.Context) *Mock {
 	}
 
 	var speed float64
-	var realStart, mockStart, mockTime = time.Now(), m.Now(), m.Now()
+	realStart, mockStart, mockTime := time.Now(), m.Now(), m.Now()
 	var mockAdded time.Duration
 	go func() {
 		for {
@@ -106,27 +106,27 @@ func (m *Mock) Add(d time.Duration) {
 	m.mock.Add(safeDuration(d))
 }
 
-// Now returns mock current time
+// Now returns mock current time.
 func (m *Mock) Now() time.Time {
 	return m.mock.Now()
 }
 
-// Since is a shortcut for the m.Now().Sub(t)
+// Since is a shortcut for the m.Now().Sub(t).
 func (m *Mock) Since(t time.Time) time.Duration {
 	return m.mock.Since(t)
 }
 
-// Until is a shortcut for the t.Sub(m.Now())
+// Until is a shortcut for the t.Sub(m.Now()).
 func (m *Mock) Until(t time.Time) time.Duration {
 	return t.Sub(m.Now())
 }
 
-// Sleep waits for the mock current time becomes > m.Now().Add(d)
+// Sleep waits for the mock current time becomes > m.Now().Add(d).
 func (m *Mock) Sleep(d time.Duration) {
 	<-m.After(d)
 }
 
-// Timer returns a timer that will fire when the mock current time becomes > m.Now().Add(d)
+// Timer returns a timer that will fire when the mock current time becomes > m.Now().Add(d).
 func (m *Mock) Timer(d time.Duration) clock.Timer {
 	if d = safeDuration(d); d > 0 {
 		m.lock.RLock()
@@ -144,12 +144,12 @@ func (m *Mock) Timer(d time.Duration) clock.Timer {
 	}
 }
 
-// After is a shortcut for the m.Timer(d).C()
+// After is a shortcut for the m.Timer(d).C().
 func (m *Mock) After(d time.Duration) <-chan time.Time {
 	return m.Timer(d).C()
 }
 
-// AfterFunc returns a timer that will call f when the mock current time becomes > m.Now().Add(d)
+// AfterFunc returns a timer that will call f when the mock current time becomes > m.Now().Add(d).
 func (m *Mock) AfterFunc(d time.Duration, f func()) clock.Timer {
 	if d = safeDuration(d); d > 0 {
 		m.lock.RLock()
@@ -173,7 +173,7 @@ func (m *Mock) afterFunc(d time.Duration, f func()) clock.Timer {
 	}
 }
 
-// Ticker returns a ticker that will fire every time when the mock current time becomes > mock previous time + d
+// Ticker returns a ticker that will fire every time when the mock current time becomes > mock previous time + d.
 func (m *Mock) Ticker(d time.Duration) clock.Ticker {
 	m.lock.RLock()
 	defer m.lock.RUnlock()
@@ -184,7 +184,7 @@ func (m *Mock) Ticker(d time.Duration) clock.Ticker {
 	}
 }
 
-// WithDeadline wraps parent in a new context that will cancel when the mock current time becomes > deadline
+// WithDeadline wraps parent in a new context that will cancel when the mock current time becomes > deadline.
 func (m *Mock) WithDeadline(parent context.Context, deadline time.Time) (context.Context, context.CancelFunc) {
 	cancelCtx, cancel := context.WithCancel(parent)
 
@@ -214,7 +214,7 @@ func (m *Mock) WithDeadline(parent context.Context, deadline time.Time) (context
 	}
 }
 
-// WithTimeout is a shortcut for the m.WithDeadline(parent, m.Now().Add(timeout))
+// WithTimeout is a shortcut for the m.WithDeadline(parent, m.Now().Add(timeout)).
 func (m *Mock) WithTimeout(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	return m.WithDeadline(parent, m.Now().Add(timeout))
 }

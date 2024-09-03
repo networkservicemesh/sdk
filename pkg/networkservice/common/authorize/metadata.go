@@ -32,7 +32,7 @@ func store(ctx context.Context, isClient bool) {
 }
 
 // load returns a flag stored per Connection.Id metadata.
-// It is used to determine a refresh
+// It is used to determine a refresh.
 func load(ctx context.Context, isClient bool) (ok bool) {
 	_, ok = metadata.Map(ctx, isClient).Load(key{})
 	return

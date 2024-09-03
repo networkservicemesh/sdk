@@ -40,7 +40,7 @@ type swapIPFindNSEServer struct {
 }
 
 func (s *swapIPFindNSEServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
-	trySwapIP(s.ctx, nseResp.NetworkServiceEndpoint, s.m)
+	trySwapIP(s.ctx, nseResp.GetNetworkServiceEndpoint(), s.m)
 	if err := s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp); err != nil {
 		return errors.Wrapf(err, "NetworkServiceEndpointRegistry find server failed to send a response %s", nseResp.String())
 	}
@@ -63,7 +63,7 @@ func (n *swapIPNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 
 func (n *swapIPNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	m := n.swapIPMap.Load().(map[string]string)
-	trySwapIP(server.Context(), query.NetworkServiceEndpoint, m)
+	trySwapIP(server.Context(), query.GetNetworkServiceEndpoint(), m)
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, &swapIPFindNSEServer{NetworkServiceEndpointRegistry_FindServer: server, m: m, ctx: server.Context()})
 }
 
@@ -76,10 +76,10 @@ func (n *swapIPNSEServer) Unregister(ctx context.Context, nse *registry.NetworkS
 func trySwapIP(ctx context.Context, nse *registry.NetworkServiceEndpoint, ipMap map[string]string) {
 	logger := log.FromContext(ctx)
 
-	u, err := url.Parse(nse.Url)
+	u, err := url.Parse(nse.GetUrl())
 	defer func() {
 		if err != nil {
-			logger.Debugf("can not parse incomming url: %v, err: %v", nse.Url, err)
+			logger.Debugf("can not parse incomming url: %v, err: %v", nse.GetUrl(), err)
 		}
 	}()
 
@@ -88,7 +88,6 @@ func trySwapIP(ctx context.Context, nse *registry.NetworkServiceEndpoint, ipMap 
 	}
 
 	h, p, err := net.SplitHostPort(u.Host)
-
 	if err != nil {
 		return
 	}
@@ -100,9 +99,9 @@ func trySwapIP(ctx context.Context, nse *registry.NetworkServiceEndpoint, ipMap 
 	}
 }
 
-// NewNetworkServiceEndpointRegistryServer creates a new seturl registry.NetworkServiceEndpointRegistryServer
+// NewNetworkServiceEndpointRegistryServer creates a new seturl registry.NetworkServiceEndpointRegistryServer.
 func NewNetworkServiceEndpointRegistryServer(updateMapCh <-chan map[string]string) registry.NetworkServiceEndpointRegistryServer {
-	var v = new(atomic.Value)
+	v := new(atomic.Value)
 	v.Store(map[string]string{})
 
 	go func() {

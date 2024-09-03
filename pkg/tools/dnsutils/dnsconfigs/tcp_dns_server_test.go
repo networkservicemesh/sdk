@@ -84,16 +84,14 @@ func (p *proxyDNSServer) shutdown() error {
 	return nil
 }
 
-type tcpHandler struct {
-}
+type tcpHandler struct{}
 
 func (h *tcpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
 	time.Sleep(time.Second * 5)
 	dns.HandleFailed(rw, m)
 }
 
-type udpHandler struct {
-}
+type udpHandler struct{}
 
 func (h *udpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
 	if m.Question[0].Name == "my.domain." {

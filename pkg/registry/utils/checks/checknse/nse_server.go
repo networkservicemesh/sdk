@@ -51,7 +51,7 @@ func (s *checkNSEServer) Register(ctx context.Context, nse *registry.NetworkServ
 }
 
 func (s *checkNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	s.check(s.T, query.NetworkServiceEndpoint)
+	s.check(s.T, query.GetNetworkServiceEndpoint())
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 

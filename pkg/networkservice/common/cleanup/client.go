@@ -40,7 +40,7 @@ type cleanupClient struct {
 	executor    serialize.Executor
 }
 
-// NewClient - returns a cleanup client chain element
+// NewClient - returns a cleanup client chain element.
 func NewClient(ctx context.Context, opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{}
 	for _, opt := range opts {

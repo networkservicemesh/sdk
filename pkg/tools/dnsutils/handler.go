@@ -22,7 +22,7 @@ import (
 	"github.com/miekg/dns"
 )
 
-// Handler handles dns queries
+// Handler handles dns queries.
 type Handler interface {
 	ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg)
 }

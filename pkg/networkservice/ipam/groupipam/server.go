@@ -32,10 +32,10 @@ type options struct {
 	newIPAMServerFn func(...*net.IPNet) networkservice.NetworkServiceServer
 }
 
-// Option allows to change a default behavior
+// Option allows to change a default behavior.
 type Option func(*options)
 
-// WithCustomIPAMServer replaces default `point2pointipam` to custom implementation
+// WithCustomIPAMServer replaces default `point2pointipam` to custom implementation.
 func WithCustomIPAMServer(f func(...*net.IPNet) networkservice.NetworkServiceServer) Option {
 	if f == nil {
 		panic("nil is not allowed")
@@ -48,10 +48,10 @@ func WithCustomIPAMServer(f func(...*net.IPNet) networkservice.NetworkServiceSer
 
 // NewServer creates a new instance of groupipam chain element that handles a group of []*net.IPNet.
 // Requires a group of []*net.IPNet.
-// Options can be passed optionally
+// Options can be passed optionally.
 func NewServer(groups [][]*net.IPNet, opts ...Option) networkservice.NetworkServiceServer {
 	var ipamServers []networkservice.NetworkServiceServer
-	var o = options{
+	o := options{
 		newIPAMServerFn: point2pointipam.NewServer,
 	}
 

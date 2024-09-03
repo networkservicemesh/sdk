@@ -34,7 +34,7 @@ type mechanismPriorityClient struct {
 	priorities map[string]int
 }
 
-// NewClient - returns a new client chain element that prioritize mechanisms according to the list
+// NewClient - returns a new client chain element that prioritize mechanisms according to the list.
 func NewClient(priorities ...string) networkservice.NetworkServiceClient {
 	c := &mechanismPriorityClient{
 		priorities: map[string]int{},

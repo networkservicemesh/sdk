@@ -25,7 +25,7 @@ import (
 type key struct{}
 
 // dontTrimPath stores the fact we should not trim the path in in per Connection.Id metadata.
-// should only be called in trimPathClient
+// should only be called in trimPathClient.
 func dontTrimPath(ctx context.Context) {
 	metadata.Map(ctx, true).Store(key{}, key{})
 }

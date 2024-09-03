@@ -32,12 +32,12 @@ import (
 func TestReadClusterName(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var path = filepath.Join(t.TempDir(), "clusterinfo.yaml")
+	path := filepath.Join(t.TempDir(), "clusterinfo.yaml")
 	require.NoError(t, os.WriteFile(path, []byte("CLUSTER_NAME: my-cluster1"), os.ModePerm))
 
-	var s = clusterinfo.NewNetworkServiceEndpointRegistryServer(clusterinfo.WithConfigPath(path))
+	s := clusterinfo.NewNetworkServiceEndpointRegistryServer(clusterinfo.WithConfigPath(path))
 
-	var resp, err = s.Register(context.Background(), &registry.NetworkServiceEndpoint{NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
+	resp, err := s.Register(context.Background(), &registry.NetworkServiceEndpoint{NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 		"ns-1": {},
 	}})
 	require.NoError(t, err)

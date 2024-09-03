@@ -31,7 +31,7 @@ const (
 
 type contextKeyType string
 
-// NetworkServiceCandidates contains candidates for network service
+// NetworkServiceCandidates contains candidates for network service.
 type NetworkServiceCandidates struct {
 	NetworkService *registry.NetworkService
 	Endpoints      []*registry.NetworkServiceEndpoint

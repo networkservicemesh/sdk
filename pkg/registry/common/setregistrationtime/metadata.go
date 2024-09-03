@@ -34,7 +34,7 @@ func store(ctx context.Context, initialRegistrationTime protoreflect.ProtoMessag
 	metadata.Map(ctx, false).Store(key{}, proto.Clone(initialRegistrationTime))
 }
 
-// load returns the initialRegistrationTime stored in per NSE metadata,
+// load returns the initialRegistrationTime stored in per NSE metadata,.
 func load(ctx context.Context) (value *timestamppb.Timestamp, ok bool) {
 	rawValue, ok := metadata.Map(ctx, false).Load(key{})
 	if !ok {
@@ -44,7 +44,7 @@ func load(ctx context.Context) (value *timestamppb.Timestamp, ok bool) {
 	return value, ok
 }
 
-// deleteTime deletes the initialRegistrationTime stored in per NSE metadata,
+// deleteTime deletes the initialRegistrationTime stored in per NSE metadata,.
 func deleteTime(ctx context.Context) {
 	metadata.Map(ctx, false).Delete(key{})
 }

@@ -62,7 +62,7 @@ func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 		policyList = append(policyList, p)
 	}
 
-	var result = &authorizeClient{
+	result := &authorizeClient{
 		policies: policyList,
 	}
 	return result

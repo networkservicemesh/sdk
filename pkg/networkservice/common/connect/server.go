@@ -36,7 +36,7 @@ type connectServer struct {
 	callOptions []grpc.CallOption
 }
 
-// NewServer - returns a connect chain element
+// NewServer - returns a connect chain element.
 func NewServer(client networkservice.NetworkServiceClient, callOptions ...grpc.CallOption) networkservice.NetworkServiceServer {
 	return &connectServer{
 		client:      client,

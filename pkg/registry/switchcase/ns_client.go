@@ -48,7 +48,7 @@ func (n *switchCaseNSClient) Register(ctx context.Context, in *registry.NetworkS
 
 func (n *switchCaseNSClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	for _, c := range n.cases {
-		if c.Condition(ctx, in.NetworkService) {
+		if c.Condition(ctx, in.GetNetworkService()) {
 			return c.Action.Find(ctx, in)
 		}
 	}

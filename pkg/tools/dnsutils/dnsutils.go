@@ -33,11 +33,11 @@ import (
 // handler is using for hanlding dns queries.
 // listenOn is using for listen. Expects {ip}:{port} to listen. Examples: "127.0.0.1:53", ":53".
 func ListenAndServe(ctx context.Context, handler Handler, listenOn string) {
-	var networks = []string{"tcp", "udp"}
+	networks := []string{"tcp", "udp"}
 
 	for _, network := range networks {
-		var server = &dns.Server{Addr: listenOn, Net: network, Handler: dns.HandlerFunc(func(w dns.ResponseWriter, m *dns.Msg) {
-			var timeoutCtx, cancel = context.WithTimeout(ctx, time.Second*5)
+		server := &dns.Server{Addr: listenOn, Net: network, Handler: dns.HandlerFunc(func(w dns.ResponseWriter, m *dns.Msg) {
+			timeoutCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 			defer cancel()
 
 			handler.ServeDNS(timeoutCtx, w, m)
@@ -50,7 +50,7 @@ func ListenAndServe(ctx context.Context, handler Handler, listenOn string) {
 
 		go func() {
 			for ; ctx.Err() == nil; time.Sleep(time.Millisecond / 100) {
-				var err = server.ListenAndServe()
+				err := server.ListenAndServe()
 				if err != nil {
 					log.FromContext(ctx).Errorf("an error during serve dns: %v", err.Error())
 				}
@@ -59,10 +59,10 @@ func ListenAndServe(ctx context.Context, handler Handler, listenOn string) {
 	}
 }
 
-// ContainsDNSConfig returns true if array contains a specific dns config
+// ContainsDNSConfig returns true if array contains a specific dns config.
 func ContainsDNSConfig(array []*networkservice.DNSConfig, value *networkservice.DNSConfig) bool {
 	for i := range array {
-		if equal(array[i].DnsServerIps, value.DnsServerIps) && equal(array[i].SearchDomains, value.SearchDomains) {
+		if equal(array[i].GetDnsServerIps(), value.GetDnsServerIps()) && equal(array[i].GetSearchDomains(), value.GetSearchDomains()) {
 			return true
 		}
 	}

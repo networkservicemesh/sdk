@@ -33,7 +33,7 @@ func (s *networkServiceRegistryFindClient) Context() context.Context {
 	return s.ctx
 }
 
-// NetworkServiceRegistryFindClient extends context for NetworkServiceRegistry_FindClient
+// NetworkServiceRegistryFindClient extends context for NetworkServiceRegistry_FindClient.
 func NetworkServiceRegistryFindClient(ctx context.Context, client registry.NetworkServiceRegistry_FindClient) registry.NetworkServiceRegistry_FindClient {
 	if client != nil {
 		ctx = extend.WithValuesFromContext(client.Context(), ctx)
@@ -54,7 +54,7 @@ func (s *networkServiceRegistryFindServer) Context() context.Context {
 	return s.ctx
 }
 
-// NetworkServiceRegistryFindServer extends context for NetworkServiceRegistry_FindServer
+// NetworkServiceRegistryFindServer extends context for NetworkServiceRegistry_FindServer.
 func NetworkServiceRegistryFindServer(ctx context.Context, server registry.NetworkServiceRegistry_FindServer) registry.NetworkServiceRegistry_FindServer {
 	if server != nil {
 		ctx = extend.WithValuesFromContext(server.Context(), ctx)

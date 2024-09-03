@@ -51,7 +51,7 @@ func del(parent context.Context, id string, mdMap *genericsync.Map[string, *meta
 	return parent
 }
 
-// Map - Return the client (or server) per Connection.Id metadata *sync.Map
+// Map - Return the client (or server) per Connection.Id metadata *sync.Map.
 func Map(parent context.Context, isClient bool) *sync.Map {
 	m, ok := parent.Value(metaDataKey{}).(*metaData)
 	if !ok || m == nil {
@@ -63,7 +63,7 @@ func Map(parent context.Context, isClient bool) *sync.Map {
 	return &m.server
 }
 
-// IsClient - returns true if in implements networkservice.NetworkServiceClient
+// IsClient - returns true if in implements networkservice.NetworkServiceClient.
 func IsClient(in interface{}) bool {
 	_, ok := in.(networkservice.NetworkServiceClient)
 	return ok

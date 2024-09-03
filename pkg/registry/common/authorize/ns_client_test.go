@@ -34,7 +34,7 @@ import (
 func TestNSRegistryAuthorizeClient(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var callCounter = &count.CallCounter{}
+	callCounter := &count.CallCounter{}
 	client := chain.NewNetworkServiceRegistryClient(
 		authorize.NewNetworkServiceRegistryClient(authorize.WithPolicies("etc/nsm/opa/registry/client_allowed.rego")),
 		count.NewNetworkServiceRegistryClient(callCounter),

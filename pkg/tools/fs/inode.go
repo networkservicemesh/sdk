@@ -27,7 +27,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// GetInode returns Inode for file
+// GetInode returns Inode for file.
 func GetInode(file string) (uintptr, error) {
 	fileInfo, err := os.Stat(file)
 	if err != nil {

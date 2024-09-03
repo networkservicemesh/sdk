@@ -34,7 +34,7 @@ type clusterinfoServer struct {
 
 // NewServer - returns a new clusterinfo NetworkServiceServer that adds clusterinfo labels into request from the cluterinfo configuration.
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	var r = &clusterinfoServer{
+	r := &clusterinfoServer{
 		configPath: "/etc/clusterinfo/config.yaml",
 	}
 	for _, opt := range opts {
@@ -48,7 +48,7 @@ func (n *clusterinfoServer) Request(ctx context.Context, request *networkservice
 		request.GetConnection().Labels = make(map[string]string)
 	}
 
-	var m = make(map[string]string)
+	m := make(map[string]string)
 
 	if b, err := os.ReadFile(n.configPath); err == nil {
 		_ = yaml.Unmarshal(b, &m)

@@ -44,10 +44,10 @@ func TestCloseServer(t *testing.T) {
 	})
 	assert.NotNil(t, t, conn)
 	assert.NoError(t, err)
-	assert.Equal(t, conn.GetNetworkServiceLabels()[mark].Labels[mark], mark)
+	assert.Equal(t, conn.GetNetworkServiceLabels()[mark].GetLabels()[mark], mark)
 	conn = conn.Clone()
-	delete(conn.GetNetworkServiceLabels()[mark].Labels, mark)
-	assert.Zero(t, conn.GetNetworkServiceLabels()[mark].Labels[mark])
+	delete(conn.GetNetworkServiceLabels()[mark].GetLabels(), mark)
+	assert.Zero(t, conn.GetNetworkServiceLabels()[mark].GetLabels()[mark])
 	_, err = server.Unregister(ctx, conn)
 	assert.NoError(t, err)
 }

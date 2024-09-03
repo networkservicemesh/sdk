@@ -68,17 +68,17 @@ type serverOptions struct {
 	additionalFunctionality          []networkservice.NetworkServiceServer
 }
 
-// Option modifies server option value
+// Option modifies server option value.
 type Option func(o *serverOptions)
 
-// WithName sets name of the NetworkServiceServer
+// WithName sets name of the NetworkServiceServer.
 func WithName(name string) Option {
 	return func(o *serverOptions) {
 		o.name = name
 	}
 }
 
-// WithAuthorizeServer sets authorization server chain element
+// WithAuthorizeServer sets authorization server chain element.
 func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Option {
 	if authorizeServer == nil {
 		panic("Authorize server cannot be nil")
@@ -88,7 +88,7 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element
+// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element.
 func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer networkservice.MonitorConnectionServer) Option {
 	if authorizeMonitorConnectionServer == nil {
 		panic("authorizeMonitorConnectionServer cannot be nil")
@@ -98,14 +98,14 @@ func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer netwo
 	}
 }
 
-// WithAdditionalFunctionality sets additional NetworkServiceServer chain elements to be included in the chain
+// WithAdditionalFunctionality sets additional NetworkServiceServer chain elements to be included in the chain.
 func WithAdditionalFunctionality(additionalFunctionality ...networkservice.NetworkServiceServer) Option {
 	return func(o *serverOptions) {
 		o.additionalFunctionality = additionalFunctionality
 	}
 }
 
-// NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever
+// NewServer - returns a NetworkServiceMesh client as a chain of the standard Client pieces plus whatever.
 func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...Option) Endpoint {
 	opts := &serverOptions{
 		name:                             "endpoint-" + uuid.New().String(),
@@ -139,7 +139,7 @@ func (e *endpoint) Register(s *grpc.Server) {
 	networkservice.RegisterMonitorConnectionServer(s, e)
 }
 
-// Serve  - serves passed Endpoint on grpc
+// Serve  - serves passed Endpoint on grpc.
 func Serve(ctx context.Context, listenOn *url.URL, endpoint Endpoint, opt ...grpc.ServerOption) <-chan error {
 	server := grpc.NewServer(opt...)
 	endpoint.Register(server)

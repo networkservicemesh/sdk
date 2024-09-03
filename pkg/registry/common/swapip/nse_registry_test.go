@@ -38,11 +38,11 @@ func TestSwapIPNSERegistryServer_Register(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var ipMapCh = make(chan map[string]string)
+	ipMapCh := make(chan map[string]string)
 	s := chain.NewNetworkServiceEndpointRegistryServer(
 		swapip.NewNetworkServiceEndpointRegistryServer(ipMapCh),
 		checknse.NewServer(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			require.Equal(t, "tcp://8.8.8.8:5001", nse.Url)
+			require.Equal(t, "tcp://8.8.8.8:5001", nse.GetUrl())
 		}),
 	)
 
@@ -60,7 +60,7 @@ func TestSwapIPNSERegistryServer_Register(t *testing.T) {
 		Url: "tcp://127.0.0.1:5001",
 	})
 	require.NoError(t, err)
-	require.Equal(t, "tcp://127.0.0.1:5001", resp.Url)
+	require.Equal(t, "tcp://127.0.0.1:5001", resp.GetUrl())
 }
 
 func TestSwapIPNSERegistryServer_Unregister(t *testing.T) {
@@ -69,12 +69,12 @@ func TestSwapIPNSERegistryServer_Unregister(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var ipMapCh = make(chan map[string]string)
+	ipMapCh := make(chan map[string]string)
 
 	s := chain.NewNetworkServiceEndpointRegistryServer(
 		swapip.NewNetworkServiceEndpointRegistryServer(ipMapCh),
 		checknse.NewServer(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			require.Equal(t, "tcp://8.8.8.8:5001", nse.Url)
+			require.Equal(t, "tcp://8.8.8.8:5001", nse.GetUrl())
 		}),
 	)
 	defer close(ipMapCh)
@@ -99,7 +99,7 @@ func TestSwapIPNSERegistryServer_Find(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var ipMapCh = make(chan map[string]string)
+	ipMapCh := make(chan map[string]string)
 
 	m := memory.NewNetworkServiceEndpointRegistryServer()
 
@@ -111,7 +111,7 @@ func TestSwapIPNSERegistryServer_Find(t *testing.T) {
 	s := chain.NewNetworkServiceEndpointRegistryServer(
 		swapip.NewNetworkServiceEndpointRegistryServer(ipMapCh),
 		checknse.NewServer(t, func(t *testing.T, nse *registry.NetworkServiceEndpoint) {
-			require.Equal(t, "tcp://8.8.8.8:5001", nse.Url)
+			require.Equal(t, "tcp://8.8.8.8:5001", nse.GetUrl())
 		}),
 		m,
 	)
@@ -135,5 +135,5 @@ func TestSwapIPNSERegistryServer_Find(t *testing.T) {
 	list := registry.ReadNetworkServiceEndpointList(stream)
 	require.Len(t, list, 1)
 
-	require.Equal(t, "tcp://127.0.0.1:5001", list[0].Url)
+	require.Equal(t, "tcp://127.0.0.1:5001", list[0].GetUrl())
 }

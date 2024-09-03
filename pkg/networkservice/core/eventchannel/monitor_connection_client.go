@@ -83,8 +83,8 @@ func (m *monitorConnectionMonitorConnectionsClient) RecvMsg(msg interface{}) err
 		if err != nil {
 			return err
 		}
-		event.Type = e.Type
-		event.Connections = e.Connections
+		event.Type = e.GetType()
+		event.Connections = e.GetConnections()
 		return nil
 	}
 	return errors.Errorf("Not type networkservice.ConnectionEvent -  msg (%+v)", msg)

@@ -106,6 +106,7 @@ func (t *testEmptyMCMCServer) Send(event *networkservice.ConnectionEvent) error 
 func (t *testEmptyMCMCServer) Context() context.Context {
 	return t.context
 }
+
 func TestAuthzEndpoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	suits := []struct {

@@ -26,7 +26,7 @@ import (
 )
 
 // tailClient is a simple implementation of networkservice.NetworkServiceClient that is called at the end of a chain
-// to insure that we never call a method on a nil object
+// to insure that we never call a method on a nil object.
 type tailClient struct{}
 
 func (t *tailClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, _ ...grpc.CallOption) (*networkservice.Connection, error) {

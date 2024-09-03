@@ -27,7 +27,7 @@ import (
 const (
 	clientURLKey  contextKeyType = "ClientURL"
 	clientURLsKey contextKeyType = "ClientURLs"
-	// UnixURLScheme - scheme for unix urls
+	// UnixURLScheme - scheme for unix urls.
 	UnixURLScheme = "unix"
 )
 

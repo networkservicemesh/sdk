@@ -25,7 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
 )
 
-// IPAM manages vl3 prefixes
+// IPAM manages vl3 prefixes.
 type IPAM struct {
 	sync.Mutex
 	self             net.IPNet
@@ -35,7 +35,7 @@ type IPAM struct {
 	subscriptions    list.List
 }
 
-// NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes
+// NewIPAM creates a new vl3 ipam with specified prefix and excluded prefixes.
 func NewIPAM(prefix string, excludedPrefixes ...string) *IPAM {
 	ipam := new(IPAM)
 	err := ipam.Reset(prefix, excludedPrefixes...)
@@ -45,7 +45,7 @@ func NewIPAM(prefix string, excludedPrefixes ...string) *IPAM {
 	return ipam
 }
 
-// Subscribe creates a subscription for receiving events about changed prefixes
+// Subscribe creates a subscription for receiving events about changed prefixes.
 func (p *IPAM) Subscribe(action func()) context.CancelFunc {
 	defer p.Unlock()
 	p.Lock()
@@ -145,13 +145,12 @@ func (p *IPAM) isExcluded(ipNet string) bool {
 	return r
 }
 
-// Reset resets IPAM's ippol by setting new prefix
+// Reset resets IPAM's ippol by setting new prefix.
 func (p *IPAM) Reset(prefix string, excludePrefixes ...string) error {
 	p.Lock()
 	defer p.Unlock()
 
 	_, ipNet, err := net.ParseCIDR(prefix)
-
 	if err != nil {
 		return err
 	}
@@ -181,7 +180,7 @@ func (p *IPAM) Reset(prefix string, excludePrefixes ...string) error {
 	return nil
 }
 
-// ContainsNetString checks if ippool contains net
+// ContainsNetString checks if ippool contains net.
 func (p *IPAM) ContainsNetString(ipNet string) bool {
 	p.Lock()
 	defer p.Unlock()

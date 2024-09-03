@@ -37,7 +37,7 @@ type upstreamRefreshClient struct {
 	localNotifier *notifier
 }
 
-// NewClient - returns a new upstreamrefresh chain element
+// NewClient - returns a new upstreamrefresh chain element.
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{}
 	for _, opt := range opts {

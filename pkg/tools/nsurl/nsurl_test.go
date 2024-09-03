@@ -35,8 +35,9 @@ func must(u *url.URL, err error) *url.URL {
 	}
 	return u
 }
+
 func Test_NSURL(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		u              *url.URL
 		interfaceName  string
 		networkService string
@@ -76,8 +77,8 @@ func Test_NSURL(t *testing.T) {
 	}
 
 	for _, sample := range samples {
-		require.Equal(t, cls.LOCAL, (*nsurl.NSURL)(sample.u).Mechanism().Cls)
-		require.Equal(t, sample.mechanism, (*nsurl.NSURL)(sample.u).Mechanism().Type)
+		require.Equal(t, cls.LOCAL, (*nsurl.NSURL)(sample.u).Mechanism().GetCls())
+		require.Equal(t, sample.mechanism, (*nsurl.NSURL)(sample.u).Mechanism().GetType())
 		require.Equal(t, sample.networkService, (*nsurl.NSURL)(sample.u).NetworkService())
 		require.Len(t, (*nsurl.NSURL)(sample.u).Labels(), len(sample.labels))
 		if len(sample.labels) > 0 {

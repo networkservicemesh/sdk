@@ -27,7 +27,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
 )
 
-// NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing
+// NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing.
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return next.NewNetworkServiceServer(
 		next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),

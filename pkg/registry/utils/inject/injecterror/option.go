@@ -21,31 +21,31 @@ type options struct {
 	registerErrorTimes, unregisterErrorTimes, findErrorTimes []int
 }
 
-// Option is an option pattern for injecterror package
+// Option is an option pattern for injecterror package.
 type Option func(o *options)
 
-// WithError sets error
+// WithError sets error.
 func WithError(err error) Option {
 	return func(o *options) {
 		o.err = err
 	}
 }
 
-// WithRegisterErrorTimes sets Register error times
+// WithRegisterErrorTimes sets Register error times.
 func WithRegisterErrorTimes(failureTimes ...int) Option {
 	return func(o *options) {
 		o.registerErrorTimes = failureTimes
 	}
 }
 
-// WithFindErrorTimes sets Find error times
+// WithFindErrorTimes sets Find error times.
 func WithFindErrorTimes(failureTimes ...int) Option {
 	return func(o *options) {
 		o.findErrorTimes = failureTimes
 	}
 }
 
-// WithUnregisterErrorTimes sets Unregister error times
+// WithUnregisterErrorTimes sets Unregister error times.
 func WithUnregisterErrorTimes(failureTimes ...int) Option {
 	return func(o *options) {
 		o.unregisterErrorTimes = failureTimes

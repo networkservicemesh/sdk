@@ -31,7 +31,7 @@ import (
 
 type connectClient struct{}
 
-// NewClient - returns a connect chain element
+// NewClient - returns a connect chain element.
 func NewClient() networkservice.NetworkServiceClient {
 	return &connectClient{}
 }

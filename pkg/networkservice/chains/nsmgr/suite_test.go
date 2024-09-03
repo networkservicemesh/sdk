@@ -100,7 +100,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 	counter := new(count.Server)
 
 	var unregisterWG sync.WaitGroup
@@ -114,13 +114,13 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	}()
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 	refreshRequest := request.Clone()
@@ -129,7 +129,7 @@ func (s *nsmgrSuite) Test_Remote_ParallelUsecase() {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
 	require.Equal(t, 2, counter.Requests())
 
 	// Close
@@ -152,7 +152,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	// 1. Start listen address and register endpoint
 	netListener, err := net.Listen("tcp", "127.0.0.1:")
@@ -161,7 +161,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	nseReg.Url = "tcp://" + netListener.Addr().String()
 
 	_, err = s.nsRegistryClient.Register(ctx, &registry.NetworkService{
-		Name:    nseReg.NetworkServiceNames[0],
+		Name:    nseReg.GetNetworkServiceNames()[0],
 		Payload: payload.IP,
 	})
 	require.NoError(t, err)
@@ -183,10 +183,10 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	// 3. Create client and request endpoint
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))
+	conn, err := nsc.Request(ctx, defaultRequest(nsReg.GetName()))
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 4, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.GetPath().GetPathSegments()))
 
 	require.NoError(t, ctx.Err())
 
@@ -198,6 +198,7 @@ func (s *nsmgrSuite) Test_SelectsRestartingEndpointUsecase() {
 	_, err = nseRegistryClient.Unregister(ctx, nseReg)
 	require.NoError(t, err)
 }
+
 func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	t := s.T()
 
@@ -207,7 +208,7 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	var deployNSE = func(name, ns string, labels map[string]string, ipNet *net.IPNet) {
+	deployNSE := func(name, ns string, labels map[string]string, ipNet *net.IPNet) {
 		nseReg := defaultRegistryEndpoint(ns)
 		nseReg.Name = name
 
@@ -249,18 +250,18 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 
 	_, ipNet1, _ := net.ParseCIDR("100.100.100.100/30")
 	_, ipNet2, _ := net.ParseCIDR("200.200.200.200/30")
-	deployNSE("nse-1", nsReg.Name, map[string]string{}, ipNet1)
+	deployNSE("nse-1", nsReg.GetName(), map[string]string{}, ipNet1)
 	// 3. Create client and request endpoint
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	conn, err := nsc.Request(ctx, defaultRequest(nsReg.Name))
+	conn, err := nsc.Request(ctx, defaultRequest(nsReg.GetName()))
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 4, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.GetPath().GetPathSegments()))
 	require.Equal(t, "nse-1", conn.GetNetworkServiceEndpointName())
 	require.NoError(t, ctx.Err())
-	require.Equal(t, "100.100.100.101/32", conn.Context.GetIpContext().GetSrcIpAddrs()[0])
-	require.Equal(t, "100.100.100.100/32", conn.Context.GetIpContext().GetDstIpAddrs()[0])
+	require.Equal(t, "100.100.100.101/32", conn.GetContext().GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "100.100.100.100/32", conn.GetContext().GetIpContext().GetDstIpAddrs()[0])
 
 	// update netsvc
 	nsReg.Matches = append(nsReg.Matches, &registry.Match{
@@ -276,7 +277,7 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	require.NoError(t, err)
 
 	// deploye nse-2 that matches with updated svc
-	deployNSE("nse-2", nsReg.Name, map[string]string{
+	deployNSE("nse-2", nsReg.GetName(), map[string]string{
 		"experimental": "true",
 	}, ipNet2)
 	// simulate idle
@@ -285,13 +286,13 @@ func (s *nsmgrSuite) Test_ReselectEndpointWhenNetSvcHasChanged() {
 	conn, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{Connection: conn})
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 4, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.GetPath().GetPathSegments()))
 	require.Equal(t, "nse-2", conn.GetNetworkServiceEndpointName())
-	require.NotEmpty(t, conn.Context.GetIpContext().GetSrcIpAddrs())
-	require.NotEmpty(t, conn.Context.GetIpContext().GetDstIpAddrs())
+	require.NotEmpty(t, conn.GetContext().GetIpContext().GetSrcIpAddrs())
+	require.NotEmpty(t, conn.GetContext().GetIpContext().GetDstIpAddrs())
 	require.NoError(t, ctx.Err())
-	require.Equal(t, "200.200.200.201/32", conn.Context.GetIpContext().GetSrcIpAddrs()[0])
-	require.Equal(t, "200.200.200.200/32", conn.Context.GetIpContext().GetDstIpAddrs()[0])
+	require.Equal(t, "200.200.200.201/32", conn.GetContext().GetIpContext().GetSrcIpAddrs()[0])
+	require.Equal(t, "200.200.200.200/32", conn.GetContext().GetIpContext().GetDstIpAddrs()[0])
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -317,7 +318,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	for i := 0; i < nseCount; i++ {
 		wg.Add(1)
 		go func(id int) {
-			nseRegs[id] = defaultRegistryEndpoint(nsReg.Name)
+			nseRegs[id] = defaultRegistryEndpoint(nsReg.GetName())
 			nseRegs[id].Name += strconv.Itoa(id)
 
 			nses[id] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[id], sandbox.GenerateTestToken, injecterror.NewServer())
@@ -332,20 +333,20 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 
 		wg.Wait()
 		time.Sleep(time.Second / 2)
-		nseRegs[nseCount] = defaultRegistryEndpoint(nsReg.Name)
+		nseRegs[nseCount] = defaultRegistryEndpoint(nsReg.GetName())
 		nseRegs[nseCount].Name += strconv.Itoa(3)
 
 		nses[nseCount] = s.domain.Nodes[1].NewEndpoint(ctx, nseRegs[nseCount], sandbox.GenerateTestToken, counter)
 	}()
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -355,7 +356,7 @@ func (s *nsmgrSuite) Test_Remote_BusyEndpointsUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 2, counter.Requests())
-	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -378,20 +379,20 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[1].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -401,7 +402,7 @@ func (s *nsmgrSuite) Test_RemoteUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 2, counter.Requests())
-	require.Equal(t, 6, len(conn.Path.PathSegments))
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -422,14 +423,14 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	reqCtx, reqCancel := context.WithTimeout(ctx, time.Second)
 	defer reqCancel()
@@ -438,7 +439,7 @@ func (s *nsmgrSuite) Test_ConnectToDeadNSEUsecase() {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 4, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.GetPath().GetPathSegments()))
 
 	nse.Cancel()
 
@@ -475,20 +476,20 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	nsReg, err := s.nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 	counter := new(count.Server)
 
 	nse := s.domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 	require.Equal(t, 1, counter.Requests())
-	require.Equal(t, 4, len(conn.Path.PathSegments))
+	require.Equal(t, 4, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client
 	refreshRequest := request.Clone()
@@ -497,7 +498,7 @@ func (s *nsmgrSuite) Test_LocalUsecase() {
 	conn2, err := nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn2)
-	require.Equal(t, 4, len(conn2.Path.PathSegments))
+	require.Equal(t, 4, len(conn2.GetPath().GetPathSegments()))
 	require.Equal(t, 2, counter.Requests())
 
 	// Close
@@ -532,7 +533,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 				step: fmt.Sprintf("%v", i),
 			},
 			fmt.Sprintf("%v", i),
-			nsReg.Name,
+			nsReg.GetName(),
 			i != nodesCount-1,
 			counterClose,
 		)
@@ -540,7 +541,7 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	// Request
 	conn, err := nsc.Request(ctx, request)
@@ -549,9 +550,9 @@ func (s *nsmgrSuite) Test_PassThroughRemoteUsecase() {
 
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other remote endpoint is 8
-	require.Equal(t, 6*(nodesCount-1)+4, len(conn.Path.PathSegments))
+	require.Equal(t, 6*(nodesCount-1)+4, len(conn.GetPath().GetPathSegments()))
 	for i := 0; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*6+3].Name)
+		require.Contains(t, nseRegs[i].GetName(), conn.GetPath().GetPathSegments()[i*6+3].GetName())
 	}
 
 	// Refresh
@@ -596,7 +597,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 				step: fmt.Sprintf("%v", i),
 			},
 			fmt.Sprintf("%v", i),
-			nsReg.Name,
+			nsReg.GetName(),
 			i != nsesCount-1,
 			counterClose,
 		)
@@ -604,7 +605,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
@@ -612,9 +613,9 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecase() {
 
 	// Path length to first endpoint is 5
 	// Path length from NSE client to other local endpoint is 5
-	require.Equal(t, 4*(nsesCount-1)+4, len(conn.Path.PathSegments))
+	require.Equal(t, 4*(nsesCount-1)+4, len(conn.GetPath().GetPathSegments()))
 	for i := 0; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[(i+1)*4-1].Name)
+		require.Contains(t, nseRegs[i].GetName(), conn.GetPath().GetPathSegments()[(i+1)*4-1].GetName())
 	}
 
 	// Refresh
@@ -647,7 +648,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 	counterClose := new(count.Server)
 
 	ns := linearNS(nsesCount)
-	ns.Matches[len(ns.Matches)-1].Fallthrough = true
+	ns.Matches[len(ns.GetMatches())-1].Fallthrough = true
 	ns.Matches = append(ns.Matches, &registry.Match{
 		Routes: []*registry.Destination{
 			{
@@ -674,7 +675,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 				step: fmt.Sprintf("%v", i),
 			},
 			fmt.Sprintf("%v", i),
-			nsReg.Name,
+			nsReg.GetName(),
 			i != nsesCount-1,
 			counterClose,
 		)
@@ -682,7 +683,7 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
@@ -690,17 +691,17 @@ func (s *nsmgrSuite) Test_PassThroughSameSourceSelector() {
 
 	// Path length to first endpoint is 4
 	// Path length from NSE client to other local endpoint is 4
-	require.Equal(t, 4*(nsesCount-2)+4, len(conn.Path.PathSegments))
+	require.Equal(t, 4*(nsesCount-2)+4, len(conn.GetPath().GetPathSegments()))
 	for i := 1; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*4-1].Name)
+		require.Contains(t, nseRegs[i].GetName(), conn.GetPath().GetPathSegments()[i*4-1].GetName())
 	}
 
 	// Refresh
 	conn, err = nsc.Request(ctx, request)
 	require.NoError(t, err)
-	require.Equal(t, 4*(nsesCount-2)+4, len(conn.Path.PathSegments))
+	require.Equal(t, 4*(nsesCount-2)+4, len(conn.GetPath().GetPathSegments()))
 	for i := 1; i < len(nseRegs); i++ {
-		require.Contains(t, nseRegs[i].Name, conn.Path.PathSegments[i*4-1].Name)
+		require.Contains(t, nseRegs[i].GetName(), conn.GetPath().GetPathSegments()[i*4-1].GetName())
 	}
 
 	// Close
@@ -733,7 +734,7 @@ func (s *nsmgrSuite) Test_ShouldCleanAllClientAndEndpointGoroutines() {
 	//   1. GRPC request context cancel
 	//   2. NSC connection close
 	//   3. NSE unregister
-	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.Name))
+	testNSEAndClient(ctx, t, s.domain, defaultRegistryEndpoint(nsReg.GetName()))
 }
 
 func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
@@ -763,7 +764,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 					labelB: labelBvalue,
 				},
 				labelAvalue+labelBvalue,
-				nsReg.Name,
+				nsReg.GetName(),
 				i != 2 || j != 2,
 				counterClose,
 			)
@@ -773,7 +774,7 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 
 	nsc := s.domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)
@@ -781,9 +782,9 @@ func (s *nsmgrSuite) Test_PassThroughLocalUsecaseMultiLabel() {
 
 	// Path length from NSE client to other local endpoint is 4
 	expectedPath := []string{"ab", "aabb", "aaabbb"}
-	require.Equal(t, 4*len(nsReg.Matches), len(conn.Path.PathSegments))
+	require.Equal(t, 4*len(nsReg.GetMatches()), len(conn.GetPath().GetPathSegments()))
 	for i := 0; i < len(expectedPath); i++ {
-		require.Contains(t, conn.Path.PathSegments[(i+1)*4-1].Name, expectedPath[i])
+		require.Contains(t, conn.GetPath().GetPathSegments()[(i+1)*4-1].GetName(), expectedPath[i])
 	}
 
 	// Refresh

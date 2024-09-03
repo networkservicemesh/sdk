@@ -47,7 +47,7 @@ func NewClient(chainContext context.Context, pool *IPAM) networkservice.NetworkS
 	if pool == nil {
 		panic("vl3IPAM pool can not be nil")
 	}
-	var r = &vl3Client{
+	r := &vl3Client{
 		chainContext: chainContext,
 		pool:         pool,
 	}
@@ -84,10 +84,10 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 		}
 	}()
 
-	if request.Connection == nil {
+	if request.GetConnection() == nil {
 		request.Connection = new(networkservice.Connection)
 	}
-	var conn = request.GetConnection()
+	conn := request.GetConnection()
 	if conn.GetContext() == nil {
 		conn.Context = new(networkservice.ConnectionContext)
 	}
@@ -95,7 +95,7 @@ func (n *vl3Client) Request(ctx context.Context, request *networkservice.Network
 		conn.GetContext().IpContext = new(networkservice.IPContext)
 	}
 
-	var address, prefix = n.pool.selfAddress().String(), n.pool.selfPrefix().String()
+	address, prefix := n.pool.selfAddress().String(), n.pool.selfPrefix().String()
 
 	addAddr(&conn.GetContext().GetIpContext().SrcIpAddrs, address)
 	addRoute(&conn.GetContext().GetIpContext().DstRoutes, address, n.pool.selfAddress().IP.String())

@@ -23,9 +23,9 @@ func mergeNSE(left, right *registry.NetworkServiceEndpoint) *registry.NetworkSer
 		return left
 	}
 
-	var result = right.Clone()
+	result := right.Clone()
 
-	result.Name = left.Name
+	result.Name = left.GetName()
 
 	result.ExpirationTime = nil
 
@@ -37,9 +37,9 @@ func mergeNS(left, right *registry.NetworkService) *registry.NetworkService {
 		return left
 	}
 
-	var result = right.Clone()
+	result := right.Clone()
 
-	result.Name = left.Name
+	result.Name = left.GetName()
 
 	return result
 }

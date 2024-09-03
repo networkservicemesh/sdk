@@ -30,9 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-var (
-	count = 1000
-)
+var count = 1000
 
 type dataRaceServer struct {
 	count int

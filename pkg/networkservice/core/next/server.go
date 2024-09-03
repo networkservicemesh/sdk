@@ -32,10 +32,10 @@ type nextServer struct {
 	index      int
 }
 
-// ServerWrapper - A function that wraps a networkservice.NetworkServiceServer
+// ServerWrapper - A function that wraps a networkservice.NetworkServiceServer.
 type ServerWrapper func(networkservice.NetworkServiceServer) networkservice.NetworkServiceServer
 
-// ServerChainer - A function that chains a list of networkservice.NetworkServiceServers together
+// ServerChainer - A function that chains a list of networkservice.NetworkServiceServers together.
 type ServerChainer func(...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer
 
 // NewWrappedNetworkServiceServer - chains together the servers provides with the wrapper wrapped around each one in turn.

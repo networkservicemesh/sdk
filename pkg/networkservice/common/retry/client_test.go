@@ -66,9 +66,9 @@ func (c *remoteSideClient) Close(ctx context.Context, conn *networkservice.Conne
 func Test_RetryClient_Request(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.Client)
+	counter := new(count.Client)
 
-	var client = retry.NewClient(
+	client := retry.NewClient(
 		chain.NewNetworkServiceClient(
 			counter,
 			&remoteSideClient{
@@ -80,7 +80,7 @@ func Test_RetryClient_Request(t *testing.T) {
 		retry.WithTryTimeout(time.Second/30),
 	)
 
-	var _, err = client.Request(context.Background(), nil)
+	_, err := client.Request(context.Background(), nil)
 	require.NoError(t, err)
 	require.Equal(t, 6, counter.Requests())
 	require.Equal(t, 0, counter.Closes())
@@ -99,7 +99,7 @@ func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
 
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
-	var client = retry.NewClient(chain.NewNetworkServiceClient(
+	client := retry.NewClient(chain.NewNetworkServiceClient(
 		checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
@@ -107,7 +107,7 @@ func Test_RetryClient_Request_ContextHasCorrectDeadline(t *testing.T) {
 		}),
 	), retry.WithTryTimeout(time.Hour))
 
-	var _, err = client.Request(ctx, nil)
+	_, err := client.Request(ctx, nil)
 	require.NoError(t, err)
 }
 
@@ -124,7 +124,7 @@ func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
 
 	expectedDeadline := clockMock.Now().Add(time.Hour)
 
-	var client = retry.NewClient(chain.NewNetworkServiceClient(
+	client := retry.NewClient(chain.NewNetworkServiceClient(
 		checkcontext.NewClient(t, func(t *testing.T, c context.Context) {
 			v, ok := c.Deadline()
 			require.True(t, ok)
@@ -132,16 +132,16 @@ func Test_RetryClient_Close_ContextHasCorrectDeadline(t *testing.T) {
 		}),
 	), retry.WithTryTimeout(time.Hour))
 
-	var _, err = client.Close(ctx, nil)
+	_, err := client.Close(ctx, nil)
 	require.NoError(t, err)
 }
 
 func Test_RetryClient_Close(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var counter = new(count.Client)
+	counter := new(count.Client)
 
-	var client = retry.NewClient(
+	client := retry.NewClient(
 		chain.NewNetworkServiceClient(
 			counter,
 			&remoteSideClient{
@@ -153,7 +153,7 @@ func Test_RetryClient_Close(t *testing.T) {
 		retry.WithTryTimeout(time.Second/30),
 	)
 
-	var _, err = client.Close(context.Background(), nil)
+	_, err := client.Close(context.Background(), nil)
 	require.NoError(t, err)
 	require.Equal(t, 0, counter.Requests())
 	require.Equal(t, 6, counter.Closes())

@@ -56,28 +56,28 @@ func TestSwapIPServer_Request(t *testing.T) {
 	ch1 := convertBytesChToMapCh(fs.WatchFile(ctx, p1))
 	ch2 := convertBytesChToMapCh(fs.WatchFile(ctx, p2))
 
-	var testChain = next.NewNetworkServiceServer(
+	testChain := next.NewNetworkServiceServer(
 		/* Source side */
 		checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, "172.16.1.100", c.Mechanism.Parameters[common.DstIP])
-			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstOriginalIP])
+			require.Equal(t, "172.16.1.100", c.GetMechanism().GetParameters()[common.DstIP])
+			require.Equal(t, "172.16.2.100", c.GetMechanism().GetParameters()[common.DstOriginalIP])
 			c.Mechanism.Parameters[common.SrcOriginalIP] = ""
 		}),
 		swapip.NewServer(ch1),
 		checkrequest.NewServer(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
-			require.Equal(t, "172.16.2.10", r.Connection.Mechanism.Parameters[common.SrcIP])
-			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.SrcOriginalIP])
+			require.Equal(t, "172.16.2.10", r.GetConnection().GetMechanism().GetParameters()[common.SrcIP])
+			require.Equal(t, "", r.GetConnection().GetMechanism().GetParameters()[common.SrcOriginalIP])
 			r.Connection.Mechanism.Parameters[common.SrcOriginalIP] = "172.16.2.10"
 		}),
 		/* Destination side */
 		checkresponse.NewServer(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, "172.16.1.100", c.Mechanism.Parameters[common.DstIP])
-			require.Equal(t, "172.16.2.100", c.Mechanism.Parameters[common.DstOriginalIP])
+			require.Equal(t, "172.16.1.100", c.GetMechanism().GetParameters()[common.DstIP])
+			require.Equal(t, "172.16.2.100", c.GetMechanism().GetParameters()[common.DstOriginalIP])
 		}),
 		swapip.NewServer(ch2),
 		checkrequest.NewServer(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
-			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.DstOriginalIP])
-			require.Equal(t, "", r.Connection.Mechanism.Parameters[common.DstIP])
+			require.Equal(t, "", r.GetConnection().GetMechanism().GetParameters()[common.DstOriginalIP])
+			require.Equal(t, "", r.GetConnection().GetMechanism().GetParameters()[common.DstIP])
 			r.Connection.Mechanism.Parameters[common.DstIP] = "172.16.2.100"
 		}),
 	)
@@ -103,7 +103,7 @@ func TestSwapIPServer_Request(t *testing.T) {
 }
 
 func convertBytesChToMapCh(in <-chan []byte) <-chan map[string]string {
-	var out = make(chan map[string]string)
+	out := make(chan map[string]string)
 	go func() {
 		for data := range in {
 			var r map[string]string

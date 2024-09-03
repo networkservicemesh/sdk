@@ -38,7 +38,7 @@ type healClient struct {
 	livenessCheckTimeout  time.Duration
 }
 
-// NewClient - returns a new heal client chain element
+// NewClient - returns a new heal client chain element.
 func NewClient(chainCtx context.Context, opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{
 		livenessCheckInterval: livenessCheckInterval,

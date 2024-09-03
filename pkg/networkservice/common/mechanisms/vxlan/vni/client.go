@@ -38,7 +38,7 @@ type vniClient struct {
 	tunnelPort uint16
 }
 
-// NewClient - set the SrcIP for the vxlan mechanism
+// NewClient - set the SrcIP for the vxlan mechanism.
 func NewClient(tunnelIP net.IP, options ...Option) networkservice.NetworkServiceClient {
 	opts := &vniOpions{
 		tunnelPort: vxlanPort,

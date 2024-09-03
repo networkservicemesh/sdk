@@ -31,7 +31,7 @@ const (
 	pathContextKey pathContextkey = "pathContextKey"
 )
 
-// PathFromContext returns Path from context. If path doesn't exist fuction returns empty Path
+// PathFromContext returns Path from context. If path doesn't exist fuction returns empty Path.
 func PathFromContext(ctx context.Context) *Path {
 	if value, ok := ctx.Value(pathContextKey).(*Path); ok {
 		return value
@@ -40,7 +40,7 @@ func PathFromContext(ctx context.Context) *Path {
 	return &Path{}
 }
 
-// PathWithContext puts Path to context
+// PathWithContext puts Path to context.
 func PathWithContext(ctx context.Context, path *Path) context.Context {
 	return context.WithValue(ctx, pathContextKey, path)
 }

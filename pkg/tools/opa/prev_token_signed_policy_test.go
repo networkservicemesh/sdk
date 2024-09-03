@@ -49,7 +49,7 @@ func Test_PrevTokenShouldBeSigned_Server(t *testing.T) {
 	p, err := opa.PolicyFromFile("etc/nsm/opa/server/prev_token_signed.rego")
 	require.NoError(t, err)
 
-	var sample = &networkservice.Path{
+	sample := &networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
 			{
 				Token: token,

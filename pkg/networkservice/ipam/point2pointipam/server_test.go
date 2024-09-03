@@ -55,15 +55,15 @@ func newRequest() *networkservice.NetworkServiceRequest {
 }
 
 func validateConn(t *testing.T, conn *networkservice.Connection, dst, src string) {
-	require.Equal(t, conn.Context.IpContext.DstIpAddrs[0], dst)
-	require.Equal(t, conn.Context.IpContext.DstRoutes, []*networkservice.Route{
+	require.Equal(t, conn.GetContext().GetIpContext().GetDstIpAddrs()[0], dst)
+	require.Equal(t, conn.GetContext().GetIpContext().GetDstRoutes(), []*networkservice.Route{
 		{
 			Prefix: src,
 		},
 	})
 
-	require.Equal(t, conn.Context.IpContext.SrcIpAddrs[0], src)
-	require.Equal(t, conn.Context.IpContext.SrcRoutes, []*networkservice.Route{
+	require.Equal(t, conn.GetContext().GetIpContext().GetSrcIpAddrs()[0], src)
+	require.Equal(t, conn.GetContext().GetIpContext().GetSrcRoutes(), []*networkservice.Route{
 		{
 			Prefix: dst,
 		},
@@ -72,12 +72,12 @@ func validateConn(t *testing.T, conn *networkservice.Connection, dst, src string
 
 func validateConns(t *testing.T, conn *networkservice.Connection, dsts, srcs []string) {
 	for i, dst := range dsts {
-		require.Equal(t, conn.Context.IpContext.DstIpAddrs[i], dst)
-		require.Equal(t, conn.Context.IpContext.SrcRoutes[i].Prefix, dst)
+		require.Equal(t, conn.GetContext().GetIpContext().GetDstIpAddrs()[i], dst)
+		require.Equal(t, conn.GetContext().GetIpContext().GetSrcRoutes()[i].GetPrefix(), dst)
 	}
 	for i, src := range srcs {
-		require.Equal(t, conn.Context.IpContext.SrcIpAddrs[i], src)
-		require.Equal(t, conn.Context.IpContext.DstRoutes[i].Prefix, src)
+		require.Equal(t, conn.GetContext().GetIpContext().GetSrcIpAddrs()[i], src)
+		require.Equal(t, conn.GetContext().GetIpContext().GetDstRoutes()[i].GetPrefix(), src)
 	}
 }
 
@@ -291,7 +291,7 @@ func TestRefreshRequest(t *testing.T) {
 	validateConn(t, conn, "192.168.0.0/32", "192.168.0.2/32")
 
 	req = newRequest()
-	req.Connection.Id = conn.Id
+	req.Connection.Id = conn.GetId()
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConn(t, conn, "192.168.0.0/32", "192.168.0.2/32")
@@ -317,7 +317,7 @@ func TestRefreshRequestIPv6(t *testing.T) {
 	validateConn(t, conn, "fe80::/128", "fe80::2/128")
 
 	req = newRequest()
-	req.Connection.Id = conn.Id
+	req.Connection.Id = conn.GetId()
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConn(t, conn, "fe80::/128", "fe80::2/128")
@@ -363,7 +363,7 @@ func TestRefreshNextError(t *testing.T) {
 	validateConn(t, conn, "192.168.0.2/32", "192.168.0.3/32")
 }
 
-//nolint:dupl
+
 func TestServers(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -395,7 +395,7 @@ func TestServers(t *testing.T) {
 	validateConns(t, conn4, []string{"192.168.0.4/32", "fd00::4/128"}, []string{"192.168.0.5/32", "fd00::5/128"})
 }
 
-//nolint:dupl
+
 func TestRefreshRequestMultiServer(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -497,7 +497,7 @@ func TestRecoveryServerIPv6(t *testing.T) {
 	validateConn(t, conn3, "fe80::fa00/128", "fe80::fa01/128")
 }
 
-//nolint:dupl
+
 func TestRecoveryServers(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)

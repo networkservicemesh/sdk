@@ -25,7 +25,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 )
 
-// NewServer - returns server which sends any "file://" Mechanism.Parameters[common.InodeURLs]s across the connection as fds (if possible) to the client
+// NewServer - returns server which sends any "file://" Mechanism.Parameters[common.InodeURLs]s across the connection as fds (if possible) to the client.
 func NewServer() networkservice.NetworkServiceServer {
 	return null.NewServer()
 }

@@ -32,7 +32,7 @@ type injectSpiffeIDNSServer struct {
 	tokenGenerator token.GeneratorFunc
 }
 
-// NewNetworkServiceRegistryServer returns a server chain element putting spiffeID to context on Register and Unregister
+// NewNetworkServiceRegistryServer returns a server chain element putting spiffeID to context on Register and Unregister.
 func NewNetworkServiceRegistryServer(tokenGenerator token.GeneratorFunc) registry.NetworkServiceRegistryServer {
 	return &injectSpiffeIDNSServer{
 		tokenGenerator: tokenGenerator,

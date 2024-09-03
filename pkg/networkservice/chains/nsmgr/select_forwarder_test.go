@@ -54,14 +54,14 @@ func Test_DiscoverForwarder_CloseAfterError(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	// allow only one successful request
 	inject := injecterror.NewServer(injecterror.WithCloseErrorTimes(), injecterror.WithRequestErrorTimes(1, -1))
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -113,7 +113,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	// forwarder selection is stochastic
 	// it's possible to get the same forwarder after close by pure luck
@@ -137,7 +137,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter, inject)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -146,7 +146,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 	require.Equal(t, skipCount+1, counter.UniqueRequests())
 	require.Equal(t, skipCount+1, counter.Requests())
 
-	selectedForwarder := conn.GetPath().GetPathSegments()[2].Name
+	selectedForwarder := conn.GetPath().GetPathSegments()[2].GetName()
 
 	requestsCount := counter.Requests()
 	for i := 0; i < reselectCount; i++ {
@@ -154,18 +154,18 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 		require.NoError(t, err)
 
 		// check that we select a different forwarder
-		selectedForwarder = conn.GetPath().GetPathSegments()[2].Name
+		selectedForwarder = conn.GetPath().GetPathSegments()[2].GetName()
 		request.Connection = conn
 		conn, err = nsc.Request(ctx, request.Clone())
 		require.NoError(t, err)
 		require.Equal(t, skipCount+1, counter.UniqueRequests())
 		require.Equal(t, requestsCount+3, counter.Requests())
 		requestsCount = counter.Requests()
-		if selectedForwarder != conn.GetPath().GetPathSegments()[2].Name {
+		if selectedForwarder != conn.GetPath().GetPathSegments()[2].GetName() {
 			break
 		}
 	}
-	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].GetName())
 }
 
 func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
@@ -196,12 +196,12 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	clientCounter := new(count.Client)
 	// make sure that Close from heal doesn't clear the forwarder name
@@ -215,7 +215,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 1, counter.Requests())
 
-	selectedForwarder := conn.GetPath().GetPathSegments()[2].Name
+	selectedForwarder := conn.GetPath().GetPathSegments()[2].GetName()
 
 	domain.Nodes[0].Forwarders[selectedForwarder].Cancel()
 
@@ -231,7 +231,7 @@ func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 3, counter.Requests())
 	require.Equal(t, 1, counter.Closes())
-	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].GetName())
 }
 
 func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
@@ -267,12 +267,12 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	clientCounter := new(count.Client)
 	// make sure that Close from heal doesn't clear the forwarder name
@@ -286,7 +286,7 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 1, counter.Requests())
 
-	selectedForwarder := conn.GetPath().GetPathSegments()[4].Name
+	selectedForwarder := conn.GetPath().GetPathSegments()[4].GetName()
 
 	domain.Registry.Restart()
 
@@ -304,7 +304,7 @@ func Test_DiscoverForwarder_ChangeRemoteForwarderOnDeath(t *testing.T) {
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 3, counter.Requests())
 	require.Equal(t, 1, counter.Closes())
-	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[4].Name)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[4].GetName())
 }
 
 func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t *testing.T) {
@@ -335,21 +335,21 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	var livenessValue atomic.Value
 	livenessValue.Store(true)
 
 	var selectedForwarder string
 
-	var livenessChecker = func(deadlineCtx context.Context, conn *networkservice.Connection) bool {
+	livenessChecker := func(deadlineCtx context.Context, conn *networkservice.Connection) bool {
 		if v := livenessValue.Load().(bool); !v {
-			return conn.GetPath().GetPathSegments()[2].Name != selectedForwarder
+			return conn.GetPath().GetPathSegments()[2].GetName() != selectedForwarder
 		}
 		return true
 	}
@@ -363,7 +363,7 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 1, counter.Requests())
 
-	selectedForwarder = conn.GetPath().GetPathSegments()[2].Name
+	selectedForwarder = conn.GetPath().GetPathSegments()[2].GetName()
 
 	domain.Registry.Restart()
 
@@ -380,7 +380,7 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Equal(t, 3, counter.Requests())
 	require.Equal(t, 0, counter.Closes())
-	require.Equal(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
+	require.Equal(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].GetName())
 
 	// datapath is down
 	livenessValue.Store(false)
@@ -395,5 +395,5 @@ func Test_DiscoverForwarder_Should_KeepSelectedForwarderWhileConnectionIsFine(t 
 	require.NoError(t, err)
 	require.Equal(t, 1, counter.UniqueRequests())
 	require.Greater(t, counter.Closes(), 0)
-	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].Name)
+	require.NotEqual(t, selectedForwarder, conn.GetPath().GetPathSegments()[2].GetName())
 }

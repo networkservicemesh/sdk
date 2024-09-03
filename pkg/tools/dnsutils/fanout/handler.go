@@ -37,8 +37,8 @@ type fanoutHandler struct {
 }
 
 func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg *dns.Msg) {
-	var connectTO = clienturlctx.ClientURLs(ctx)
-	var responseCh = make(chan *dns.Msg, len(connectTO))
+	connectTO := clienturlctx.ClientURLs(ctx)
+	responseCh := make(chan *dns.Msg, len(connectTO))
 
 	deadline, _ := ctx.Deadline()
 	timeout := time.Until(deadline)
@@ -51,7 +51,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 
 	for i := 0; i < len(connectTO); i++ {
 		go func(u *url.URL, msg *dns.Msg) {
-			var client = dns.Client{
+			client := dns.Client{
 				Net:     u.Scheme,
 				Timeout: timeout,
 			}
@@ -66,7 +66,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 				address += fmt.Sprintf(":%d", h.dnsPort)
 			}
 
-			var resp, _, err = client.Exchange(msg, address)
+			resp, _, err := client.Exchange(msg, address)
 			if err != nil {
 				log.FromContext(ctx).WithField("fanoutHandler", "ServeDNS").Warnf("got an error during exchanging with address %v: %v", address, err.Error())
 				responseCh <- nil
@@ -77,7 +77,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 		}(&connectTO[i], msg.Copy())
 	}
 
-	var resp = h.waitResponse(ctx, responseCh)
+	resp := h.waitResponse(ctx, responseCh)
 
 	if resp == nil {
 		dns.HandleFailed(rw, msg)
@@ -94,7 +94,7 @@ func (h *fanoutHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter, msg
 }
 
 func (h *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg) *dns.Msg {
-	var respCount = cap(respCh)
+	respCount := cap(respCh)
 	for {
 		select {
 		case resp, ok := <-respCh:
@@ -121,9 +121,9 @@ func (h *fanoutHandler) waitResponse(ctx context.Context, respCh <-chan *dns.Msg
 	}
 }
 
-// NewDNSHandler creates a new dns handler instance that sends incoming queries in parallel to few endpoints
+// NewDNSHandler creates a new dns handler instance that sends incoming queries in parallel to few endpoints.
 func NewDNSHandler(opts ...Option) dnsutils.Handler {
-	var h = &fanoutHandler{
+	h := &fanoutHandler{
 		dnsPort: 53,
 	}
 	for _, o := range opts {

@@ -16,18 +16,18 @@
 
 package discoverforwarder
 
-// Option changes default settings for the discoverForwarderServer
+// Option changes default settings for the discoverForwarderServer.
 type Option func(*discoverForwarderServer)
 
 // WithForwarderServiceName overrides forwarder service name
-// By default "forwarder"
+// By default "forwarder".
 func WithForwarderServiceName(serviceName string) Option {
 	return func(d *discoverForwarderServer) {
 		d.forwarderServiceName = serviceName
 	}
 }
 
-// WithNSMgrURL sets URL for NSE Find queriees
+// WithNSMgrURL sets URL for NSE Find queriees.
 func WithNSMgrURL(nsmgrURL string) Option {
 	return func(d *discoverForwarderServer) {
 		d.nsmgrURL = nsmgrURL

@@ -50,12 +50,12 @@ func NetworkServiceClient(client networkservice.NetworkServiceClient) *networkse
 	return &client
 }
 
-// NetworkServiceEndpointRegistryClient converts client to *registry.NetworkServiceEndpointRegistryClient
+// NetworkServiceEndpointRegistryClient converts client to *registry.NetworkServiceEndpointRegistryClient.
 func NetworkServiceEndpointRegistryClient(client registry.NetworkServiceEndpointRegistryClient) *registry.NetworkServiceEndpointRegistryClient {
 	return &client
 }
 
-// NetworkServiceRegistryClient converts client to *registry.NetworkServiceRegistryClient
+// NetworkServiceRegistryClient converts client to *registry.NetworkServiceRegistryClient.
 func NetworkServiceRegistryClient(client registry.NetworkServiceRegistryClient) *registry.NetworkServiceRegistryClient {
 	return &client
 }

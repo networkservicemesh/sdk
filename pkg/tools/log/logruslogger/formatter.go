@@ -27,7 +27,7 @@ import (
 )
 
 // formatter - implements logrus.Formatter
-// Duplicates fields and other metadata from nested-logrus-formatter to each line of the message
+// Duplicates fields and other metadata from nested-logrus-formatter to each line of the message.
 type formatter struct {
 	nf nested.Formatter
 }
@@ -39,7 +39,7 @@ func newFormatter() *formatter {
 	return &f
 }
 
-// Format an log entry
+// Format an log entry.
 func (f *formatter) Format(entry *logrus.Entry) ([]byte, error) {
 	formattedBytes, err := f.nf.Format(entry)
 	if err != nil {

@@ -38,7 +38,7 @@ type monitorServer struct {
 	nseClient registry.NetworkServiceEndpointRegistryClient
 }
 
-// NewServer creates a new instance of netsvcmonitor server that allowes to the server chain monitor changes in the network service
+// NewServer creates a new instance of netsvcmonitor server that allowes to the server chain monitor changes in the network service.
 func NewServer(chainCtx context.Context, nsClient registry.NetworkServiceRegistryClient, nseClient registry.NetworkServiceEndpointRegistryClient) networkservice.NetworkServiceServer {
 	return &monitorServer{
 		chainCtx:  chainCtx,
@@ -61,7 +61,7 @@ func (m *monitorServer) Request(ctx context.Context, request *networkservice.Net
 	minT := time.Time{}
 
 	for _, seg := range resp.GetPath().GetPathSegments() {
-		var t = seg.Expires.AsTime().Local()
+		t := seg.Expires.AsTime().Local()
 		if minT.After(t) || minT.IsZero() {
 			minT = t
 		}
@@ -88,10 +88,10 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 }
 
 func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, conn *networkservice.Connection, factory begin.EventFactory) {
-	var logger = log.FromContext(monitorCtx).WithField("monitorServer", "Find")
+	logger := log.FromContext(monitorCtx).WithField("monitorServer", "Find")
 	for ; monitorCtx.Err() == nil; time.Sleep(time.Millisecond * 100) {
 		// nolint:govet
-		var stream, err = m.nsClient.Find(monitorCtx, &registry.NetworkServiceQuery{
+		stream, err := m.nsClient.Find(monitorCtx, &registry.NetworkServiceQuery{
 			Watch: true,
 			NetworkService: &registry.NetworkService{
 				Name: conn.GetNetworkService(),
@@ -102,8 +102,8 @@ func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, conn *
 			continue
 		}
 
-		var networkServiceCh = registry.ReadNetworkServiceChannel(stream)
-		var netsvcStreamIsAlive = true
+		networkServiceCh := registry.ReadNetworkServiceChannel(stream)
+		netsvcStreamIsAlive := true
 
 		for netsvcStreamIsAlive && monitorCtx.Err() == nil {
 			select {
@@ -125,7 +125,7 @@ func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, conn *
 					break
 				}
 
-				var nses = registry.ReadNetworkServiceEndpointList(nseStream)
+				nses := registry.ReadNetworkServiceEndpointList(nseStream)
 
 				if len(nses) == 0 {
 					continue

@@ -40,7 +40,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// Builder implements builder pattern for building NSM Domain
+// Builder implements builder pattern for building NSM Domain.
 type Builder struct {
 	t   *testing.T
 	ctx context.Context
@@ -72,7 +72,7 @@ func newRegistryMemoryServer(ctx context.Context, tokenGenerator token.Generator
 		memory.WithDialOptions(options...))
 }
 
-// NewBuilder creates new SandboxBuilder
+// NewBuilder creates new SandboxBuilder.
 func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	b := &Builder{
 		t:                         t,
@@ -95,37 +95,37 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 	return b
 }
 
-// SetNodesCount sets nodes count
+// SetNodesCount sets nodes count.
 func (b *Builder) SetNodesCount(nodesCount int) *Builder {
 	b.nodesCount = nodesCount
 	return b
 }
 
-// SetNSMgrSupplier replaces default nsmgr supplier to custom function
+// SetNSMgrSupplier replaces default nsmgr supplier to custom function.
 func (b *Builder) SetNSMgrSupplier(f SupplyNSMgrFunc) *Builder {
 	b.supplyNSMgr = f
 	return b
 }
 
-// SetNSMgrProxySupplier replaces default nsmgr-proxy supplier to custom function
+// SetNSMgrProxySupplier replaces default nsmgr-proxy supplier to custom function.
 func (b *Builder) SetNSMgrProxySupplier(f SupplyNSMgrProxyFunc) *Builder {
 	b.supplyNSMgrProxy = f
 	return b
 }
 
-// SetRegistrySupplier replaces default memory registry supplier to custom function
+// SetRegistrySupplier replaces default memory registry supplier to custom function.
 func (b *Builder) SetRegistrySupplier(f SupplyRegistryFunc) *Builder {
 	b.supplyRegistry = f
 	return b
 }
 
-// SetRegistryProxySupplier replaces default memory registry supplier to custom function
+// SetRegistryProxySupplier replaces default memory registry supplier to custom function.
 func (b *Builder) SetRegistryProxySupplier(f SupplyRegistryProxyFunc) *Builder {
 	b.supplyRegistryProxy = f
 	return b
 }
 
-// SetNodeSetup replaces default node setup to custom function
+// SetNodeSetup replaces default node setup to custom function.
 func (b *Builder) SetNodeSetup(f SetupNodeFunc) *Builder {
 	require.NotNil(b.t, f)
 
@@ -133,25 +133,25 @@ func (b *Builder) SetNodeSetup(f SetupNodeFunc) *Builder {
 	return b
 }
 
-// SetDNSDomainName sets DNS domain name for the building NSM domain
+// SetDNSDomainName sets DNS domain name for the building NSM domain.
 func (b *Builder) SetDNSDomainName(name string) *Builder {
 	b.name = name
 	return b
 }
 
-// SetDNSResolver sets DNS resolver for proxy registries
+// SetDNSResolver sets DNS resolver for proxy registries.
 func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
 	b.dnsResolver = d
 	return b
 }
 
-// SetTokenGenerateFunc sets function for the token generation
+// SetTokenGenerateFunc sets function for the token generation.
 func (b *Builder) SetTokenGenerateFunc(f token.GeneratorFunc) *Builder {
 	b.generateTokenFunc = f
 	return b
 }
 
-// SetRegistryDefaultExpiration sets default expiration for endpoints
+// SetRegistryDefaultExpiration sets default expiration for endpoints.
 func (b *Builder) SetRegistryDefaultExpiration(d time.Duration) *Builder {
 	b.registryDefaultExpiration = d
 	return b
@@ -169,7 +169,7 @@ func (b *Builder) UseUnixSockets() *Builder {
 	return b
 }
 
-// Build builds Domain and Supplier
+// Build builds Domain and Supplier.
 func (b *Builder) Build() *Domain {
 	b.domain = &Domain{
 		Name:        b.name,

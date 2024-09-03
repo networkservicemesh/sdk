@@ -53,7 +53,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -78,7 +78,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 	}
 
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
@@ -93,7 +93,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: fmt.Sprint(nsReg.Name, "@", cluster2.Name),
+			NetworkService: fmt.Sprint(nsReg.GetName(), "@", cluster2.Name),
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
@@ -102,7 +102,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 
@@ -112,7 +112,7 @@ func TestNSMGR_InterdomainUseCase(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -129,7 +129,7 @@ func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -170,44 +170,44 @@ func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
 
 	nseReg1 := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{nsReg1.Name},
+		NetworkServiceNames: []string{nsReg1.GetName()},
 	}
 
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg1, sandbox.GenerateTestToken)
 
 	nseReg2 := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint@" + floating.Name,
-		NetworkServiceNames: []string{nsReg1.Name},
+		NetworkServiceNames: []string{nsReg1.GetName()},
 	}
 
 	cluster2.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
 
 	stream, err := adapters.NetworkServiceEndpointServerToClient(cluster2.Registry.NetworkServiceEndpointRegistryServer()).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-		Name: nseReg1.Name,
+		Name: nseReg1.GetName(),
 	}})
 	require.NoError(t, err)
 	require.Len(t, registry.ReadNetworkServiceEndpointList(stream), 1)
 
 	stream, err = adapters.NetworkServiceEndpointServerToClient(cluster1.Registry.NetworkServiceEndpointRegistryServer()).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-		Name: nseReg1.Name,
+		Name: nseReg1.GetName(),
 	}})
 	require.NoError(t, err)
 	require.Len(t, registry.ReadNetworkServiceEndpointList(stream), 0)
 
 	stream, err = adapters.NetworkServiceEndpointServerToClient(floating.Registry.NetworkServiceEndpointRegistryServer()).Find(context.Background(), &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-		Name: nseReg1.Name,
+		Name: nseReg1.GetName(),
 	}})
 	require.NoError(t, err)
 	require.Len(t, registry.ReadNetworkServiceEndpointList(stream), 1)
 
 	nsc := cluster1.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	var finalNSE = map[string]string{
-		fmt.Sprint(nsReg1.Name, "@", cluster2.Name): nseReg1.GetName(),
+	finalNSE := map[string]string{
+		fmt.Sprint(nsReg1.GetName(), "@", cluster2.Name): nseReg1.GetName(),
 		nsReg2.GetName(): nseReg2.GetName(),
 	}
 
-	for _, nsName := range []string{fmt.Sprint(nsReg1.Name, "@", cluster2.Name), nsReg2.GetName()} {
+	for _, nsName := range []string{fmt.Sprint(nsReg1.GetName(), "@", cluster2.Name), nsReg2.GetName()} {
 		request := &networkservice.NetworkServiceRequest{
 			MechanismPreferences: []*networkservice.Mechanism{
 				{Cls: cls.LOCAL, Type: kernel.MECHANISM},
@@ -223,7 +223,7 @@ func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, conn)
 
-		require.Equal(t, 8, len(conn.Path.PathSegments))
+		require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 		require.Equal(t, finalNSE[nsName], conn.GetPath().GetPathSegments()[7].GetName())
 
@@ -235,7 +235,7 @@ func Test_NSEMovedFromInterdomainToFloatingUseCase(t *testing.T) {
 		conn, err = nsc.Request(ctx, refreshRequest)
 		require.NoError(t, err)
 		require.NotNil(t, conn)
-		require.Equal(t, 8, len(conn.Path.PathSegments))
+		require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 		require.Equal(t, finalNSE[nsName], conn.GetPath().GetPathSegments()[7].GetName())
 
 		// Close
@@ -254,7 +254,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -309,7 +309,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 
@@ -319,7 +319,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	request = &networkservice.NetworkServiceRequest{
 		MechanismPreferences: []*networkservice.Mechanism{
@@ -336,7 +336,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 
@@ -346,7 +346,7 @@ func TestNSMGR_Interdomain_TwoNodesNSEs(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 }
 
 // TestNSMGR_FloatingInterdomainUseCase covers simple interdomain scenario with resolving endpoint from floating registry:
@@ -358,7 +358,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -416,7 +416,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: fmt.Sprint(nsReg.Name),
+			NetworkService: fmt.Sprint(nsReg.GetName()),
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
@@ -425,7 +425,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 
@@ -435,7 +435,7 @@ func TestNSMGR_FloatingInterdomainUseCase(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -453,7 +453,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	cluster1 := sandbox.NewBuilder(ctx, t).
 		SetNodesCount(1).
@@ -499,7 +499,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: fmt.Sprint(nsReg.Name),
+			NetworkService: fmt.Sprint(nsReg.GetName()),
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
@@ -508,7 +508,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 
@@ -518,7 +518,7 @@ func TestNSMGR_FloatingInterdomainUseCase_FloatingNetworkServiceNameRegistration
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)
@@ -536,7 +536,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
+	dnsServer := sandbox.NewFakeResolver()
 
 	// setup clusters
 
@@ -612,7 +612,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: fmt.Sprint(nsReg1.Name),
+			NetworkService: fmt.Sprint(nsReg1.GetName()),
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
@@ -621,7 +621,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 
@@ -631,7 +631,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// connect to second endpoint from cluster3
 	request = &networkservice.NetworkServiceRequest{
@@ -640,7 +640,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "2",
-			NetworkService: fmt.Sprint(nsReg2.Name),
+			NetworkService: fmt.Sprint(nsReg2.GetName()),
 			Context:        &networkservice.ConnectionContext{},
 		},
 	}
@@ -649,7 +649,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, conn)
 
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 
 	// Simulate refresh from client.
 
@@ -659,7 +659,7 @@ func TestNSMGR_FloatingInterdomain_FourClusters(t *testing.T) {
 	conn, err = nsc.Request(ctx, refreshRequest)
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 8, len(conn.Path.PathSegments))
+	require.Equal(t, 8, len(conn.GetPath().GetPathSegments()))
 }
 
 type passThroughClient struct {
@@ -699,8 +699,8 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 
 	const clusterCount = 5
 
-	var dnsServer = sandbox.NewFakeResolver()
-	var clusters = make([]*sandbox.Domain, clusterCount)
+	dnsServer := sandbox.NewFakeResolver()
+	clusters := make([]*sandbox.Domain, clusterCount)
 
 	for i := 0; i < clusterCount; i++ {
 		clusters[i] = sandbox.NewBuilder(ctx, t).
@@ -739,7 +739,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 
 		nsesReg := &registry.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("endpoint-%v", i),
-			NetworkServiceNames: []string{nsReg.Name},
+			NetworkServiceNames: []string{nsReg.GetName()},
 		}
 		clusters[i].Nodes[0].NewEndpoint(ctx, nsesReg, sandbox.GenerateTestToken, additionalFunctionality...)
 	}
@@ -763,7 +763,7 @@ func Test_Interdomain_PassThroughUsecase(t *testing.T) {
 
 	// Path length to first endpoint is 4
 	// Path length from NSE client to other remote endpoint is 8
-	require.Equal(t, 8*(clusterCount-1)+4, len(conn.Path.PathSegments))
+	require.Equal(t, 8*(clusterCount-1)+4, len(conn.GetPath().GetPathSegments()))
 
 	// Close
 	_, err = nsc.Close(ctx, conn)

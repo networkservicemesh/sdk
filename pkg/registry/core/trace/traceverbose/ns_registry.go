@@ -50,7 +50,6 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 
 	s := streamcontext.NetworkServiceRegistryFindClient(ctx, t.NetworkServiceRegistry_FindClient)
 	rv, err := s.Recv()
-
 	if err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil, errors.WithStack(err)
@@ -60,7 +59,7 @@ func (t *traceNetworkServiceRegistryFindClient) Recv() (*registry.NetworkService
 		}
 		return nil, logError(ctx, err, t.operation)
 	}
-	logObjectTrace(ctx, "recv-response", rv.NetworkService)
+	logObjectTrace(ctx, "recv-response", rv.GetNetworkService())
 	return rv, nil
 }
 
@@ -78,6 +77,7 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 	logObjectTrace(ctx, "register-response", rv)
 	return rv, nil
 }
+
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	operation := typeutils.GetFuncName(t.traced, methodNameFind)
 	ctx, finish := withLog(ctx, operation, methodNameFind)
@@ -111,7 +111,7 @@ func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *
 	return rv, nil
 }
 
-// NewNetworkServiceRegistryClient - wraps registry.NetworkServiceRegistryClient with tracing
+// NewNetworkServiceRegistryClient - wraps registry.NetworkServiceRegistryClient with tracing.
 func NewNetworkServiceRegistryClient(traced registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	return &traceNetworkServiceRegistryClient{traced: traced}
 }
@@ -170,7 +170,7 @@ func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *
 	return rv, nil
 }
 
-// NewNetworkServiceRegistryServer - wraps registry.NetworkServiceRegistryServer with tracing
+// NewNetworkServiceRegistryServer - wraps registry.NetworkServiceRegistryServer with tracing.
 func NewNetworkServiceRegistryServer(traced registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	return &traceNetworkServiceRegistryServer{traced: traced}
 }
@@ -184,7 +184,7 @@ func (t *traceNetworkServiceRegistryFindServer) Send(nsResp *registry.NetworkSer
 	ctx, finish := withLog(t.Context(), t.operation, methodNameSend)
 	defer finish()
 
-	logObjectTrace(ctx, "network service", nsResp.NetworkService)
+	logObjectTrace(ctx, "network service", nsResp.GetNetworkService())
 
 	s := streamcontext.NetworkServiceRegistryFindServer(ctx, t.NetworkServiceRegistry_FindServer)
 	err := s.Send(nsResp)

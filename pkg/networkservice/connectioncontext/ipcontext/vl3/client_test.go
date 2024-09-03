@@ -46,7 +46,7 @@ func Test_Client_ConnectsToVl3NSE(t *testing.T) {
 
 	ipam := vl3.NewIPAM("10.0.0.1/24")
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
@@ -95,7 +95,7 @@ func Test_VL3NSE_ConnectsToVl3NSE(t *testing.T) {
 	clientIpam := vl3.NewIPAM("10.0.1.0/24")
 	serverIpam := vl3.NewIPAM("10.0.0.1/24")
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
@@ -154,7 +154,7 @@ func Test_VL3NSE_ConnectsToVl3NSE_DualStack(t *testing.T) {
 		clients = append(clients, vl3.NewClient(ctx, ipam))
 	}
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
@@ -231,7 +231,7 @@ func Test_VL3NSE_ConnectsToVl3NSE_ChangePrefix(t *testing.T) {
 	clientIpam := vl3.NewIPAM("10.0.1.0/24")
 	serverIpam := vl3.NewIPAM("10.0.0.1/24")
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),
@@ -287,7 +287,7 @@ func Test_VL3NSE_ConnectsToVl3NSE_Close(t *testing.T) {
 	clientIpam := vl3.NewIPAM("10.0.1.0/24")
 	serverIpam := vl3.NewIPAM("10.0.0.1/24")
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		adapters.NewClientToServer(
 			next.NewNetworkServiceClient(
 				begin.NewClient(),

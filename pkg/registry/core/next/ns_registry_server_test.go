@@ -198,6 +198,7 @@ func TestDataRaceNetworkServiceServer(t *testing.T) {
 	}
 	wg.Wait()
 }
+
 func TestDataRaceNetworkServiceClient(t *testing.T) {
 	c := next.NewNetworkServiceRegistryClient(emptyNSRegistryClient())
 	wg := sync.WaitGroup{}

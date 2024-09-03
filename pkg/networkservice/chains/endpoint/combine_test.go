@@ -57,7 +57,7 @@ func startEndpoint(ctx context.Context, t *testing.T, e endpoint.Endpoint) *grpc
 }
 
 func TestCombine(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name      string
 		mechanism *networkservice.Mechanism
 	}{
@@ -73,7 +73,7 @@ func TestCombine(t *testing.T) {
 
 	for _, s := range samples {
 		t.Run(s.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testCombine(t, s.mechanism)
 		})
 	}
@@ -118,7 +118,7 @@ func testCombine(t *testing.T, mechanism *networkservice.Mechanism) {
 	require.NoError(t, err)
 	require.Equal(t, mechanism.String(), conn.GetMechanism().String())
 	require.Len(t, conn.GetPath().GetPathSegments(), 2)
-	require.Equal(t, mechanism.Type, conn.GetNextPathSegment().GetName())
+	require.Equal(t, mechanism.GetType(), conn.GetNextPathSegment().GetName())
 
 	event, err = stream.Recv()
 	require.NoError(t, err)
@@ -187,7 +187,7 @@ func TestSwitchEndpoint_InitialStateTransfer(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, mechanism.String(), conn.GetMechanism().String())
 		require.Len(t, conn.GetPath().GetPathSegments(), 2)
-		require.Equal(t, mechanism.Type, conn.GetNextPathSegment().GetName())
+		require.Equal(t, mechanism.GetType(), conn.GetNextPathSegment().GetName())
 
 		conns = append(conns, conn)
 	}

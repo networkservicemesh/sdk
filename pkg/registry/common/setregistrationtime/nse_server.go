@@ -29,8 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
-type setregtimeNSEServer struct {
-}
+type setregtimeNSEServer struct{}
 
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that sets initial
 // registration time.
@@ -42,10 +41,10 @@ func (r *setregtimeNSEServer) Register(ctx context.Context, nse *registry.Networ
 	if v, ok := load(ctx); ok {
 		nse.InitialRegistrationTime = v
 	} else {
-		if nse.InitialRegistrationTime == nil {
+		if nse.GetInitialRegistrationTime() == nil {
 			nse.InitialRegistrationTime = timestamppb.New(clock.FromContext(ctx).Now())
 		}
-		store(ctx, nse.InitialRegistrationTime)
+		store(ctx, nse.GetInitialRegistrationTime())
 	}
 
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)

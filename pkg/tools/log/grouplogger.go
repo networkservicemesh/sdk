@@ -18,12 +18,12 @@ package log
 
 import "os"
 
-// groupLogger - combines multiple loggers
+// groupLogger - combines multiple loggers.
 type groupLogger struct {
 	loggers []Logger
 }
 
-// Combine creates grouped logger from all provided loggers
+// Combine creates grouped logger from all provided loggers.
 func Combine(s ...Logger) Logger {
 	return &groupLogger{loggers: s}
 }

@@ -66,7 +66,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// Nsmgr - A simple combination of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
+// Nsmgr - A simple combination of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces.
 type Nsmgr interface {
 	networkservice.NetworkServiceServer
 	networkservice.MonitorConnectionServer
@@ -94,10 +94,10 @@ type serverOptions struct {
 	forwarderServiceName             string
 }
 
-// Option modifies server option value
+// Option modifies server option value.
 type Option func(o *serverOptions)
 
-// WithDialOptions sets grpc.DialOptions for the client
+// WithDialOptions sets grpc.DialOptions for the client.
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
 		o.dialOptions = dialOptions
@@ -105,28 +105,28 @@ func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 }
 
 // WithForwarderServiceName overrides default forwarder service name
-// By default "forwarder"
+// By default "forwarder".
 func WithForwarderServiceName(forwarderServiceName string) Option {
 	return func(o *serverOptions) {
 		o.forwarderServiceName = forwarderServiceName
 	}
 }
 
-// WithDefaultExpiration sets the default expiration for endpoints
+// WithDefaultExpiration sets the default expiration for endpoints.
 func WithDefaultExpiration(d time.Duration) Option {
 	return func(o *serverOptions) {
 		o.defaultExpiration = d
 	}
 }
 
-// WithDialTimeout sets dial timeout for the client
+// WithDialTimeout sets dial timeout for the client.
 func WithDialTimeout(dialTimeout time.Duration) Option {
 	return func(o *serverOptions) {
 		o.dialTimeout = dialTimeout
 	}
 }
 
-// WithAuthorizeServer sets authorization server chain element
+// WithAuthorizeServer sets authorization server chain element.
 func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Option {
 	if authorizeServer == nil {
 		panic("Authorize server cannot be nil")
@@ -136,7 +136,7 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element
+// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element.
 func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer networkservice.MonitorConnectionServer) Option {
 	if authorizeMonitorConnectionServer == nil {
 		panic("authorizeMonitorConnectionServer cannot be nil")
@@ -146,7 +146,7 @@ func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer netwo
 	}
 }
 
-// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
+// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element.
 func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.NetworkServiceRegistryServer) Option {
 	if authorizeNSRegistryServer == nil {
 		panic("authorizeNSRegistryServer cannot be nil")
@@ -156,7 +156,7 @@ func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.Network
 	}
 }
 
-// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element
+// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element.
 func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer) Option {
 	if authorizeNSERegistryServer == nil {
 		panic("authorizeNSERegistryServer cannot be nil")
@@ -166,7 +166,7 @@ func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.Netwo
 	}
 }
 
-// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element.
 func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registryapi.NetworkServiceRegistryClient) Option {
 	if authorizeNSRegistryClient == nil {
 		panic("authorizeNSRegistryClient cannot be nil")
@@ -176,7 +176,7 @@ func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registryapi.Network
 	}
 }
 
-// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element.
 func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient) Option {
 	if authorizeNSERegistryClient == nil {
 		panic("authorizeNSERegistryServer cannot be nil")
@@ -232,7 +232,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 	}
 
 	rv := &nsmgrServer{}
-	var nsRegistry = memory.NewNetworkServiceRegistryServer()
+	nsRegistry := memory.NewNetworkServiceRegistryServer()
 	if opts.regURL != nil {
 		// Use remote registry
 		nsRegistry = registryconnect.NewNetworkServiceRegistryServer(
@@ -258,7 +258,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		nsRegistry,
 	)
 
-	var remoteOrLocalRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+	remoteOrLocalRegistry := chain.NewNetworkServiceEndpointRegistryServer(
 		localbypass.NewNetworkServiceEndpointRegistryServer(opts.url),
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
@@ -283,7 +283,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		)
 	}
 
-	var nseRegistry = chain.NewNetworkServiceEndpointRegistryServer(
+	nseRegistry := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
@@ -345,6 +345,8 @@ func (n *nsmgrServer) Register(s *grpc.Server) {
 	registryapi.RegisterNetworkServiceEndpointRegistryServer(s, n.Registry.NetworkServiceEndpointRegistryServer())
 }
 
-var _ Nsmgr = &nsmgrServer{}
-var _ endpoint.Endpoint = &nsmgrServer{}
-var _ registry.Registry = &nsmgrServer{}
+var (
+	_ Nsmgr             = &nsmgrServer{}
+	_ endpoint.Endpoint = &nsmgrServer{}
+	_ registry.Registry = &nsmgrServer{}
+)

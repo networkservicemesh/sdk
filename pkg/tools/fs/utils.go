@@ -38,7 +38,6 @@ func WatchFile(ctx context.Context, filePath string) <-chan []byte {
 	logger := log.FromContext(ctx).WithField("fs.WatchFile", filePath)
 
 	watcher, err := fsnotify.NewWatcher()
-
 	if err != nil {
 		logger.Errorf("can not create node poller: %v", err.Error())
 		_ = watcher.Close()

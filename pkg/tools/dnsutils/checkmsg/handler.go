@@ -26,8 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 )
 
-type checkMsgHandler struct {
-}
+type checkMsgHandler struct{}
 
 func (h *checkMsgHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m *dns.Msg) {
 	if m == nil {
@@ -37,7 +36,7 @@ func (h *checkMsgHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, m
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
-// NewDNSHandler creates a new dns handler that checks if dns message is correct
+// NewDNSHandler creates a new dns handler that checks if dns message is correct.
 func NewDNSHandler() dnsutils.Handler {
 	return new(checkMsgHandler)
 }

@@ -29,7 +29,7 @@ import (
 )
 
 // NewDNSHandler creates a new dnshandler that simply connects to the endpoint by passed url
-// connectTO is endpoint url
+// connectTO is endpoint url.
 func NewDNSHandler(connectTO *url.URL) dnsutils.Handler {
 	return &connectDNSHandler{connectTO: connectTO}
 }
@@ -37,11 +37,11 @@ func NewDNSHandler(connectTO *url.URL) dnsutils.Handler {
 type connectDNSHandler struct{ connectTO *url.URL }
 
 func (c *connectDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, msg *dns.Msg) {
-	var client = dns.Client{
+	client := dns.Client{
 		Net: c.connectTO.Scheme,
 	}
 
-	var resp, _, err = client.Exchange(msg, c.connectTO.Host)
+	resp, _, err := client.Exchange(msg, c.connectTO.Host)
 
 	if err != nil {
 		log.FromContext(ctx).WithField("connectDNSHandler", "ServeDNS").Warnf("got an error during exchanging: %v", err.Error())

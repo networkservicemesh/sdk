@@ -37,7 +37,7 @@ type vl3MtuClient struct {
 }
 
 // NewClient - returns a new vl3mtu client chain element.
-// It stores a minimum mtu of the vl3 mtu and updates connection context if required
+// It stores a minimum mtu of the vl3 mtu and updates connection context if required.
 func NewClient() networkservice.NetworkServiceClient {
 	return &vl3MtuClient{
 		minMtu: jumboFrameSize,
@@ -75,7 +75,7 @@ func (v *vl3MtuClient) Close(ctx context.Context, conn *networkservice.Connectio
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-// updateMinMTU - returns true if mtu was updated
+// updateMinMTU - returns true if mtu was updated.
 func (v *vl3MtuClient) updateMinMTU(conn *networkservice.Connection) bool {
 	if atomic.LoadUint32(&v.minMtu) <= conn.GetContext().GetMTU() {
 		return false

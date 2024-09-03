@@ -20,7 +20,7 @@ type configurable interface {
 	setEventChannelSize(int)
 }
 
-// Option is memory registry configuration option
+// Option is memory registry configuration option.
 type Option interface {
 	apply(configurable)
 }
@@ -31,7 +31,7 @@ func (f applierFunc) apply(c configurable) {
 	f(c)
 }
 
-// WithEventChannelSize sets specific size of event channels
+// WithEventChannelSize sets specific size of event channels.
 func WithEventChannelSize(l int) Option {
 	return applierFunc(func(c configurable) {
 		c.setEventChannelSize(l)

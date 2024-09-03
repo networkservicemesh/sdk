@@ -25,14 +25,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-// PolicyRoutesFunc - method for the new policyRoutes getting
+// PolicyRoutesFunc - method for the new policyRoutes getting.
 type PolicyRoutesFunc func() []*networkservice.PolicyRoute
 
 type policyrouteServer struct {
 	getPolicies PolicyRoutesFunc
 }
 
-// NewServer creates a NetworkServiceServer that will put the routing policies to connection context
+// NewServer creates a NetworkServiceServer that will put the routing policies to connection context.
 func NewServer(policyRouteGetter PolicyRoutesFunc) networkservice.NetworkServiceServer {
 	return &policyrouteServer{
 		getPolicies: policyRouteGetter,
@@ -52,11 +52,11 @@ func (p *policyrouteServer) Request(ctx context.Context, request *networkservice
 	// Update policies
 	// Remove old IP addresses
 	policies := p.getPolicies()
-	for _, p := range ipContext.Policies {
-		if p.From != "" {
-			for s := range ipContext.SrcIpAddrs {
-				if ipContext.SrcIpAddrs[s] == p.From {
-					ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs[:s], ipContext.SrcIpAddrs[s+1:]...)
+	for _, p := range ipContext.GetPolicies() {
+		if p.GetFrom() != "" {
+			for s := range ipContext.GetSrcIpAddrs() {
+				if ipContext.GetSrcIpAddrs()[s] == p.GetFrom() {
+					ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs[:s], ipContext.GetSrcIpAddrs()[s+1:]...)
 					break
 				}
 			}
@@ -67,8 +67,8 @@ func (p *policyrouteServer) Request(ctx context.Context, request *networkservice
 
 	// Add new IP addresses
 	for _, p := range policies {
-		if p.From != "" {
-			ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, p.From)
+		if p.GetFrom() != "" {
+			ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, p.GetFrom())
 		}
 	}
 	return next.Server(ctx).Request(ctx, request)

@@ -69,7 +69,7 @@ func TestNSMatch(t *testing.T) {
 		{
 			name: "matchName",
 			svc: &registry.NetworkService{
-				Name: referenceService.Name,
+				Name: referenceService.GetName(),
 			},
 			want: true,
 		},
@@ -83,7 +83,7 @@ func TestNSMatch(t *testing.T) {
 		{
 			name: "matchPayload",
 			svc: &registry.NetworkService{
-				Payload: referenceService.Payload,
+				Payload: referenceService.GetPayload(),
 			},
 			want: true,
 		},
@@ -97,7 +97,7 @@ func TestNSMatch(t *testing.T) {
 		{
 			name: "matchMatches",
 			svc: &registry.NetworkService{
-				Matches: referenceService.Matches,
+				Matches: referenceService.GetMatches(),
 			},
 			want: true,
 		},
@@ -176,7 +176,7 @@ func TestNSEMatch(t *testing.T) {
 		{
 			name: "matchName",
 			endpoint: &registry.NetworkServiceEndpoint{
-				Name: referenceEndpoint.Name,
+				Name: referenceEndpoint.GetName(),
 			},
 			want: true,
 		},
@@ -190,7 +190,7 @@ func TestNSEMatch(t *testing.T) {
 		{
 			name: "matchLabels",
 			endpoint: &registry.NetworkServiceEndpoint{
-				NetworkServiceLabels: referenceEndpoint.NetworkServiceLabels,
+				NetworkServiceLabels: referenceEndpoint.GetNetworkServiceLabels(),
 			},
 			want: true,
 		},
@@ -210,7 +210,7 @@ func TestNSEMatch(t *testing.T) {
 		{
 			name: "matchExpirationTime",
 			endpoint: &registry.NetworkServiceEndpoint{
-				ExpirationTime: referenceEndpoint.ExpirationTime,
+				ExpirationTime: referenceEndpoint.GetExpirationTime(),
 			},
 			want: true,
 		},
@@ -234,7 +234,7 @@ func TestNSEMatch(t *testing.T) {
 		{
 			name: "matchNetworkServiceNames",
 			endpoint: &registry.NetworkServiceEndpoint{
-				NetworkServiceNames: referenceEndpoint.NetworkServiceNames,
+				NetworkServiceNames: referenceEndpoint.GetNetworkServiceNames(),
 			},
 			want: true,
 		},
@@ -255,7 +255,7 @@ func TestNSEMatch(t *testing.T) {
 		{
 			name: "matchUrl",
 			endpoint: &registry.NetworkServiceEndpoint{
-				Url: referenceEndpoint.Url,
+				Url: referenceEndpoint.GetUrl(),
 			},
 			want: true,
 		},

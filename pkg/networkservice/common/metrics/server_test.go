@@ -18,11 +18,10 @@ package metrics_test
 
 import (
 	"context"
-	"os"
-	"sync"
-
 	"math/rand"
+	"os"
 	"strconv"
+	"sync"
 	"testing"
 
 	"go.uber.org/goleak"
@@ -82,7 +81,7 @@ func (s *metricsGeneratorServer) Request(ctx context.Context, request *networkse
 		segment.Metrics = make(map[string]string)
 	}
 	// Generate any random metric value
-	// nolint:gosec
+	//nolint:gosec
 	segment.Metrics["testMetric"] = strconv.Itoa(rand.Intn(100))
 	return next.Server(ctx).Request(ctx, request)
 }

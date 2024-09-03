@@ -26,10 +26,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-// NetworkServiceEndpointRegistryServerWrapper - function that wraps a registry server
+// NetworkServiceEndpointRegistryServerWrapper - function that wraps a registry server.
 type NetworkServiceEndpointRegistryServerWrapper func(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer
 
-// NetworkServiceEndpointRegistryServerChainer - function that chains registry servers
+// NetworkServiceEndpointRegistryServerChainer - function that chains registry servers.
 type NetworkServiceEndpointRegistryServerChainer func(servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer
 
 type nextNetworkServiceEndpointRegistryServer struct {
@@ -38,7 +38,7 @@ type nextNetworkServiceEndpointRegistryServer struct {
 	nextParent registry.NetworkServiceEndpointRegistryServer
 }
 
-// NewWrappedNetworkServiceEndpointRegistryServer - creates a chain of servers with each one wrapped in wrapper
+// NewWrappedNetworkServiceEndpointRegistryServer - creates a chain of servers with each one wrapped in wrapper.
 func NewWrappedNetworkServiceEndpointRegistryServer(wrapper NetworkServiceEndpointRegistryServerWrapper, servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	rv := &nextNetworkServiceEndpointRegistryServer{servers: make([]registry.NetworkServiceEndpointRegistryServer, 0, len(servers))}
 	for _, s := range servers {
@@ -47,7 +47,7 @@ func NewWrappedNetworkServiceEndpointRegistryServer(wrapper NetworkServiceEndpoi
 	return rv
 }
 
-// NewNetworkServiceEndpointRegistryServer - creates a chain of servers
+// NewNetworkServiceEndpointRegistryServer - creates a chain of servers.
 func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	return NewWrappedNetworkServiceEndpointRegistryServer(func(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 		return server

@@ -27,10 +27,10 @@ type option struct {
 	dialTimeout time.Duration
 }
 
-// Option - options for the dial chain element
+// Option - options for the dial chain element.
 type Option func(*option)
 
-// WithDialOptions - grpc.DialOptions for use by the dial chain element
+// WithDialOptions - grpc.DialOptions for use by the dial chain element.
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *option) {
 		o.dialOptions = dialOptions

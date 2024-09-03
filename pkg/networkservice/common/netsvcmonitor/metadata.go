@@ -27,6 +27,7 @@ type cancelFunctionKey struct{}
 func storeCancelFunction(ctx context.Context, cancel func()) {
 	metadata.Map(ctx, false).Store(cancelFunctionKey{}, cancel)
 }
+
 func loadCancelFunction(ctx context.Context) (func(), bool) {
 	v, ok := metadata.Map(ctx, false).Load(cancelFunctionKey{})
 	if ok {

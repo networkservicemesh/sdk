@@ -72,7 +72,7 @@ func Test_DNSUsecase(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
@@ -112,7 +112,7 @@ func Test_DNSUsecase(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             "1",
-			NetworkService: nsReg.Name,
+			NetworkService: nsReg.GetName(),
 			Context: &networkservice.ConnectionContext{
 				DnsContext: &networkservice.DNSContext{
 					Configs: dnsConfigs,

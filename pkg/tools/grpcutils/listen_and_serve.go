@@ -100,7 +100,6 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		}()
 
 		err = server.Serve(ln)
-
 		if err != nil {
 			errCh <- err
 		}

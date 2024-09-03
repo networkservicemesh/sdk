@@ -28,23 +28,23 @@ type options struct {
 	spiffeIDConnectionMap *genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]
 }
 
-// Option is authorization option for network service server
+// Option is authorization option for network service server.
 type Option func(*options)
 
-// Any authorizes any call of request/close
+// Any authorizes any call of request/close.
 func Any() Option {
 	return WithPolicies([]string{}...)
 }
 
 // WithPolicies sets custom policies for networkservice.
-// policyPaths can be combination of both policy files and dirs with policies
+// policyPaths can be combination of both policy files and dirs with policies.
 func WithPolicies(policyPaths ...string) Option {
 	return func(o *options) {
 		o.policyPaths = policyPaths
 	}
 }
 
-// WithSpiffeIDConnectionMap sets map to keep spiffeIDConnectionMap to authorize connections with MonitorConnectionServer
+// WithSpiffeIDConnectionMap sets map to keep spiffeIDConnectionMap to authorize connections with MonitorConnectionServer.
 func WithSpiffeIDConnectionMap(s *genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]) Option {
 	return func(o *options) {
 		o.spiffeIDConnectionMap = s

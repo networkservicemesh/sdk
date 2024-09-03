@@ -17,7 +17,7 @@
 // Package eventchannel provides API for creating monitoring components  via golang channels
 package eventchannel
 
-// MonitorConnectionServerOption applies specific parameters for MonitorConnectionServer
+// MonitorConnectionServerOption applies specific parameters for MonitorConnectionServer.
 type MonitorConnectionServerOption interface {
 	apply(s *monitorConnectionServer)
 }
@@ -28,7 +28,7 @@ func (f monitorConnectionServerOptionFunc) apply(s *monitorConnectionServer) {
 	f(s)
 }
 
-// WithConnectChannel adds for MonitorConnectionServer an option for monitoring connection count
+// WithConnectChannel adds for MonitorConnectionServer an option for monitoring connection count.
 func WithConnectChannel(connectCh chan<- int) MonitorConnectionServerOption {
 	return monitorConnectionServerOptionFunc(func(s *monitorConnectionServer) {
 		s.connectCh = connectCh

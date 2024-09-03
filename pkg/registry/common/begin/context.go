@@ -20,7 +20,7 @@ import (
 	"context"
 )
 
-// EventFactory - allows firing off a Request or Close event from midchain
+// EventFactory - allows firing off a Request or Close event from midchain.
 type EventFactory interface {
 	Register(opts ...Option) <-chan error
 	Unregister(opts ...Option) <-chan error
@@ -43,7 +43,7 @@ func withEventFactory(parent context.Context, eventFactory EventFactory) context
 	return ctx
 }
 
-// FromContext - returns EventFactory from context
+// FromContext - returns EventFactory from context.
 func FromContext(ctx context.Context) EventFactory {
 	value := fromContext(ctx)
 	if value == nil {

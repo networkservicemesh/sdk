@@ -61,8 +61,9 @@ func Test_DNSContextServer_Request(t *testing.T) {
 	resp, err := s.Request(ctx, r)
 	require.NoError(t, err)
 	require.NotNil(t, resp.GetContext().GetDnsContext())
-	require.Equal(t, resp.GetContext().GetDnsContext().Configs, expected)
+	require.Equal(t, resp.GetContext().GetDnsContext().GetConfigs(), expected)
 }
+
 func Test_DNSContextServer_Close(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)

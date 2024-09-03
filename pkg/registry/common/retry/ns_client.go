@@ -36,7 +36,7 @@ type retryNSClient struct {
 	chainCtx   context.Context
 }
 
-// NewNetworkServiceRegistryClient - returns a retry chain element
+// NewNetworkServiceRegistryClient - returns a retry chain element.
 func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
 	clientOpts := &options{
 		interval:   time.Millisecond * 200,
@@ -92,7 +92,6 @@ func (r *retryNSClient) Find(ctx context.Context, query *registry.NetworkService
 
 	for ctx.Err() == nil && r.chainCtx.Err() == nil {
 		stream, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
-
 		if err != nil {
 			logger.Errorf("try attempt has failed: %v", err.Error())
 			<-c.After(r.interval)

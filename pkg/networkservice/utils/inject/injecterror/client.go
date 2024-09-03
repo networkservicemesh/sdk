@@ -34,7 +34,7 @@ type injectErrorClient struct {
 	requestErrorSupplier, closeErrorSupplier *errorSupplier
 }
 
-// NewClient returns a client chain element returning error on Close/Request on given times
+// NewClient returns a client chain element returning error on Close/Request on given times.
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{
 		err:               errors.New("error originates in injectErrorClient"),

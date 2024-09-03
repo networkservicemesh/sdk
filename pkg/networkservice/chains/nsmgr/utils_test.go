@@ -73,7 +73,7 @@ func testNSEAndClient(
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nseReg.NetworkServiceNames[0])
+	request := defaultRequest(nseReg.GetNetworkServiceNames()[0])
 
 	conn, err := nsc.Request(ctx, request)
 	require.NoError(t, err)

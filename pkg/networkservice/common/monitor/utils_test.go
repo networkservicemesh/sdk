@@ -68,7 +68,7 @@ func waitNetworkServiceReady(target *url.URL) error {
 		if err != nil {
 			return err
 		}
-		if response.Status == grpc_health_v1.HealthCheckResponse_SERVING {
+		if response.GetStatus() == grpc_health_v1.HealthCheckResponse_SERVING {
 			return nil
 		}
 	}

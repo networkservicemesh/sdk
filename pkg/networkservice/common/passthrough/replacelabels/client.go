@@ -34,7 +34,7 @@ type replaceLabelsClient struct {
 	labels map[string]string
 }
 
-// NewClient creates new instance of NetworkServiceClient chain element, which replaces labels in the connection
+// NewClient creates new instance of NetworkServiceClient chain element, which replaces labels in the connection.
 func NewClient(labels map[string]string) networkservice.NetworkServiceClient {
 	return &replaceLabelsClient{
 		labels: labels,
@@ -42,7 +42,7 @@ func NewClient(labels map[string]string) networkservice.NetworkServiceClient {
 }
 
 func (s *replaceLabelsClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	prevConnLabels := request.Connection.Labels
+	prevConnLabels := request.GetConnection().GetLabels()
 	request.Connection.Labels = s.labels
 
 	conn, err = next.Client(ctx).Request(ctx, request, opts...)

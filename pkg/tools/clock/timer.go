@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// Timer is a time.Timer interface
+// Timer is a time.Timer interface.
 type Timer interface {
 	C() <-chan time.Time
 	Stop() bool

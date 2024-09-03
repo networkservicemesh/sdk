@@ -23,7 +23,7 @@ import (
 	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
-// RegisterHealthServices registers grpc health probe for each passed service
+// RegisterHealthServices registers grpc health probe for each passed service.
 func RegisterHealthServices(s grpc.ServiceRegistrar, services ...interface{}) {
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(s, healthServer)

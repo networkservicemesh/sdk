@@ -81,6 +81,7 @@ func (srv *journalServer) Request(ctx context.Context, request *networkservice.N
 
 	return conn, err
 }
+
 func (srv *journalServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	clockTime := clock.FromContext(ctx)
 
@@ -113,7 +114,7 @@ func (srv *journalServer) publish(entry *Entry) error {
 	return nil
 }
 
-// NewServer creates a new journaling server with the name journalID using provided streaming NATS connection
+// NewServer creates a new journaling server with the name journalID using provided streaming NATS connection.
 func NewServer(journalID string, stanConn stan.Conn) (networkservice.NetworkServiceServer, error) {
 	if strings.TrimSpace(journalID) == "" {
 		return nil, errors.New("journal id is nil")
