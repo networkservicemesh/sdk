@@ -74,7 +74,7 @@ func (v *vl3Server) Request(ctx context.Context, request *networkservice.Network
 			ipContext.SrcIpAddrs = append(ipContext.SrcIpAddrs, srcNet.String())
 			v.subnetMap.Store(conn.GetId(), v.pool.globalIPNet().String())
 		}
-	} else if len(request.GetConnection().GetContext().GetDnsContext().GetConfigs()) == 0 || countTheSameVersionSrcIps(request, len(v.pool.self.IP)) == 0 { // TODO Consider a better option to determine vL3NSE-to-vL3NSE server case
+	} else if len(request.GetConnection().GetContext().GetDnsContext().GetConfigs()) == 0 || countTheSameVersionSrcIps(request, len(v.pool.self.IP)) == 0 { //nolint:nolintlint // TODO Consider a better option to determine vL3NSE-to-vL3NSE server case
 		srcNet, err := v.pool.allocate()
 		log.FromContext(ctx).Infof("Server Request. Allocated initial net: %+v for connection: %+v", srcNet.String(), conn.GetId())
 		if err != nil {

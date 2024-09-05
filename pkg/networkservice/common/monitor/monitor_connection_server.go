@@ -82,7 +82,6 @@ func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_
 			return
 		}
 		for id, filter := range m.filters {
-			id, filter := id, filter
 			e := event.Clone()
 			filter.executor.AsyncExec(func() {
 				var err error

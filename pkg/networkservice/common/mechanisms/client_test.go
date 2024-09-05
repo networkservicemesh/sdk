@@ -187,6 +187,7 @@ const (
 	ifname    = "nsm-1"
 )
 
+//nolint:dupl
 func Test_Client_Metrics(t *testing.T) {
 	c := client()
 	metricsKey := "client_interface"

@@ -58,7 +58,6 @@ func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkSer
 func (d *dnsNSEResolveClient) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	domain := resolveNSE(nse)
 	u, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
-
 	if err != nil {
 		return nil, err
 	}
@@ -100,7 +99,6 @@ func (c *dnsNSEResolveFindClient) Recv() (*registry.NetworkServiceEndpointRespon
 func (d *dnsNSEResolveClient) Find(ctx context.Context, q *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	domain := resolveNSE(q.NetworkServiceEndpoint)
 	nsmgrProxyURL, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
-
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +120,6 @@ func (d *dnsNSEResolveClient) Find(ctx context.Context, q *registry.NetworkServi
 func (d *dnsNSEResolveClient) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	domain := resolveNSE(nse)
 	u, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
-
 	if err != nil {
 		return nil, err
 	}

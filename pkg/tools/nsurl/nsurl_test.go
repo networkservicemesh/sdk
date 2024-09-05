@@ -81,6 +81,7 @@ func Test_NSURL(t *testing.T) {
 		require.Equal(t, sample.mechanism, (*nsurl.NSURL)(sample.u).Mechanism().GetType())
 		require.Equal(t, sample.networkService, (*nsurl.NSURL)(sample.u).NetworkService())
 		require.Len(t, (*nsurl.NSURL)(sample.u).Labels(), len(sample.labels))
+
 		if len(sample.labels) > 0 {
 			require.Equal(t, sample.labels, (*nsurl.NSURL)(sample.u).Labels())
 		}

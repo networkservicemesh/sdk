@@ -27,6 +27,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
@@ -414,21 +415,21 @@ type remoteNSEServer struct {
 
 func (s *remoteNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to ctx.Err")
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse.Clone())
 }
 
 func (s *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	if err := server.Context().Err(); err != nil {
-		return err
+		return errors.Wrap(err, "failed to server.Context().Err()")
 	}
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
 func (s *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to ctx.Err")
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse.Clone())
 }

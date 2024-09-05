@@ -29,6 +29,7 @@ import (
 	"github.com/edwarnicke/genericsync"
 	"github.com/miekg/dns"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -74,11 +75,11 @@ func (p *proxyDNSServer) shutdown() error {
 	udpErr := p.UDPServer.Shutdown()
 
 	if tcpErr != nil {
-		return tcpErr
+		return errors.Wrap(tcpErr, "failed to p.TCPServer.Shutdown")
 	}
 
 	if udpErr != nil {
-		return udpErr
+		return errors.Wrap(udpErr, "failed to p.UDPServer.Shutdown")
 	}
 
 	return nil
@@ -117,16 +118,16 @@ func (h *udpHandler) ServeDNS(rw dns.ResponseWriter, m *dns.Msg) {
 func getFreePort() (int, error) {
 	addr, err := net.ResolveTCPAddr("tcp", "localhost:0")
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "failed to net.ResolveTCPAddr")
 	}
 
 	l, err := net.ListenTCP("tcp", addr)
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "failed to net.ListenTCP")
 	}
 	err = l.Close()
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(err, "failed to l.Close")
 	}
 
 	return l.Addr().(*net.TCPAddr).Port, nil

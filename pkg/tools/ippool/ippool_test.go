@@ -79,7 +79,7 @@ func TestIsItWorkCorrect(t *testing.T) {
 	require.NoError(t, err)
 
 	prefix := p.String() + "/24"
-	fmt.Println(prefix)
+	fmt.Println(prefix) //nolint:forbidigo
 
 	pool2 := NewWithNetString(prefix)
 	pool2.ExcludeString("192.168.0.0/30")
@@ -161,7 +161,6 @@ func TestIPPoolTool_Exclude(t *testing.T) {
 	require.Equal(t, ipPool.size, uint64(2))
 }
 
-
 func TestIPPoolTool_Pull(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -196,7 +195,6 @@ func TestIPPoolTool_Pull(t *testing.T) {
 	require.Error(t, err)
 }
 
-
 func TestIPPoolTool_PullIP(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -214,7 +212,6 @@ func TestIPPoolTool_PullIP(t *testing.T) {
 	_, err = ipPool.PullIPString("192.0.2.10/32")
 	require.Error(t, err)
 }
-
 
 func TestIPPoolTool_GetPrefixes(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/16")
@@ -242,7 +239,6 @@ func TestIPPoolTool_GetPrefixes(t *testing.T) {
 	require.Equal(t, prefixes[1], "192.2.0.0/31")
 	require.Equal(t, prefixes[2], "192.15.0.0/32")
 }
-
 
 func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
@@ -325,7 +321,6 @@ func TestIPPoolTool_IPv6Exclude(t *testing.T) {
 	require.Equal(t, ipPool.size, uint64(1))
 }
 
-
 func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
@@ -355,7 +350,6 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	require.Error(t, err)
 }
 
-
 func TestIPPoolTool_IPv6PullIP(t *testing.T) {
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
@@ -373,7 +367,6 @@ func TestIPPoolTool_IPv6PullIP(t *testing.T) {
 	_, err = ipPool.PullIPString("::2010/128")
 	require.Error(t, err)
 }
-
 
 func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
 	ipPool := NewWithNetString("::/32")
@@ -395,7 +388,6 @@ func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, srcIP.String(), "::4")
 }
-
 
 func TestIPPoolTool_IPv6GetPrefixes(t *testing.T) {
 	ipPool := NewWithNetString("fe80::/112")

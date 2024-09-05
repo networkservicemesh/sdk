@@ -65,7 +65,7 @@ func getContextWithTLSCert() (context.Context, error) {
 	block, _ := pem.Decode([]byte(certPem))
 	x509cert, err := x509.ParseCertificate(block.Bytes)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to x509.ParseCertificate")
 	}
 
 	authInfo := &credentials.TLSInfo{
@@ -109,6 +109,7 @@ func (t *testEmptyMCMCServer) Context() context.Context {
 
 func TestAuthzEndpoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
 	suits := []struct {
 		name            string
 		baseCtx         bool
@@ -183,23 +184,29 @@ func TestAuthzEndpoint(t *testing.T) {
 		s := suits[i]
 		t.Run(s.name, func(t *testing.T) {
 			var err error
+
 			baseCtx := context.Background()
+
 			if s.baseCtx {
 				baseCtx, err = getContextWithTLSCert()
 				require.NoError(t, err)
 			}
+
 			var spiffeIDConnectionMap genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]
 			for spiffeIDstr, connIds := range s.spiffeIDConnMap {
 				connIDMap := genericsync.Map[string, struct{}]{}
 				for _, connID := range connIds {
 					connIDMap.Store(connID, struct{}{})
 				}
+
 				var spiffeID spiffeid.ID
 				spiffeID, err = spiffeid.FromString(spiffeIDstr)
 				require.NoError(t, err)
 				spiffeIDConnectionMap.Store(spiffeID, &connIDMap)
 			}
+
 			ctx, cancel := context.WithTimeout(baseCtx, time.Second)
+
 			defer cancel()
 			srv := authorize.NewMonitorConnectionServer(authorize.WithSpiffeIDConnectionMap(&spiffeIDConnectionMap), authorize.WithPolicies(testPolicy()))
 			checkResult := func(err error) {
@@ -220,8 +227,10 @@ func TestAuthzEndpoint(t *testing.T) {
 
 func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
 	peerCtx, err := getContextWithTLSCert()
 	require.NoError(t, err)
+
 	ctx, cancel := context.WithTimeout(peerCtx, time.Second)
 	defer cancel()
 
@@ -236,8 +245,11 @@ func TestAuthorize_ShouldCorrectlyWorkWithHeal(t *testing.T) {
 
 	spiffeIDConnectionMap := genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]{}
 	connMap := genericsync.Map[string, struct{}]{}
+
 	var placer struct{}
+
 	connMap.Store("conn1", placer)
+
 	var spiffeID spiffeid.ID
 	spiffeID, err = spiffeid.FromString(spiffeID1)
 	require.NoError(t, err)

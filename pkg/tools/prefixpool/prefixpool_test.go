@@ -35,7 +35,9 @@ import (
 
 func TestEmptryPrefixPoolIsNotPanics(t *testing.T) {
 	var p *prefixpool.PrefixPool
+
 	var err error
+
 	require.NotPanics(t, func() {
 		p, err = prefixpool.New()
 	})
@@ -135,6 +137,7 @@ func TestIntersect2(t *testing.T) {
 func TestReleaseExcludePrefixes(t *testing.T) {
 	pool, err := prefixpool.New("10.20.0.0/16")
 	require.Nil(t, err)
+
 	excludedPrefix := []string{"10.20.1.10/24", "10.20.32.0/19"}
 
 	excluded, err := pool.ExcludePrefixes(excludedPrefix)
@@ -166,6 +169,7 @@ func TestReleaseExcludePrefixesNestedNetworks(t *testing.T) {
 func TestReleaseExcludePrefixesNoOverlap(t *testing.T) {
 	pool, err := prefixpool.New("10.20.0.0/16")
 	require.Nil(t, err)
+
 	excludedPrefix := []string{"10.32.0.0/16"}
 
 	excluded, err := pool.ExcludePrefixes(excludedPrefix)
@@ -181,6 +185,7 @@ func TestReleaseExcludePrefixesNoOverlap(t *testing.T) {
 func TestReleaseExcludePrefixesFullOverlap(t *testing.T) {
 	pool, err := prefixpool.New("10.20.0.0/16", "2.20.0.0/16")
 	require.Nil(t, err)
+
 	excludedPrefix := []string{"2.20.0.0/8"}
 
 	excluded, err := pool.ExcludePrefixes(excludedPrefix)
@@ -196,6 +201,7 @@ func TestReleaseExcludePrefixesFullOverlap(t *testing.T) {
 func TestExcludePrefixesPartialOverlap(t *testing.T) {
 	pool, err := prefixpool.New("10.20.0.0/16", "10.32.0.0/16")
 	require.Nil(t, err)
+
 	excludedPrefix := []string{"10.20.1.10/24", "10.20.32.0/19"}
 
 	_, err = pool.ExcludePrefixes(excludedPrefix)
@@ -207,6 +213,7 @@ func TestExcludePrefixesPartialOverlap(t *testing.T) {
 func TestExcludePrefixesPartialOverlapSmallNetworks(t *testing.T) {
 	pool, err := prefixpool.New("10.20.0.0/16")
 	require.Nil(t, err)
+
 	excludedPrefix := []string{"10.20.1.0/30", "10.20.10.0/30", "10.20.20.0/30", "10.20.20.20/30", "10.20.40.20/30"}
 
 	_, err = pool.ExcludePrefixes(excludedPrefix)
@@ -218,6 +225,7 @@ func TestExcludePrefixesPartialOverlapSmallNetworks(t *testing.T) {
 func TestExcludePrefixesNoOverlap(t *testing.T) {
 	pool, err := prefixpool.New("10.20.0.0/16")
 	require.Nil(t, err)
+
 	excludedPrefix := []string{"10.32.1.0/16"}
 
 	_, err = pool.ExcludePrefixes(excludedPrefix)
@@ -229,6 +237,7 @@ func TestExcludePrefixesNoOverlap(t *testing.T) {
 func TestExcludePrefixesFullOverlap(t *testing.T) {
 	pool, err := prefixpool.New("10.20.0.0/24")
 	require.Nil(t, err)
+
 	excludedPrefix := []string{"10.20.1.0/16"}
 
 	_, err = pool.ExcludePrefixes(excludedPrefix)
@@ -240,6 +249,7 @@ func TestPrefixPoolValidation(t *testing.T) {
 	_, err := prefixpool.New("10.20.0.0/24")
 	require.Nil(t, err)
 	_, err = prefixpool.New("10.20.0.0/56")
+
 	if assert.Error(t, err) {
 		expectedErr := &net.ParseError{Type: "CIDR address", Text: "10.20.0.0/56"}
 		withStachErr := errors.Wrapf(expectedErr, "failed to parse %s as CIDR", "10.20.0.0/56")

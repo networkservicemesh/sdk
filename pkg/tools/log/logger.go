@@ -91,7 +91,7 @@ func WithLog(ctx context.Context, log ...Logger) context.Context {
 
 // IsTracingEnabled - checks if it is allowed to use traces.
 func IsTracingEnabled() bool {
-	// TODO: Rework this within https://github.com/networkservicemesh/sdk/issues/1272
+	//nolint:nolintlint // TODO: Rework this within https://github.com/networkservicemesh/sdk/issues/1272
 	return atomic.LoadInt32(&isTracingEnabled) != 0
 }
 

@@ -44,7 +44,6 @@ func testSwitchServer(t *testing.T, conditions []switchcase.Condition, expected 
 
 	var cases []*switchcase.ServerCase
 	for i, cond := range conditions {
-		i := i
 		cases = append(cases, &switchcase.ServerCase{
 			Condition: cond,
 			Server: checkcontext.NewServer(t, func(*testing.T, context.Context) {

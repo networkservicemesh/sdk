@@ -214,6 +214,7 @@ func TestInterdomainFloatingNetworkServiceRegistry(t *testing.T) {
 
 	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.Nil(t, err)
+
 	defer func() {
 		_ = cc.Close()
 	}()

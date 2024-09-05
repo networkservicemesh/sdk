@@ -222,6 +222,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		clockMock.Add(expireTimeout / 10)
 	}
+
 	require.Eventually(t, cloneClient.validator(count+1), testWait, testTick)
 	require.Never(t, cloneClient.validator(count+5), testWait, testTick)
 }
@@ -291,6 +292,7 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	nsc := domain.Nodes[1].NewClient(ctx, nscTokenGenerator)
 
 	refreshSrv.beforeRequest("test-conn")
+
 	_, err = nsc.Request(ctx, mkRequest("test-conn", nil))
 	require.NoError(t, err)
 	refreshSrv.afterRequest()
@@ -365,10 +367,12 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 	countClient := &countutil.Client{}
 
 	const timeoutDelta = 10 * time.Millisecond
+
 	for _, testDataElement := range testData {
 		clockMock.Reset(timeNow)
 
 		var pathChain []networkservice.NetworkServiceClient
+
 		clientChain := []networkservice.NetworkServiceClient{
 			begin.NewClient(),
 			metadata.NewClient(),

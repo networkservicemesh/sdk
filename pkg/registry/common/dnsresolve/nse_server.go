@@ -87,7 +87,7 @@ func translateNSE(nse *registry.NetworkServiceEndpoint, translator func(string) 
 	}
 }
 
-// TODO: consider to return error if NSE is not consistent and have multi domains target.
+//nolint:nolintlint // TODO: consider to return error if NSE is not consistent and have multi domains target.
 func resolveNSE(nse *registry.NetworkServiceEndpoint) string {
 	var domain string
 
@@ -104,7 +104,6 @@ func resolveNSE(nse *registry.NetworkServiceEndpoint) string {
 func (d *dnsNSEResolveServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	domain := resolveNSE(nse)
 	u, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
-
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +146,6 @@ func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s re
 	ctx := s.Context()
 	domain := resolveNSE(q.NetworkServiceEndpoint)
 	nsmgrProxyURL, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
-
 	if err != nil {
 		return err
 	}
@@ -168,7 +166,6 @@ func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s re
 func (d *dnsNSEResolveServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	domain := resolveNSE(nse)
 	u, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
-
 	if err != nil {
 		return nil, err
 	}

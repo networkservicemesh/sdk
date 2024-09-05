@@ -90,7 +90,6 @@ func (m *monitorServer) Close(ctx context.Context, conn *networkservice.Connecti
 func (m *monitorServer) monitorNetworkService(monitorCtx context.Context, conn *networkservice.Connection, factory begin.EventFactory) {
 	logger := log.FromContext(monitorCtx).WithField("monitorServer", "Find")
 	for ; monitorCtx.Err() == nil; time.Sleep(time.Millisecond * 100) {
-		// nolint:govet
 		stream, err := m.nsClient.Find(monitorCtx, &registry.NetworkServiceQuery{
 			Watch: true,
 			NetworkService: &registry.NetworkService{

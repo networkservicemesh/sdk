@@ -133,7 +133,6 @@ func TestClientInfo(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			err := setEnvs(tc.envs)
 			require.NoError(t, err)

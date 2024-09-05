@@ -88,7 +88,6 @@ func findFilesByPath(mask string) ([]string, error) {
 	var result []string
 	set := make(map[string]struct{})
 	r, err := regexp.Compile("^" + mask + "$")
-
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to compile regexp: ^%s$", mask)
 	}

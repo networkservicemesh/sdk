@@ -36,6 +36,7 @@ import (
 )
 
 // This test reproduces the situation when refresh changes the eventFactory context
+//
 //nolint:dupl
 func TestContextValues_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -87,8 +88,7 @@ func TestContextValues_Server(t *testing.T) {
 	eventFactoryServ.callRefresh()
 }
 
-// This test reproduces the situation when Close and Request were called at the same time
-// nolint:dupl
+// This test reproduces the situation when Close and Request were called at the same time.
 func TestRefreshDuringClose_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 

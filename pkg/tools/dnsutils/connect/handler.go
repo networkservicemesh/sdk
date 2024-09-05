@@ -42,7 +42,6 @@ func (c *connectDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter,
 	}
 
 	resp, _, err := client.Exchange(msg, c.connectTO.Host)
-
 	if err != nil {
 		log.FromContext(ctx).WithField("connectDNSHandler", "ServeDNS").Warnf("got an error during exchanging: %v", err.Error())
 		dns.HandleFailed(rp, msg)

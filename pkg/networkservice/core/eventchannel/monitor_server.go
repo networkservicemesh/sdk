@@ -94,7 +94,7 @@ func (m *monitorConnectionServer) eventLoop() {
 						Connections: networkservice.FilterMapOnManagerScopeSelector(e.GetConnections(), m.selectors[i]),
 					}
 					if filteredEvent.GetType() == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(filteredEvent.GetConnections()) > 0 {
-						// TODO - figure out what if any error handling to do here
+						//nolint:nolintlint // TODO - figure out what if any error handling to do here
 						_ = srv.Send(filteredEvent)
 					}
 				}

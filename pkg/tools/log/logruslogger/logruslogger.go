@@ -257,7 +257,7 @@ func fromContext(ctx context.Context) *traceCtxInfo {
 func (s *traceLogger) getSpan() string {
 	if s.span != nil {
 		spanStr := s.span.ToString()
-		if len(spanStr) > 0 && spanStr != "{}" {
+		if spanStr != "" && spanStr != "{}" {
 			return fmt.Sprintf(" span=%v", spanStr)
 		}
 	}

@@ -245,6 +245,7 @@ func TestDontCallNextByItself(t *testing.T) {
 	assert.Equal(t, 2, len(ch))
 }
 
+//nolint:dupl
 func TestMetrics(t *testing.T) {
 	s := server()
 	metricsKey := "server_interface"

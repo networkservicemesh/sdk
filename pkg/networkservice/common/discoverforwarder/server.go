@@ -114,7 +114,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 
 	candidatesErr := errors.New("all forwarders have failed")
 
-	// TODO: Should we consider about load balancing?
+	//nolint:nolintlint // TODO: Should we consider about load balancing?
 	// https://github.com/networkservicemesh/sdk/issues/790
 	for i, candidate := range nses {
 		u, err := url.Parse(candidate.GetUrl())

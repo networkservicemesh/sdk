@@ -363,7 +363,6 @@ func TestRefreshNextError(t *testing.T) {
 	validateConn(t, conn, "192.168.0.2/32", "192.168.0.3/32")
 }
 
-
 func TestServers(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -394,7 +393,6 @@ func TestServers(t *testing.T) {
 	require.NoError(t, err)
 	validateConns(t, conn4, []string{"192.168.0.4/32", "fd00::4/128"}, []string{"192.168.0.5/32", "fd00::5/128"})
 }
-
 
 func TestRefreshRequestMultiServer(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
@@ -496,7 +494,6 @@ func TestRecoveryServerIPv6(t *testing.T) {
 	require.NoError(t, err)
 	validateConn(t, conn3, "fe80::fa00/128", "fe80::fa01/128")
 }
-
 
 func TestRecoveryServers(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")

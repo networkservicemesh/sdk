@@ -179,7 +179,7 @@ func TestFilePrefixesChanged(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		_, err = server.Request(context.Background(), req)
-		fmt.Printf("%v\n", prefixesAfterServer)
+		fmt.Printf("%v\n", prefixesAfterServer) //nolint:forbidigo
 		return cmp.Equal(prefixesAfterServer, append(diffPrefxies, newFilePrefixes...), cmp.Transformer("Sort", func(in []string) []string {
 			out := append([]string(nil), in...)
 			sort.Strings(out)

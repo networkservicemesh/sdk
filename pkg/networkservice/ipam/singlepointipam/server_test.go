@@ -368,7 +368,6 @@ func TestRefreshNextError(t *testing.T) {
 	validateConn(t, conn, "192.168.0.2/16")
 }
 
-
 func TestServers(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -399,7 +398,6 @@ func TestServers(t *testing.T) {
 	require.NoError(t, err)
 	validateConns(t, conn4, []string{"192.168.0.3/16", "fd00::3/8"})
 }
-
 
 func TestRefreshRequestMultiServer(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
