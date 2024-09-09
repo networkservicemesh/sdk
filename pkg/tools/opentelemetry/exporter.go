@@ -45,7 +45,6 @@ func InitSpanExporter(ctx context.Context, exporterURL string) trace.SpanExporte
 		otlptracegrpc.WithEndpoint(exporterURL),
 		otlptracegrpc.WithDialOption(grpc.WithBlock()))
 	exporter, err := otlptrace.New(ctx, traceClient)
-
 	if err != nil {
 		log.FromContext(ctx).Fatal(err)
 		return nil

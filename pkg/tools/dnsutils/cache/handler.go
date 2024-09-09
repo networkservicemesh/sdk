@@ -98,7 +98,7 @@ func validateMsg(m *dns.Msg) bool {
 	return true
 }
 
-// NewDNSHandler creates a new dns handler that stores successful requests to DNS server
+// NewDNSHandler creates a new dns handler that stores successful requests to DNS server.
 func NewDNSHandler() dnsutils.Handler {
 	return &dnsCacheHandler{
 		cache:         new(genericsync.Map[dns.Question, *dns.Msg]),

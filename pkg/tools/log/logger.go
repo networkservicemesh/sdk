@@ -35,7 +35,7 @@ var (
 	globalLogger     Logger = Default()
 )
 
-// Logger - unified interface for logging
+// Logger - unified interface for logging.
 type Logger interface {
 	Info(v ...interface{})
 	Infof(format string, v ...interface{})
@@ -55,7 +55,7 @@ type Logger interface {
 	WithField(key, value interface{}) Logger
 }
 
-// L returns the global Logger
+// L returns the global Logger.
 func L() Logger {
 	return globalLogger
 }
@@ -66,7 +66,7 @@ func SetGlobalLogger(logger Logger) {
 	globalLogger = logger
 }
 
-// FromContext - returns logger from context
+// FromContext - returns logger from context.
 func FromContext(ctx context.Context) Logger {
 	rv, ok := ctx.Value(logKey).(Logger)
 	if ok {
@@ -75,7 +75,7 @@ func FromContext(ctx context.Context) Logger {
 	return L()
 }
 
-// Join - concatenates new logger with existing loggers
+// Join - concatenates new logger with existing loggers.
 func Join(ctx context.Context, log Logger) context.Context {
 	rv, ok := ctx.Value(logKey).(Logger)
 	if ok {
@@ -84,18 +84,18 @@ func Join(ctx context.Context, log Logger) context.Context {
 	return WithLog(ctx, log)
 }
 
-// WithLog - creates new context with `log` inside
+// WithLog - creates new context with `log` inside.
 func WithLog(ctx context.Context, log ...Logger) context.Context {
 	return context.WithValue(ctx, logKey, Combine(log...))
 }
 
-// IsTracingEnabled - checks if it is allowed to use traces
+// IsTracingEnabled - checks if it is allowed to use traces.
 func IsTracingEnabled() bool {
-	// TODO: Rework this within https://github.com/networkservicemesh/sdk/issues/1272
+	//nolint:nolintlint // TODO: Rework this within https://github.com/networkservicemesh/sdk/issues/1272
 	return atomic.LoadInt32(&isTracingEnabled) != 0
 }
 
-// EnableTracing - enable/disable traces
+// EnableTracing - enable/disable traces.
 func EnableTracing(enable bool) {
 	if enable {
 		atomic.StoreInt32(&isTracingEnabled, 1)

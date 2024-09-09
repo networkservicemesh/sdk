@@ -36,7 +36,8 @@ import (
 )
 
 // This test reproduces the situation when refresh changes the eventFactory context
-// nolint:dupl
+//
+//nolint:dupl
 func TestContextValues_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -87,8 +88,7 @@ func TestContextValues_Server(t *testing.T) {
 	eventFactoryServ.callRefresh()
 }
 
-// This test reproduces the situation when Close and Request were called at the same time
-// nolint:dupl
+// This test reproduces the situation when Close and Request were called at the same time.
 func TestRefreshDuringClose_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -130,7 +130,7 @@ func TestRefreshDuringClose_Server(t *testing.T) {
 	eventFactoryServ.callRefresh()
 }
 
-// This test checks if the timeout for the Request/Close called from the event factory is correct
+// This test checks if the timeout for the Request/Close called from the event factory is correct.
 func TestContextTimeout_Server(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -206,14 +206,14 @@ const failedNSENameServer = "failedNSE"
 type failedNSEServer struct{}
 
 func (f *failedNSEServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if request.GetConnection().NetworkServiceEndpointName == failedNSENameServer {
+	if request.GetConnection().GetNetworkServiceEndpointName() == failedNSENameServer {
 		return nil, errors.New("failed")
 	}
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (f *failedNSEServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
-	if conn.NetworkServiceEndpointName == failedNSENameServer {
+	if conn.GetNetworkServiceEndpointName() == failedNSENameServer {
 		return nil, errors.New("failed")
 	}
 	return next.Server(ctx).Close(ctx, conn)

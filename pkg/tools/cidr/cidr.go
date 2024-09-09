@@ -22,13 +22,13 @@ import (
 	"net"
 )
 
-// NetworkAddress teturns the first IP address of an IP network
+// NetworkAddress teturns the first IP address of an IP network.
 func NetworkAddress(ipNet *net.IPNet) net.IP {
 	prefixNetwork := ipNet.IP.Mask(ipNet.Mask)
 	return prefixNetwork
 }
 
-// BroadcastAddress returns the last IP address of an IP network
+// BroadcastAddress returns the last IP address of an IP network.
 func BroadcastAddress(ipNet *net.IPNet) net.IP {
 	first := NetworkAddress(ipNet)
 	ones, bits := ipNet.Mask.Size()

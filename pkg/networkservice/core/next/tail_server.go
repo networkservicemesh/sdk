@@ -25,7 +25,7 @@ import (
 )
 
 // tailServer is a simple implementation of networkservice.NetworkServiceServer that is called at the end of a chain
-// to insure that we never call a method on a nil object
+// to insure that we never call a method on a nil object.
 type tailServer struct{}
 
 func (t *tailServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {

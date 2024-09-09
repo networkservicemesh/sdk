@@ -54,7 +54,7 @@ func (c *checkNSContext) Unregister(ctx context.Context, ns *registry.NetworkSer
 func TestDNSResolve_CorrectUsecase(t *testing.T) {
 	const srv = "service1"
 
-	var resolver = sandbox.NewFakeResolver()
+	resolver := sandbox.NewFakeResolver()
 
 	u, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestDNSResolve_CorrectUsecase(t *testing.T) {
 func TestDNSResolve_LoopUsecase(t *testing.T) {
 	const srv = "service1"
 
-	var resolver = sandbox.NewFakeResolver()
+	resolver := sandbox.NewFakeResolver()
 
 	u, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)

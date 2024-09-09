@@ -131,8 +131,8 @@ func after(ctx context.Context, conn *networkservice.Connection) time.Duration {
 	// Update interval is within 0.2*expirationTime .. 0.4*expirationTime
 	scale := 1. / 3.
 	path := conn.GetPath()
-	if len(path.PathSegments) > 1 {
-		scale = 0.2 + 0.2*float64(path.Index)/float64(len(path.PathSegments))
+	if len(path.GetPathSegments()) > 1 {
+		scale = 0.2 + 0.2*float64(path.GetIndex())/float64(len(path.GetPathSegments()))
 	}
 	duration := time.Duration(float64(*minTimeout) * scale)
 

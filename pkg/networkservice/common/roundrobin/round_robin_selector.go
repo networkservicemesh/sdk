@@ -25,7 +25,7 @@ import (
 )
 
 type roundRobinSelector struct {
-	// TODO - replace this with something like a sync.Map that doesn't require us to lock all requests for a simple
+	//nolint:nolintlint //TODO - replace this with something like a sync.Map that doesn't require us to lock all requests for a simple
 	// selection
 	sync.Mutex
 	roundRobin map[string]int

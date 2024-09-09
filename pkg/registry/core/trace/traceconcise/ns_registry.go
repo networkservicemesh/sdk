@@ -164,7 +164,7 @@ func (t *conciseNetworkServiceRegistryClient) Unregister(ctx context.Context, in
 	return rv, nil
 }
 
-// NewNetworkServiceRegistryClient - wraps registry.NetworkServiceRegistryClient with tracing
+// NewNetworkServiceRegistryClient - wraps registry.NetworkServiceRegistryClient with tracing.
 func NewNetworkServiceRegistryClient(traced registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	return &conciseNetworkServiceRegistryClient{traced: traced}
 }
@@ -263,7 +263,7 @@ func (t *conciseNetworkServiceRegistryServer) Unregister(ctx context.Context, in
 	return rv, nil
 }
 
-// NewNetworkServiceRegistryServer - wraps registry.NetworkServiceRegistryServer with tracing
+// NewNetworkServiceRegistryServer - wraps registry.NetworkServiceRegistryServer with tracing.
 func NewNetworkServiceRegistryServer(traced registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	return &conciseNetworkServiceRegistryServer{traced: traced}
 }

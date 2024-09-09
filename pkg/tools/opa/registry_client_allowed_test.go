@@ -55,7 +55,7 @@ func TestRegistryClientAllowedPolicy(t *testing.T) {
 	ctx := context.Background()
 
 	for _, sample := range samples {
-		var input = testInput{
+		input := testInput{
 			ResourcePathIdsMap: resourcePathIdsMap,
 			ResourceName:       sample.name,
 			ResourceID:         sample.id,

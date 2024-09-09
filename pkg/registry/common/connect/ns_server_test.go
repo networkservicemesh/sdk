@@ -83,7 +83,7 @@ func waitNSServerStarted(target *url.URL) error {
 		if err != nil {
 			return err
 		}
-		if response.Status == grpc_health_v1.HealthCheckResponse_SERVING {
+		if response.GetStatus() == grpc_health_v1.HealthCheckResponse_SERVING {
 			return nil
 		}
 	}
@@ -145,14 +145,14 @@ func TestConnectNSServer_AllUnregister(t *testing.T) {
 		Name: "ns-1",
 	}}, findSrv)
 	require.NoError(t, err)
-	require.Equal(t, (<-ch).NetworkService.Name, "ns-1")
+	require.Equal(t, (<-ch).GetNetworkService().GetName(), "ns-1")
 
 	findSrv = streamchannel.NewNetworkServiceFindServer(clienturlctx.WithClientURL(ctx, url2), ch)
 	err = s.Find(&registry.NetworkServiceQuery{NetworkService: &registry.NetworkService{
 		Name: "ns-1-1",
 	}}, findSrv)
 	require.NoError(t, err)
-	require.Equal(t, (<-ch).NetworkService.Name, "ns-1-1")
+	require.Equal(t, (<-ch).GetNetworkService().GetName(), "ns-1-1")
 
 	_, err = s.Unregister(clienturlctx.WithClientURL(ctx, url1), &registry.NetworkService{Name: "ns-1"})
 	require.NoError(t, err)
@@ -247,18 +247,18 @@ func TestConnectNSServer_AllDead_WatchingFind(t *testing.T) {
 func Test_NSConenctChain_Find(t *testing.T) {
 	for depth := 2; depth < 11; depth++ {
 		for killIndex := 1; killIndex < depth; killIndex++ {
-			var ctx, cancel = context.WithTimeout(context.Background(), time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
 
-			var urls = make([]*url.URL, depth)
+			urls := make([]*url.URL, depth)
 
-			var servers = make([]*struct {
+			servers := make([]*struct {
 				registry.NetworkServiceRegistryServer
 				kill func()
 			}, depth)
 
 			for i := 0; i < depth; i++ {
-				var serverCtx, serverCancel = context.WithCancel(ctx)
+				serverCtx, serverCancel := context.WithCancel(ctx)
 
 				servers[i] = &struct {
 					registry.NetworkServiceRegistryServer

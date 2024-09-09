@@ -30,6 +30,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/pkg/errors"
 	"google.golang.org/grpc/credentials"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -61,19 +62,20 @@ func generateCA() (tls.Certificate, error) {
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		return tls.Certificate{}, err
+		return tls.Certificate{}, errors.Wrap(err, "failed to ecdsa.GenerateKey")
 	}
+
 	pub := &priv.PublicKey
 
 	certBytes, err := x509.CreateCertificate(rand.Reader, ca, ca, pub, priv)
 	if err != nil {
-		return tls.Certificate{}, err
+		return tls.Certificate{}, errors.Wrap(err, "failed to x509.CreateCertificate")
 	}
 
 	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 	keyBytes, err := x509.MarshalECPrivateKey(priv)
 	if err != nil {
-		return tls.Certificate{}, err
+		return tls.Certificate{}, errors.Wrap(err, "failed to x509.MarshalECPrivateKey")
 	}
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: keyBytes})
 	return tls.X509KeyPair(certPem, keyPem)
@@ -119,6 +121,7 @@ func generateKeyPair(spiffeID, domain string, caTLS *tls.Certificate) (tls.Certi
 	if err != nil {
 		return tls.Certificate{}, nil
 	}
+
 	pub := &priv.PublicKey
 
 	ca, err := x509.ParseCertificate(caTLS.Certificate[0])
@@ -134,7 +137,7 @@ func generateKeyPair(spiffeID, domain string, caTLS *tls.Certificate) (tls.Certi
 	certPem := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 	keyBytes, err := x509.MarshalECPrivateKey(priv)
 	if err != nil {
-		return tls.Certificate{}, err
+		return tls.Certificate{}, errors.Wrap(err, "failed to x509.MarshalECPrivateKey")
 	}
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyBytes})
 	return tls.X509KeyPair(certPem, keyPem)

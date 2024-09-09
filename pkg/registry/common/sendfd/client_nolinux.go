@@ -29,7 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 )
 
-// NewNetworkServiceEndpointRegistryClient - creates a Client that if endpoint.Url is of scheme "unix" will replace it with an "inode" scheme url and send the FD over the unix socket
+// NewNetworkServiceEndpointRegistryClient - creates a Client that if endpoint.Url is of scheme "unix" will replace it with an "inode" scheme url and send the FD over the unix socket.
 func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
 	return null.NewNetworkServiceEndpointRegistryClient()
 }

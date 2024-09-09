@@ -37,9 +37,9 @@ type dnsNSResolveClient struct {
 	registryService string
 }
 
-// NewNetworkServiceRegistryClient creates new NetworkServiceRegistryClient that can resolve passed domain to clienturl
+// NewNetworkServiceRegistryClient creates new NetworkServiceRegistryClient that can resolve passed domain to clienturl.
 func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
-	var clientOptions = &options{
+	clientOptions := &options{
 		resolver:        net.DefaultResolver,
 		registryService: DefaultRegistryService,
 	}
@@ -57,19 +57,19 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 }
 
 func (d *dnsNSResolveClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	domain := interdomain.Domain(ns.Name)
+	domain := interdomain.Domain(ns.GetName())
 	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
-	ns.Name = interdomain.Target(ns.Name)
+	ns.Name = interdomain.Target(ns.GetName())
 	resp, err := next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	resp.Name = interdomain.Join(resp.Name, domain)
+	resp.Name = interdomain.Join(resp.GetName(), domain)
 
 	return resp, nil
 }
@@ -84,13 +84,13 @@ func (c *dnsNSResolveFindClient) Recv() (*registry.NetworkServiceResponse, error
 	if err != nil {
 		return resp, err
 	}
-	resp.NetworkService.Name = interdomain.Join(resp.NetworkService.Name, c.domain)
+	resp.NetworkService.Name = interdomain.Join(resp.GetNetworkService().GetName(), c.domain)
 
 	return resp, nil
 }
 
 func (d *dnsNSResolveClient) Find(ctx context.Context, q *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	domain := interdomain.Domain(q.NetworkService.Name)
+	domain := interdomain.Domain(q.GetNetworkService().GetName())
 	if domain == "" {
 		return nil, errors.New("domain cannot be empty")
 	}
@@ -99,7 +99,7 @@ func (d *dnsNSResolveClient) Find(ctx context.Context, q *registry.NetworkServic
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
-	q.NetworkService.Name = interdomain.Target(q.NetworkService.Name)
+	q.NetworkService.Name = interdomain.Target(q.GetNetworkService().GetName())
 
 	resp, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, q, opts...)
 	if err != nil {
@@ -113,15 +113,15 @@ func (d *dnsNSResolveClient) Find(ctx context.Context, q *registry.NetworkServic
 }
 
 func (d *dnsNSResolveClient) Unregister(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	domain := interdomain.Domain(ns.Name)
+	domain := interdomain.Domain(ns.GetName())
 	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
-	ns.Name = interdomain.Target(ns.Name)
+	ns.Name = interdomain.Target(ns.GetName())
 	defer func() {
-		ns.Name = interdomain.Join(ns.Name, domain)
+		ns.Name = interdomain.Join(ns.GetName(), domain)
 	}()
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, ns, opts...)
 }

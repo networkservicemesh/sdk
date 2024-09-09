@@ -30,14 +30,14 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-// Server is a server type for counting Requests/Closes
+// Server is a server type for counting Requests/Closes.
 type Server struct {
 	totalRequests, TotalCloses int32
 	requests, closes           map[string]int32
 	mu                         sync.Mutex
 }
 
-// Request performs request and increments requests count
+// Request performs request and increments requests count.
 func (s *Server) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	s.mu.Lock()
 
@@ -51,7 +51,7 @@ func (s *Server) Request(ctx context.Context, request *networkservice.NetworkSer
 	return next.Server(ctx).Request(ctx, request)
 }
 
-// Close performs close and increments closes count
+// Close performs close and increments closes count.
 func (s *Server) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	s.mu.Lock()
 
@@ -65,17 +65,17 @@ func (s *Server) Close(ctx context.Context, connection *networkservice.Connectio
 	return next.Server(ctx).Close(ctx, connection)
 }
 
-// Requests returns requests count
+// Requests returns requests count.
 func (s *Server) Requests() int {
 	return int(atomic.LoadInt32(&s.totalRequests))
 }
 
-// Closes returns closes count
+// Closes returns closes count.
 func (s *Server) Closes() int {
 	return int(atomic.LoadInt32(&s.TotalCloses))
 }
 
-// UniqueRequests returns unique requests count
+// UniqueRequests returns unique requests count.
 func (s *Server) UniqueRequests() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -86,7 +86,7 @@ func (s *Server) UniqueRequests() int {
 	return len(s.requests)
 }
 
-// UniqueCloses returns unique closes count
+// UniqueCloses returns unique closes count.
 func (s *Server) UniqueCloses() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -79,7 +79,7 @@ func TestIsItWorkCorrect(t *testing.T) {
 	require.NoError(t, err)
 
 	prefix := p.String() + "/24"
-	fmt.Println(prefix)
+	fmt.Println(prefix) //nolint:forbidigo
 
 	pool2 := NewWithNetString(prefix)
 	pool2.ExcludeString("192.168.0.0/30")
@@ -161,7 +161,6 @@ func TestIPPoolTool_Exclude(t *testing.T) {
 	require.Equal(t, ipPool.size, uint64(2))
 }
 
-//nolint:dupl
 func TestIPPoolTool_Pull(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -196,7 +195,6 @@ func TestIPPoolTool_Pull(t *testing.T) {
 	require.Error(t, err)
 }
 
-//nolint:dupl
 func TestIPPoolTool_PullIP(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -215,7 +213,6 @@ func TestIPPoolTool_PullIP(t *testing.T) {
 	require.Error(t, err)
 }
 
-//nolint:dupl
 func TestIPPoolTool_GetPrefixes(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/16")
 	require.NotNil(t, ipPool)
@@ -243,7 +240,6 @@ func TestIPPoolTool_GetPrefixes(t *testing.T) {
 	require.Equal(t, prefixes[2], "192.15.0.0/32")
 }
 
-//nolint:dupl
 func TestIPPoolTool_PullP2PAddrs(t *testing.T) {
 	ipPool := NewWithNetString("192.0.0.0/8")
 	require.NotNil(t, ipPool)
@@ -325,7 +321,6 @@ func TestIPPoolTool_IPv6Exclude(t *testing.T) {
 	require.Equal(t, ipPool.size, uint64(1))
 }
 
-//nolint:dupl
 func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
@@ -355,7 +350,6 @@ func TestIPPoolTool_IPv6Pull(t *testing.T) {
 	require.Error(t, err)
 }
 
-//nolint:dupl
 func TestIPPoolTool_IPv6PullIP(t *testing.T) {
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
@@ -374,7 +368,6 @@ func TestIPPoolTool_IPv6PullIP(t *testing.T) {
 	require.Error(t, err)
 }
 
-//nolint:dupl
 func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
 	ipPool := NewWithNetString("::/32")
 	require.NotNil(t, ipPool)
@@ -396,7 +389,6 @@ func TestIPPoolTool_IPv6PullP2PAddrs(t *testing.T) {
 	require.Equal(t, srcIP.String(), "::4")
 }
 
-//nolint:dupl
 func TestIPPoolTool_IPv6GetPrefixes(t *testing.T) {
 	ipPool := NewWithNetString("fe80::/112")
 	require.NotNil(t, ipPool)

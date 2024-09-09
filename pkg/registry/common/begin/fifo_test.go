@@ -109,7 +109,7 @@ func TestFIFOSequence(t *testing.T) {
 
 	registrations := collector.registrations
 	for i, registration := range registrations {
-		require.Equal(t, registration.requestData.Url, expected[i].requestData.Url)
+		require.Equal(t, registration.requestData.GetUrl(), expected[i].requestData.GetUrl())
 		require.Equal(t, registration.requestType, expected[i].requestType)
 	}
 }
@@ -173,8 +173,7 @@ func (s *collectorServer) Unregister(ctx context.Context, in *registry.NetworkSe
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, in)
 }
 
-type delayServer struct {
-}
+type delayServer struct{}
 
 func (s *delayServer) Register(ctx context.Context, in *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	n, _ := rand.Int(rand.Reader, big.NewInt(90))

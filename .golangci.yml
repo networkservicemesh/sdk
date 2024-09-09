@@ -1,7 +1,7 @@
 ---
 run:
   # concurrency: 6
-  go: "1.20"
+  go: "1.23"
   timeout: 2m
   issues-exit-code: 1
   tests: true
@@ -17,7 +17,8 @@ linters-settings:
     check-type-assertions: false
     check-blank: false
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
     settings:
       printf:
         funcs:
@@ -25,19 +26,15 @@ linters-settings:
           - (github.com/sirupsen/logrus.FieldLogger).Warnf
           - (github.com/sirupsen/logrus.FieldLogger).Errorf
           - (github.com/sirupsen/logrus.FieldLogger).Fatalf
-  golint:
-    min-confidence: 0.8
   goimports:
     local-prefixes: github.com/networkservicemesh/sdk
   gocyclo:
     min-complexity: 15
-  maligned:
-    suggest-new: true
   dupl:
     threshold: 150
   funlen:
-    Lines: 120
-    Statements: 60
+    lines: 120
+    statements: 60
   goconst:
     min-len: 2
     min-occurrences: 2
@@ -57,107 +54,125 @@ linters-settings:
     simple: true
     range-loops: true
     for-loops: false
+  varnamelen:
+    ignore-names:
+      - i
+      - p
+      - pp
+      - x
+      - ca
+      - id
+      - s
+      - wg
+      - ch
+      - o
+      - in
+      - di
+      - rv
+      - ok
+      - m
+      - k
+  gosec:
+    excludes:
+      - G115
+      - G301 # Fixable
+      - G302 # Fixable
+      - G306 # Fixable
+  gocognit:
+    min-complexity: 35 # Default: 30
+  gofumpt:
+    module-path: github.com/networkservicemesh/sdk
   gocritic:
     enabled-checks:
-      - appendAssign
-      - assignOp
       - appendCombine
-      - argOrder
-      - badCall
-      - badCond
       - boolExprSimplify
       - builtinShadow
-      - captLocal
-      - caseOrder
-      - codegenComment
-      - commentFormatting
       - commentedOutCode
       - commentedOutImport
-      - defaultCaseOrder
-      - deprecatedComment
       - docStub
-      - dupArg
-      - dupBranchBody
-      - dupCase
       - dupImport
-      - dupSubExpr
-      - elseif
       - emptyFallthrough
       - emptyStringTest
       - equalFold
       - evalOrder
-      - exitAfterDefer
-      - flagDeref
-      - flagName
       - hexLiteral
       - hugeParam
-      - ifElseChain
       - importShadow
       - indexAlloc
       - initClause
       - methodExprCall
       - nestingReduce
-      - newDeref
       - nilValReturn
       - octalLiteral
-      - offBy1
       - paramTypeCombine
       - rangeExprCopy
       - rangeValCopy
-      - regexpMust
       - regexpPattern
-      - singleCaseSwitch
-      - sloppyLen
       - sloppyReassign
       - stringXbytes
-      - switchTrue
       - typeAssertChain
-      - typeSwitchVar
       - typeUnparen
       - unlabelStmt
       - unnamedResult
       - unnecessaryBlock
-      - underef
-      - unlambda
-      - unslice
-      - valSwap
       - weakCond
-      - wrapperFunc
       - yodaStyleExpr
 linters:
-  disable-all: true
-  enable:
-    - goheader
-    - bodyclose
-    - deadcode
-    - depguard
-    - dogsled
-    - dupl
-    - errcheck
-    - funlen
-    - gochecknoinits
-    - goconst
-    - gocritic
-    - gocyclo
-    - gofmt
-    - goimports
-    - golint
-    - gosec
-    - gosimple
-    - govet
-    - ineffassign
-    - interfacer
-    - misspell
-    - nakedret
-    - scopelint
-    - staticcheck
-    - structcheck
-    - stylecheck
-    - typecheck
-    - unconvert
-    - unparam
-    - varcheck
-    - whitespace
+  enable-all: true
+  disable:
+    - exportloopref # The linter 'exportloopref' is deprecated (since v1.60.2) due to: Since Go1.22 (loopvar) this linter is no longer relevant. Replaced by copyloopvar.
+    - execinquery # The linter 'execinquery' is deprecated (since v1.58.0) due to: The repository of the linter has been archived by the owner.
+    - gomnd # The linter 'gomnd' is deprecated (since v1.58.0) due to: The linter has been renamed. Replaced by mnd.
+    - paralleltest # t.Parallel() adds on test run stage if required
+    - gci # It conflicts with goimports
+    - goheader # broken auto-fix with plenty errors
+
+    # New linters, that were not enabled or/either were not created on older linter version.
+    - wsl
+    - lll
+    - wrapcheck
+    - thelper
+    - wastedassign
+    - testifylint
+    - nlreturn
+    - nonamedreturns
+    - perfsprint
+    - varnamelen
+    - testpackage
+    - mnd
+    - musttag
+    - tagliatelle
+    - tenv
+    - nosprintfhostport
+    - nilnil
+    - spancheck
+    - nilerr
+    - ireturn
+    - testableexamples
+    - intrange
+    - gosmopolitan
+    - inamedparam
+    - interfacebloat
+    - gochecknoglobals
+    - goprintffuncname
+    - forcetypeassert
+    - exhaustruct
+    - fatcontext
+    - errchkjson
+    - exhaustive
+    - err113
+    - dupword
+    - durationcheck
+    - errorlint
+    - cyclop
+    - contextcheck
+    - containedctx
+    - unused
+    - revive
+    - protogetter
+    - predeclared
+    - prealloc
+    - nestif
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0

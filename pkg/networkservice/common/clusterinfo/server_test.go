@@ -32,14 +32,14 @@ import (
 func TestReadClusterName(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var path = filepath.Join(t.TempDir(), "clusterinfo.yaml")
+	path := filepath.Join(t.TempDir(), "clusterinfo.yaml")
 	require.NoError(t, os.WriteFile(path, []byte("CLUSTER_NAME: my-cluster1"), os.ModePerm))
 
-	var s = clusterinfo.NewServer(clusterinfo.WithConfigPath(path))
+	s := clusterinfo.NewServer(clusterinfo.WithConfigPath(path))
 
-	var resp, err = s.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{}})
+	resp, err := s.Request(context.Background(), &networkservice.NetworkServiceRequest{Connection: &networkservice.Connection{}})
 	require.NoError(t, err)
 
-	require.Len(t, resp.Labels, 1)
+	require.Len(t, resp.GetLabels(), 1)
 	require.Equal(t, "my-cluster1", resp.GetLabels()["CLUSTER_NAME"])
 }

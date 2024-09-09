@@ -33,7 +33,7 @@ type clusterinfoNSEServer struct {
 }
 
 func (n *clusterinfoNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	var m = make(map[string]string)
+	m := make(map[string]string)
 
 	if b, err := os.ReadFile(n.configPath); err == nil {
 		_ = yaml.Unmarshal(b, &m)
@@ -58,9 +58,9 @@ func (n *clusterinfoNSEServer) Unregister(ctx context.Context, nse *registry.Net
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }
 
-// NewNetworkServiceEndpointRegistryServer - returns a new clusterinfo server that adds clusterinfo labels into nse registration
+// NewNetworkServiceEndpointRegistryServer - returns a new clusterinfo server that adds clusterinfo labels into nse registration.
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
-	var r = &clusterinfoNSEServer{
+	r := &clusterinfoNSEServer{
 		configPath: "/etc/clusterinfo/config.yaml",
 	}
 	for _, opt := range opts {

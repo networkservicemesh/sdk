@@ -30,7 +30,7 @@ type setLabelsImpl struct {
 	values map[string]string
 }
 
-// NewServer - construct a set set extra chain element, and pass a set of values we could like to be added to connection object
+// NewServer - construct a set set extra chain element, and pass a set of values we could like to be added to connection object.
 func NewServer(values map[string]string) networkservice.NetworkServiceServer {
 	return &setLabelsImpl{
 		values: values,
@@ -38,10 +38,10 @@ func NewServer(values map[string]string) networkservice.NetworkServiceServer {
 }
 
 func (s *setLabelsImpl) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if request.Connection == nil {
+	if request.GetConnection() == nil {
 		request.Connection = &networkservice.Connection{}
 	}
-	if request.Connection.Context == nil {
+	if request.GetConnection().GetContext() == nil {
 		request.Connection.Context = &networkservice.ConnectionContext{}
 	}
 	if request.Connection.Context.ExtraContext == nil {

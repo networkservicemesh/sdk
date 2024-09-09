@@ -33,17 +33,17 @@ import (
 type clientInfoClient struct{}
 
 // NewNetworkServiceEndpointRegistryClient - creates a new networkservice.NetworkServiceEndpointRegistryClient chain element that adds pod, node and cluster names
-// to request from corresponding environment variables
+// to request from corresponding environment variables.
 func NewNetworkServiceEndpointRegistryClient() registry.NetworkServiceEndpointRegistryClient {
 	return &clientInfoClient{}
 }
 
 func (c *clientInfoClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	for _, v := range in.NetworkServiceLabels {
+	for _, v := range in.GetNetworkServiceLabels() {
 		if v.Labels == nil {
 			v.Labels = make(map[string]string)
 		}
-		clientinfo.AddClientInfo(ctx, v.Labels)
+		clientinfo.AddClientInfo(ctx, v.GetLabels())
 	}
 
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)

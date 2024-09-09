@@ -39,9 +39,9 @@ import (
 )
 
 const (
-	// Dlv - name of Dlv executable, also used as default prefix to env variable, ie, DLV_
+	// Dlv - name of Dlv executable, also used as default prefix to env variable, ie, DLV_.
 	Dlv = "dlv"
-	// Listen - string used as default second part of env variable, ie, _PORT in DLV_PORT
+	// Listen - string used as default second part of env variable, ie, _PORT in DLV_PORT.
 	Listen       = "listen"
 	envSeperator = "_"
 )
@@ -118,7 +118,7 @@ func Self(envVariableParts ...string) error {
 	return nil
 }
 
-// envVariable - convert the envVariableParts to a proper env variable
+// envVariable - convert the envVariableParts to a proper env variable.
 func envVariable(envVariableParts ...string) string {
 	env := strings.Join(envVariableParts, envSeperator)
 	rgx := regexp.MustCompile("[[:^alnum:]]")

@@ -29,7 +29,7 @@ import (
 type trimpathClient struct{}
 
 // NewClient - returns a client chain element that will indicate that any server containing trimpath.NewServer()
-// in the same chain should *not* trim the Connection.Path
+// in the same chain should *not* trim the Connection.Path.
 func NewClient() networkservice.NetworkServiceClient {
 	return &trimpathClient{}
 }

@@ -26,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// ListenAndServe - configures pprof http handlers
+// ListenAndServe - configures pprof http handlers.
 func ListenAndServe(ctx context.Context, listenOn string) {
 	log.FromContext(ctx).Infof("Profiler is enabled. Listening on %s", listenOn)
 	mux := http.NewServeMux()

@@ -27,17 +27,15 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-type grpcMetadataNSEServer struct {
-}
+type grpcMetadataNSEServer struct{}
 
-// NewNetworkServiceEndpointRegistryServer - returns grpcmetadata NSE server that receives metadata from client and sends it back
+// NewNetworkServiceEndpointRegistryServer - returns grpcmetadata NSE server that receives metadata from client and sends it back.
 func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
 	return &grpcMetadataNSEServer{}
 }
 
 func (s *grpcMetadataNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	path, err := fromContext(ctx)
-
 	if err != nil {
 		log.FromContext(ctx).Warnf("Register: failed to load grpc metadata from context: %v", err.Error())
 		return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse)
@@ -61,7 +59,6 @@ func (s *grpcMetadataNSEServer) Find(query *registry.NetworkServiceEndpointQuery
 
 func (s *grpcMetadataNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	path, err := fromContext(ctx)
-
 	if err != nil {
 		log.FromContext(ctx).Warnf("Unegister: failed to load grpc metadata from context: %v", err.Error())
 		return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)

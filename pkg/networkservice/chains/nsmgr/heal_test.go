@@ -53,7 +53,7 @@ const (
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name    string
 		nodeNum int
 	}{
@@ -69,7 +69,7 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testNSMGRHealEndpoint(t, sample.nodeNum)
 		})
 	}
@@ -91,12 +91,12 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	nse := domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -106,7 +106,7 @@ func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 
 	nse.Cancel()
 
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 	nseReg2.Name += "-2"
 	domain.Nodes[nodeNum].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
@@ -147,12 +147,12 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneBroken(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool {
 		return false
@@ -168,7 +168,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneBroken(t *testing.T) {
 
 	nse.Cancel()
 
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 	nseReg2.Name += "-2"
 	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
@@ -209,12 +209,12 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool { return false }
 
@@ -227,7 +227,7 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 	require.Equal(t, 1, counter.Requests())
 
 	// Create the second NSE.
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 	nseReg2.Name += "-2"
 	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
@@ -264,12 +264,12 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	livenessCheck := func(ctx context.Context, conn *networkservice.Connection) bool { return true }
 
@@ -283,7 +283,7 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 
 	nse.Cancel()
 
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 	nseReg2.Name += "-2"
 	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
 
@@ -293,7 +293,7 @@ func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
 }
 
 func TestNSMGR_HealForwarder(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name    string
 		nodeNum int
 	}{
@@ -309,7 +309,7 @@ func TestNSMGR_HealForwarder(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testNSMGRHealForwarder(t, sample.nodeNum)
 		})
 	}
@@ -333,9 +333,9 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 	require.NoError(t, err)
 
 	counter := new(count.Server)
-	domain.Nodes[1].NewEndpoint(ctx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken, counter)
+	domain.Nodes[1].NewEndpoint(ctx, defaultRegistryEndpoint(nsReg.GetName()), sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -373,7 +373,7 @@ func testNSMGRHealForwarder(t *testing.T, nodeNum int) {
 }
 
 func TestNSMGR_HealNSMgr(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name     string
 		nodeNum  int
 		restored bool
@@ -391,7 +391,7 @@ func TestNSMGR_HealNSMgr(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testNSMGRHealNSMgr(t, sample.nodeNum, sample.restored)
 		})
 	}
@@ -414,12 +414,12 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	domain.Nodes[1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -427,7 +427,7 @@ func testNSMGRHealNSMgr(t *testing.T, nodeNum int, restored bool) {
 	require.NoError(t, err)
 
 	if !restored {
-		nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+		nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 		nseReg2.Name += "-2"
 
 		domain.Nodes[2].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter)
@@ -484,12 +484,12 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 
@@ -516,7 +516,7 @@ func TestNSMGR_HealRegistry(t *testing.T) {
 }
 
 func TestNSMGR_CloseHeal(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name              string
 		withNSEExpiration bool
 	}{
@@ -531,7 +531,7 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testNSMGRCloseHeal(t, sample.withNSEExpiration)
 		})
 	}
@@ -558,12 +558,12 @@ func testNSMGRCloseHeal(t *testing.T, withNSEExpiration bool) {
 	nseCtx, nseCtxCancel := context.WithTimeout(ctx, time.Second/2)
 	if withNSEExpiration {
 		// NSE will be unregistered after (tokenTimeout - registerTimeout)
-		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateExpiringToken(time.Second))
+		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.GetName()), sandbox.GenerateExpiringToken(time.Second))
 	} else {
-		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.Name), sandbox.GenerateTestToken)
+		domain.Nodes[0].NewEndpoint(nseCtx, defaultRegistryEndpoint(nsReg.GetName()), sandbox.GenerateTestToken)
 	}
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	nscCtx, nscCtxCancel := context.WithCancel(ctx)
 
@@ -626,7 +626,7 @@ func checkSecondRequestsReceived(requestsDone func() int) func() bool {
 }
 
 func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name             string
 		nodeNum          int
 		pathSegmentCount int
@@ -645,7 +645,7 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t, sample.nodeNum, sample.pathSegmentCount)
 		})
 	}
@@ -691,8 +691,8 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, pathSegmentCount, len(conn.Path.PathSegments))
-	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].Name)
+	require.Equal(t, pathSegmentCount, len(conn.GetPath().GetPathSegments()))
+	require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].GetName())
 
 	nseRegistryClient := registryclient.NewNetworkServiceEndpointRegistryClient(ctx,
 		registryclient.WithClientURL(sandbox.CloneURL(domain.Nodes[nodeNum].NSMgr.URL)),
@@ -703,14 +703,14 @@ func testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T, nodeNum,
 		conn, err = nsc.Request(ctx, request.Clone())
 
 		require.NoError(t, err)
-		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].Name)
+		require.Equal(t, expectedForwarderName, conn.GetPath().GetPathSegments()[pathSegmentCount-2].GetName())
 
 		domain.Nodes[nodeNum].NSMgr.Restart()
 
 		_, err = nseRegistryClient.Register(ctx, &registry.NetworkServiceEndpoint{
-			Name:                nseReg.Name,
+			Name:                nseReg.GetName(),
 			Url:                 nseEntry.URL.String(),
-			NetworkServiceNames: nseReg.NetworkServiceNames,
+			NetworkServiceNames: nseReg.GetNetworkServiceNames(),
 		})
 		require.NoError(t, err)
 
@@ -758,7 +758,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter1 := new(count.Server)
 	// allow only one successful request
@@ -767,7 +767,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	isDataplaneHealthy.Store(true)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter1, inject)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	tokenDuration := time.Minute * 15
 	clk := clockmock.New(ctx)
@@ -790,7 +790,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 1, counter1.Requests())
 
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 	nseReg2.Name += "-2"
 
 	counter2 := new(count.Server)
@@ -818,7 +818,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// This test shows that healing successfully restores the connection if one of the components is killed during the Request
+// This test shows that healing successfully restores the connection if one of the components is killed during the Request.
 func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -835,12 +835,12 @@ func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counter := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counter)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	tokenDuration := time.Minute * 15
 	clk := clockmock.New(ctx)

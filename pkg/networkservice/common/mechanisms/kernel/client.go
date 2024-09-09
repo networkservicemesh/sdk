@@ -39,7 +39,7 @@ type kernelMechanismClient struct {
 	interfaceNameGenerator func(ns string) (string, error)
 }
 
-// NewClient - returns client that sets kernel preferred mechanism
+// NewClient - returns client that sets kernel preferred mechanism.
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	o := &options{
 		interfaceNameGenerator: nanoid.GenerateLinuxInterfaceName,
@@ -65,9 +65,9 @@ func (k *kernelMechanismClient) Close(ctx context.Context, conn *networkservice.
 	return next.Client(ctx).Close(ctx, conn, opts...)
 }
 
-// manageMechanismPreferences updates mechanism preferences. Adds kernel mechanism if they doesn't have one
+// manageMechanismPreferences updates mechanism preferences. Adds kernel mechanism if they doesn't have one.
 func (k *kernelMechanismClient) manageMechanismPreferences(request *networkservice.NetworkServiceRequest) error {
-	var updated = false
+	updated := false
 	for _, m := range request.GetRequestMechanismPreferences() {
 		if mechanism := kernelmech.ToMechanism(m); mechanism != nil {
 			if err := k.updateMechanism(request.GetConnection().GetNetworkService(), mechanism); err != nil {

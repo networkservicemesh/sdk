@@ -56,7 +56,7 @@ func (r *registryImpl) Register(server *grpc.Server) {
 	registry.RegisterNetworkServiceEndpointRegistryServer(server, r.nseChain)
 }
 
-// NewServer creates new Registry with specific NetworkServiceRegistryServer and NetworkServiceEndpointRegistryServer functionality
+// NewServer creates new Registry with specific NetworkServiceRegistryServer and NetworkServiceEndpointRegistryServer functionality.
 func NewServer(nsChain registry.NetworkServiceRegistryServer, nseChain registry.NetworkServiceEndpointRegistryServer) Registry {
 	return &registryImpl{
 		nseChain: nseChain,

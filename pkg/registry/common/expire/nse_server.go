@@ -45,7 +45,7 @@ type expireNSEServer struct {
 // NewNetworkServiceEndpointRegistryServer creates a new NetworkServiceServer chain element that implements unregister
 // of expired connections for the subsequent chain elements.
 func NewNetworkServiceEndpointRegistryServer(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryServer {
-	var serverOptions = &options{}
+	serverOptions := &options{}
 
 	for _, opt := range opts {
 		opt(serverOptions)
@@ -113,7 +113,7 @@ func (s *expireNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 }
 
 func (s *expireNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	if oldCancel, loaded := s.LoadAndDelete(nse.Name); loaded {
+	if oldCancel, loaded := s.LoadAndDelete(nse.GetName()); loaded {
 		oldCancel()
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)

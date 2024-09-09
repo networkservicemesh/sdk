@@ -23,8 +23,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var errCannotSupportMech = errors.New("cannot support any of the requested mechanism")
-var errUnsupportedMech = errors.New("unsupported mechanism")
+var (
+	errCannotSupportMech = errors.New("cannot support any of the requested mechanism")
+	errUnsupportedMech   = errors.New("unsupported mechanism")
+)
 
 const (
 	clientMetricKey = "client_interface"
@@ -42,7 +44,7 @@ func (i *interfacesInfo) getInterfaceDetails() string {
 	return fmt.Sprintf("%s/%s", i.interfaceType, i.interfaceName)
 }
 
-// Save interface details in Path
+// Save interface details in Path.
 func storeMetrics(conn *networkservice.Connection, mechanism *networkservice.Mechanism, isClient bool) {
 	path := conn.GetPath()
 	if path == nil {
@@ -54,7 +56,7 @@ func storeMetrics(conn *networkservice.Connection, mechanism *networkservice.Mec
 		return
 	}
 
-	segment := segments[path.Index]
+	segment := segments[path.GetIndex()]
 	params := mechanism.GetParameters()
 
 	name := unresolvedName
@@ -76,7 +78,7 @@ func storeMetrics(conn *networkservice.Connection, mechanism *networkservice.Mec
 		metricKey = serverMetricKey
 	}
 
-	if _, ok := segment.Metrics[metricKey]; !ok {
+	if _, ok := segment.GetMetrics()[metricKey]; !ok {
 		segment.Metrics[metricKey] = info.getInterfaceDetails()
 	}
 }

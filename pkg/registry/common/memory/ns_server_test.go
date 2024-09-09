@@ -110,7 +110,8 @@ func TestNetworkServiceRegistryServer_RegisterAndFindWatch(t *testing.T) {
 	isResponseEqual := proto.Equal(<-ch, &registry.NetworkServiceResponse{
 		NetworkService: &registry.NetworkService{
 			Name: "a",
-		}})
+		},
+	})
 	require.True(t, isResponseEqual)
 	expected, err := s.Register(context.Background(), &registry.NetworkService{
 		Name: "a",

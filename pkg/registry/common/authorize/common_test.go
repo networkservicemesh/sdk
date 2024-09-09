@@ -45,7 +45,7 @@ func genTokenFunc(claims *jwt.RegisteredClaims) token.GeneratorFunc {
 }
 
 func getPath(t *testing.T, spiffeID string) *grpcmetadata.Path {
-	var segments = []struct {
+	segments := []struct {
 		name           string
 		tokenGenerator token.GeneratorFunc
 	}{

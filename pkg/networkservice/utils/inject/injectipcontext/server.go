@@ -51,7 +51,7 @@ func (s *injectIPContext) Close(ctx context.Context, connection *networkservice.
 	return next.Server(ctx).Close(ctx, connection)
 }
 
-// NewServer - creates a networkservice.NetworkServiceServer chain element injecting specified IPContext on Request
+// NewServer - creates a networkservice.NetworkServiceServer chain element injecting specified IPContext on Request.
 func NewServer(ipContext *networkservice.IPContext) networkservice.NetworkServiceServer {
 	return &injectIPContext{
 		ipContext: ipContext,

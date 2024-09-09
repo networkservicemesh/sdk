@@ -41,18 +41,17 @@ type interdomainBypassNSEFindServer struct {
 }
 
 func (n *interdomainBypassNSEServer) Register(ctx context.Context, service *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	var originalURL = service.Url
+	originalURL := service.Url
 	service.Url = n.u.String()
 
 	resp, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, service)
-
 	if err != nil {
 		return nil, err
 	}
 
 	u, _ := url.Parse(originalURL)
 
-	n.m.Store(service.Name, u)
+	n.m.Store(service.GetName(), u)
 
 	resp.Url = originalURL
 
@@ -64,8 +63,8 @@ func (n *interdomainBypassNSEServer) Find(query *registry.NetworkServiceEndpoint
 }
 
 func (n *interdomainBypassNSEServer) Unregister(ctx context.Context, service *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	n.m.Delete(service.Name)
-	var originalURL = service.Url
+	n.m.Delete(service.GetName())
+	originalURL := service.Url
 	service.Url = n.u.String()
 	defer func() {
 		service.Url = originalURL
@@ -92,7 +91,7 @@ func (s *interdomainBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEn
 	if err != nil {
 		return errors.Wrapf(err, "failed to parse url %s", nseURL)
 	}
-	s.m.LoadOrStore(nseResp.NetworkServiceEndpoint.GetName(), u)
+	s.m.LoadOrStore(nseResp.GetNetworkServiceEndpoint().GetName(), u)
 	nseResp.GetNetworkServiceEndpoint().Url = s.u.String()
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
 }

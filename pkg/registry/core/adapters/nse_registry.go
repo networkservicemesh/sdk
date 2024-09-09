@@ -61,7 +61,7 @@ func (n *networkServiceEndpointRegistryServer) Unregister(ctx context.Context, r
 	).Unregister(ctx, request)
 }
 
-// NetworkServiceEndpointClientToServer - returns a registry.NetworkServiceEndpointRegistryClient wrapped around the supplied client
+// NetworkServiceEndpointClientToServer - returns a registry.NetworkServiceEndpointRegistryClient wrapped around the supplied client.
 func NetworkServiceEndpointClientToServer(client registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryServer {
 	return &networkServiceEndpointRegistryServer{client: client}
 }
@@ -96,7 +96,7 @@ func (n *networkServiceEndpointRegistryClient) Unregister(ctx context.Context, i
 
 var _ registry.NetworkServiceEndpointRegistryClient = &networkServiceEndpointRegistryClient{}
 
-// NetworkServiceEndpointServerToClient - returns a registry.NetworkServiceEndpointRegistryServer wrapped around the supplied server
+// NetworkServiceEndpointServerToClient - returns a registry.NetworkServiceEndpointRegistryServer wrapped around the supplied server.
 func NetworkServiceEndpointServerToClient(server registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryClient {
 	return &networkServiceEndpointRegistryClient{server: server}
 }
@@ -124,7 +124,7 @@ func nseFindClientToServer(client registry.NetworkServiceEndpointRegistry_FindCl
 func nseFindServerToClient(ctx context.Context, server registry.NetworkServiceEndpointRegistryServer, in *registry.NetworkServiceEndpointQuery) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkServiceEndpointResponse, channelSize)
 	s := streamchannel.NewNetworkServiceEndpointFindServer(ctx, ch)
-	if in != nil && in.Watch {
+	if in != nil && in.GetWatch() {
 		go func() {
 			defer close(ch)
 			_ = server.Find(in, s)

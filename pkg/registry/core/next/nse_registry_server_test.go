@@ -234,6 +234,7 @@ func TestDataRaceNetworkServiceEndpointServer(t *testing.T) {
 	}
 	wg.Wait()
 }
+
 func TestDataRaceNetworkServiceEndpointClient(t *testing.T) {
 	c := next.NewNetworkServiceEndpointRegistryClient(emptyNSERegistryClient())
 	wg := sync.WaitGroup{}

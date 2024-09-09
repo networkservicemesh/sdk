@@ -69,7 +69,7 @@ func (c *countClient) Request(ctx context.Context, request *networkservice.Netwo
 	if atomic.AddInt32(&c.count, 1) == 1 {
 		conn.NetworkServiceEndpointName = endpointName
 	} else {
-		assert.Equal(c.t, endpointName, conn.NetworkServiceEndpointName)
+		assert.Equal(c.t, endpointName, conn.GetNetworkServiceEndpointName())
 	}
 
 	c.mutex.Lock()
@@ -183,6 +183,7 @@ func (t *refreshTesterServer) getState() int {
 func (t *refreshTesterServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	t.mutex.Lock()
 	locked := true
+
 	defer func() {
 		if locked {
 			t.mutex.Unlock()
@@ -190,12 +191,13 @@ func (t *refreshTesterServer) Request(ctx context.Context, request *networkservi
 	}()
 	t.checkUnlocked()
 
-	marker := request.Connection.Context.ExtraContext[connectionMarker]
+	marker := request.GetConnection().GetContext().GetExtraContext()[connectionMarker]
 	assert.NotEmpty(t.t, marker, "Marker is empty")
 
 	switch t.state {
 	case testRefreshStateWaitRequest:
 		assert.Contains(t.t, []string{t.nextMarker, t.currentMarker}, marker, "Unexpected marker")
+
 		if marker == t.nextMarker {
 			t.state = testRefreshStateDoneRequest
 			t.currentMarker = t.nextMarker
@@ -211,6 +213,7 @@ func (t *refreshTesterServer) Request(ctx context.Context, request *networkservi
 	t.lastSeen = time.Now()
 
 	t.mutex.Unlock()
+
 	locked = false
 
 	return next.Server(ctx).Request(ctx, request)
@@ -219,9 +222,11 @@ func (t *refreshTesterServer) Request(ctx context.Context, request *networkservi
 func (t *refreshTesterServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
 	t.mutex.Lock()
 	locked := true
+
 	defer func() {
 		if locked {
 			t.mutex.Unlock()
+
 			locked = false
 		}
 	}()
@@ -231,6 +236,7 @@ func (t *refreshTesterServer) Close(ctx context.Context, connection *networkserv
 	t.state = testRefreshStateDoneClose
 
 	t.mutex.Unlock()
+
 	locked = false
 
 	return next.Server(ctx).Close(ctx, connection)
@@ -267,18 +273,21 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 
 	// Generate random numbers in advance to avoid duration impact
 	skipSleepLeft, closeClientLeft := iterations/10+1, iterations/10+1
+
 	var sleepSteps, closeClientSteps []bool
 	for i := 0; i < iterations; i++ {
 		isSleepStepSkipped := randSrc.Intn(iterations-i) < skipSleepLeft
 		if isSleepStepSkipped {
 			skipSleepLeft--
 		}
+
 		sleepSteps = append(sleepSteps, !isSleepStepSkipped)
 
 		isClientCloseStep := randSrc.Intn(iterations-i) < closeClientLeft
 		if isClientCloseStep {
 			closeClientLeft--
 		}
+
 		closeClientSteps = append(closeClientSteps, isClientCloseStep)
 	}
 
@@ -286,9 +295,11 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 	for i := 0; i < iterations && !t.Failed(); i++ {
 		refreshTester.beforeRequest(strconv.Itoa(i))
 		conn, err := client.Request(ctx, mkRequest(strconv.Itoa(i), oldConn))
+
 		refreshTester.afterRequest()
 		assert.NotNil(t, conn)
 		assert.Nil(t, err)
+
 		oldConn = conn
 
 		if t.Failed() {
@@ -305,17 +316,22 @@ func generateRequests(t *testing.T, client networkservice.NetworkServiceClient, 
 
 		if closeClientSteps[i] {
 			refreshTester.beforeClose()
+
 			_, err = client.Close(ctx, oldConn)
 			assert.Nil(t, err)
 			refreshTester.afterClose()
+
 			oldConn = nil
 		}
 	}
 
 	if oldConn != nil {
 		refreshTester.beforeClose()
+
 		_, _ = client.Close(ctx, oldConn)
+
 		refreshTester.afterClose()
 	}
+
 	<-time.After(tickDuration)
 }

@@ -42,7 +42,7 @@ func Test_CidrGroupsDecoder_CorrectInput(t *testing.T) {
 	_, cidr3, err := net.ParseCIDR("172.168.3.0/24")
 	require.NoError(t, err)
 
-	var expected = [][]*net.IPNet{
+	expected := [][]*net.IPNet{
 		{cidr1},
 		{cidr1, cidr2},
 		{cidr1},

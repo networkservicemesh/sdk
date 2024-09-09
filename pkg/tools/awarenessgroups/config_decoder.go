@@ -59,7 +59,7 @@ func (d *Decoder) Decode(value string) error {
 	return nil
 }
 
-// TODO: write validation fuction for awarenessGroups values
+//nolint:nolintlint // TODO: write validation fuction for awarenessGroups values.
 func validateParentheses(value string) error {
 	i := 0
 	length := len(value)

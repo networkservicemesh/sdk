@@ -34,7 +34,7 @@ type traceServer struct {
 	concise networkservice.NetworkServiceServer
 }
 
-// NewNetworkServiceServer - wraps tracing around the supplied traced
+// NewNetworkServiceServer - wraps tracing around the supplied traced.
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return &traceServer{
 		verbose: traceverbose.NewNetworkServiceServer(traced),

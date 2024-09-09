@@ -60,7 +60,6 @@ func (i *swapIPServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	resp, err := next.Server(ctx).Request(ctx, request)
-
 	if err != nil {
 		return nil, err
 	}
@@ -81,9 +80,9 @@ func (i *swapIPServer) Close(ctx context.Context, conn *networkservice.Connectio
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-// NewServer creates new swap chain element. Expects public IP address of node
+// NewServer creates new swap chain element. Expects public IP address of node.
 func NewServer(updateIPMapCh <-chan map[string]string) networkservice.NetworkServiceServer {
-	var v = new(atomic.Value)
+	v := new(atomic.Value)
 	v.Store(map[string]string{})
 	go func() {
 		for data := range updateIPMapCh {

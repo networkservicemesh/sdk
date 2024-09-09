@@ -495,7 +495,7 @@ func Test_ExcludePrefixClient_ShouldntExcludeRouteSubnets(t *testing.T) {
 		excludedprefixes.NewClient(),
 	)
 
-	var req = &networkservice.NetworkServiceRequest{
+	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Context: &networkservice.ConnectionContext{
 				IpContext: &networkservice.IPContext{
@@ -525,7 +525,7 @@ func Test_ExcludePrefixClient_ShouldntExcludeRouteSubnets(t *testing.T) {
 	client = chain.NewNetworkServiceClient(
 		client,
 		checkrequest.NewClient(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-			require.Equal(t, []string{"172.16.1.0/32", "fe80::/128"}, request.Connection.Context.IpContext.ExcludedPrefixes)
+			require.Equal(t, []string{"172.16.1.0/32", "fe80::/128"}, request.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 		}),
 	)
 
@@ -557,6 +557,6 @@ func TestClient(t *testing.T) {
 
 	_, err := client.Request(context.Background(), req)
 
-	require.ElementsMatch(t, reqPrefixes, req.Connection.Context.IpContext.ExcludedPrefixes)
+	require.ElementsMatch(t, reqPrefixes, req.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 	require.NoError(t, err)
 }

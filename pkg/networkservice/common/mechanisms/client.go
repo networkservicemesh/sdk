@@ -33,7 +33,7 @@ type mechanismsClient struct {
 	mechanisms map[string]networkservice.NetworkServiceClient
 }
 
-// NewClient - returns a new mechanisms networkservicemesh.NetworkServiceClient
+// NewClient - returns a new mechanisms networkservicemesh.NetworkServiceClient.
 func NewClient(mechanisms map[string]networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	result := &mechanismsClient{
 		mechanisms: make(map[string]networkservice.NetworkServiceClient),
@@ -55,7 +55,7 @@ func (mc *mechanismsClient) Request(ctx context.Context, request *networkservice
 		}
 		return nil, errUnsupportedMech
 	}
-	var err = errCannotSupportMech
+	err := errCannotSupportMech
 	for _, mechanism := range request.GetMechanismPreferences() {
 		cm, ok := mc.mechanisms[mechanism.GetType()]
 		if ok {

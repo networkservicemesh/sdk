@@ -24,10 +24,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/streamcontext"
 )
 
-// MonitorConnectionsServerWrapper - a function that wraps around a networkservice.MonitorConnectionServer
+// MonitorConnectionsServerWrapper - a function that wraps around a networkservice.MonitorConnectionServer.
 type MonitorConnectionsServerWrapper func(networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer
 
-// MonitorConnectionsServerChainer - a function that chains together a list of networkservice.MonitorConnectionServers
+// MonitorConnectionsServerChainer - a function that chains together a list of networkservice.MonitorConnectionServers.
 type MonitorConnectionsServerChainer func(...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer
 
 type nextMonitorConnectionServer struct {
@@ -36,7 +36,7 @@ type nextMonitorConnectionServer struct {
 	nextParent networkservice.MonitorConnectionServer
 }
 
-// NewWrappedMonitorConnectionServer - creates a chain of servers with each one wrapped in wrapper
+// NewWrappedMonitorConnectionServer - creates a chain of servers with each one wrapped in wrapper.
 func NewWrappedMonitorConnectionServer(wrapper MonitorConnectionsServerWrapper, servers ...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
 	rv := &nextMonitorConnectionServer{servers: make([]networkservice.MonitorConnectionServer, 0, len(servers))}
 	for _, srv := range servers {
@@ -45,7 +45,7 @@ func NewWrappedMonitorConnectionServer(wrapper MonitorConnectionsServerWrapper, 
 	return rv
 }
 
-// NewMonitorConnectionServer - chains together servers into a single networkservice.MonitorConnectionServer
+// NewMonitorConnectionServer - chains together servers into a single networkservice.MonitorConnectionServer.
 func NewMonitorConnectionServer(servers ...networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {
 	return NewWrappedMonitorConnectionServer(
 		func(server networkservice.MonitorConnectionServer) networkservice.MonitorConnectionServer {

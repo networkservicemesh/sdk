@@ -29,24 +29,24 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 )
 
-// Option configures vl3DNSServer
+// Option configures vl3DNSServer.
 type Option func(*vl3DNSServer)
 
-// WithConfigs sets initial list to fanout queries
+// WithConfigs sets initial list to fanout queries.
 func WithConfigs(m *genericsync.Map[string, []*networkservice.DNSConfig]) Option {
 	return func(vd *vl3DNSServer) {
 		vd.dnsConfigs = m
 	}
 }
 
-// WithDNSServerHandler replaces default dns handler to specific one
+// WithDNSServerHandler replaces default dns handler to specific one.
 func WithDNSServerHandler(handler dnsutils.Handler) Option {
 	return func(vd *vl3DNSServer) {
 		vd.dnsServer = handler
 	}
 }
 
-// WithDomainSchemes sets domain schemes for vl3 dns server. Schemes are using to get dns names for clients
+// WithDomainSchemes sets domain schemes for vl3 dns server. Schemes are using to get dns names for clients.
 func WithDomainSchemes(domainSchemes ...string) Option {
 	return func(vd *vl3DNSServer) {
 		vd.domainSchemeTemplates = nil
@@ -62,7 +62,7 @@ func WithDomainSchemes(domainSchemes ...string) Option {
 	}
 }
 
-// WithDNSListenAndServeFunc replaces default listen and serve behavior for inner dns server
+// WithDNSListenAndServeFunc replaces default listen and serve behavior for inner dns server.
 func WithDNSListenAndServeFunc(listenAndServeDNS func(ctx context.Context, handler dnsutils.Handler, listenOn string)) Option {
 	if listenAndServeDNS == nil {
 		panic("listenAndServeDNS cannot be nil")

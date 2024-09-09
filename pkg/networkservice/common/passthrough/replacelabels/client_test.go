@@ -41,10 +41,10 @@ func TestClient(t *testing.T) {
 		metadata.NewClient(),
 		replacelabels.NewClient(chainLabels),
 		checkrequest.NewClient(t, func(t *testing.T, r *networkservice.NetworkServiceRequest) {
-			require.Equal(t, chainLabels, r.Connection.Labels)
+			require.Equal(t, chainLabels, r.GetConnection().GetLabels())
 		}),
 		checkclose.NewClient(t, func(t *testing.T, c *networkservice.Connection) {
-			require.Equal(t, chainLabels, c.Labels)
+			require.Equal(t, chainLabels, c.GetLabels())
 		}),
 	)
 
@@ -54,7 +54,7 @@ func TestClient(t *testing.T) {
 	}
 	conn, err := client.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, map[string]string{"3": "C"}, conn.Labels)
+	require.Equal(t, map[string]string{"3": "C"}, conn.GetLabels())
 
 	_, err = client.Close(context.Background(), conn)
 	require.NoError(t, err)

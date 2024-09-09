@@ -41,19 +41,16 @@ func FromContext(ctx context.Context) (string, time.Time, error) {
 	}
 
 	token, err := getSingleValue(md, tokenKey)
-
 	if err != nil {
 		return "", time.Time{}, err
 	}
 
 	rawExpiration, err := getSingleValue(md, expireTimeKey)
-
 	if err != nil {
 		return "", time.Time{}, err
 	}
 
 	expireTime, err := time.Parse(time.RFC3339Nano, rawExpiration)
-
 	if err != nil {
 		return "", time.Time{}, errors.Wrapf(err, "failed to parse time, layout %s, value %s", time.RFC3339Nano, rawExpiration)
 	}

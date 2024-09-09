@@ -34,7 +34,7 @@ func (s *networkServiceEndpointRegistryFindClient) Context() context.Context {
 	return s.ctx
 }
 
-// NetworkServiceEndpointRegistryFindClient extends context for passed NetworkServiceEndpointRegistry_FindClient
+// NetworkServiceEndpointRegistryFindClient extends context for passed NetworkServiceEndpointRegistry_FindClient.
 func NetworkServiceEndpointRegistryFindClient(ctx context.Context, client registry.NetworkServiceEndpointRegistry_FindClient) registry.NetworkServiceEndpointRegistry_FindClient {
 	if client != nil {
 		ctx = extend.WithValuesFromContext(client.Context(), ctx)
@@ -54,7 +54,7 @@ func (s *networkServiceEndpointRegistryFindServer) Context() context.Context {
 	return s.ctx
 }
 
-// NetworkServiceEndpointRegistryFindServer extends context for passed NetworkServiceEndpointRegistry_FindServer
+// NetworkServiceEndpointRegistryFindServer extends context for passed NetworkServiceEndpointRegistry_FindServer.
 func NetworkServiceEndpointRegistryFindServer(ctx context.Context, server registry.NetworkServiceEndpointRegistry_FindServer) registry.NetworkServiceEndpointRegistry_FindServer {
 	if server != nil {
 		ctx = extend.WithValuesFromContext(server.Context(), ctx)

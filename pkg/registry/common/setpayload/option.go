@@ -16,10 +16,10 @@
 
 package setpayload
 
-// Option setpayload registry configuration option
+// Option setpayload registry configuration option.
 type Option func(*setPayloadNSServer)
 
-// WithPayload sets specific payload as default for registry with empty payload
+// WithPayload sets specific payload as default for registry with empty payload.
 func WithPayload(payload string) Option {
 	return func(s *setPayloadNSServer) {
 		s.defaultPayload = payload

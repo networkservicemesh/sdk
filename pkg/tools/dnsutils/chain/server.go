@@ -23,7 +23,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/trace"
 )
 
-// NewDNSHandler - chains together a list of dnsutils.Handler with tracing
+// NewDNSHandler - chains together a list of dnsutils.Handler with tracing.
 func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
 	return next.NewDNSHandler(
 		next.NewWrappedDNSHandler(trace.NewDNSHandler, handlers...),

@@ -20,7 +20,7 @@ import (
 	"time"
 )
 
-// Ticker is a time.Ticker interface
+// Ticker is a time.Ticker interface.
 type Ticker interface {
 	C() <-chan time.Time
 	Stop()

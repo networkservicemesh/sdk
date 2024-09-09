@@ -28,7 +28,7 @@ const (
 
 type contextKeyType string
 
-// WithSearchDomains wraps 'parent' in a new Context that has search domains
+// WithSearchDomains wraps 'parent' in a new Context that has search domains.
 func WithSearchDomains(parent context.Context, domains []string) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -37,7 +37,7 @@ func WithSearchDomains(parent context.Context, domains []string) context.Context
 	return context.WithValue(parent, searchDomainsKey, domains)
 }
 
-// SearchDomains returns search domains
+// SearchDomains returns search domains.
 func SearchDomains(ctx context.Context) []string {
 	if rv, ok := ctx.Value(searchDomainsKey).([]string); ok {
 		return rv

@@ -29,6 +29,7 @@ func visit(ctx context.Context) context.Context {
 		*v++
 		return ctx
 	}
+
 	val := 0
 	return context.WithValue(ctx, visitKey, &val)
 }

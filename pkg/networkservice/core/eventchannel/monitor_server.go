@@ -90,11 +90,11 @@ func (m *monitorConnectionServer) eventLoop() {
 			m.executor.AsyncExec(func() {
 				for i, srv := range m.servers {
 					filteredEvent := &networkservice.ConnectionEvent{
-						Type:        e.Type,
+						Type:        e.GetType(),
 						Connections: networkservice.FilterMapOnManagerScopeSelector(e.GetConnections(), m.selectors[i]),
 					}
-					if filteredEvent.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(filteredEvent.GetConnections()) > 0 {
-						// TODO - figure out what if any error handling to do here
+					if filteredEvent.GetType() == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER || len(filteredEvent.GetConnections()) > 0 {
+						//nolint:nolintlint // TODO - figure out what if any error handling to do here
 						_ = srv.Send(filteredEvent)
 					}
 				}

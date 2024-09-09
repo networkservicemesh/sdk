@@ -18,7 +18,6 @@ package monitor_test
 
 import (
 	"context"
-
 	"testing"
 	"time"
 
@@ -165,7 +164,7 @@ func TestMonitorServer_RequestConnEqualsToMonitorConn(t *testing.T) {
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 	}
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
@@ -178,7 +177,7 @@ func TestMonitorServer_RequestConnEqualsToMonitorConn(t *testing.T) {
 		},
 		Connection: &networkservice.Connection{
 			Id:             connID,
-			NetworkService: nsReg.Name,
+			NetworkService: nsReg.GetName(),
 		},
 	}
 

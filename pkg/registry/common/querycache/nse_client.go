@@ -34,7 +34,7 @@ type queryCacheNSEClient struct {
 	cache *cache
 }
 
-// NewClient creates new querycache NSE registry client that caches all resolved NSEs
+// NewClient creates new querycache NSE registry client that caches all resolved NSEs.
 func NewClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	return &queryCacheNSEClient{
 		ctx:   ctx,
@@ -47,7 +47,7 @@ func (q *queryCacheNSEClient) Register(ctx context.Context, nse *registry.Networ
 }
 
 func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
-	if query.Watch {
+	if query.GetWatch() {
 		return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 	}
 
@@ -88,7 +88,7 @@ func (q *queryCacheNSEClient) findInCache(ctx context.Context, key string) (regi
 func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) {
 	nseQuery := &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			Name: nse.Name,
+			Name: nse.GetName(),
 		},
 	}
 
@@ -113,14 +113,14 @@ func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.Ne
 		}
 
 		for nseResp, err := stream.Recv(); err == nil; nseResp, err = stream.Recv() {
-			if nseResp.NetworkServiceEndpoint.Name != nseQuery.NetworkServiceEndpoint.Name {
+			if nseResp.GetNetworkServiceEndpoint().GetName() != nseQuery.GetNetworkServiceEndpoint().GetName() {
 				continue
 			}
-			if nseResp.Deleted {
+			if nseResp.GetDeleted() {
 				break
 			}
 
-			entry.Update(nseResp.NetworkServiceEndpoint)
+			entry.Update(nseResp.GetNetworkServiceEndpoint())
 		}
 	}()
 }

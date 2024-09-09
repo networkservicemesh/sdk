@@ -65,6 +65,7 @@ func NewServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 		prefixes: prefixes,
 	}
 }
+
 func (sipam *singlePIpam) init() {
 	if len(sipam.prefixes) == 0 {
 		sipam.initErr = errors.New("required one or more prefixes")
@@ -138,7 +139,8 @@ func (sipam *singlePIpam) Request(ctx context.Context, request *networkservice.N
 }
 
 func (sipam *singlePIpam) Close(
-	ctx context.Context, conn *networkservice.Connection) (_ *empty.Empty, err error) {
+	ctx context.Context, conn *networkservice.Connection,
+) (_ *empty.Empty, err error) {
 	sipam.once.Do(sipam.init)
 	if sipam.initErr != nil {
 		return nil, errors.Wrap(sipam.initErr, "failed to init IPAM server during close")
@@ -233,6 +235,7 @@ func exclude(prefixes ...string) (ipv4exclude, ipv6exclude *ippool.IPPool) {
 	}
 	return
 }
+
 func deleteAddr(addrs *[]string, addr string) {
 	for i, a := range *addrs {
 		if a == addr {

@@ -26,12 +26,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
 )
 
-// NewNetworkServiceEndpointRegistryServer - creates a chain of servers
+// NewNetworkServiceEndpointRegistryServer - creates a chain of servers.
 func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	return next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...)
 }
 
-// NewNetworkServiceEndpointRegistryClient - creates a chain of clients
+// NewNetworkServiceEndpointRegistryClient - creates a chain of clients.
 func NewNetworkServiceEndpointRegistryClient(clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	return next.NewWrappedNetworkServiceEndpointRegistryClient(trace.NewNetworkServiceEndpointRegistryClient, clients...)
 }

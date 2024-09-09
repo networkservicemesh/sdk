@@ -65,7 +65,7 @@ func Test_WatchFile(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, readEvent(), filePath) // file created
 
-	_, err = f.Write([]byte("data"))
+	_, err = f.WriteString("data")
 	require.NoError(t, err)
 	err = f.Close()
 	require.NoError(t, err)

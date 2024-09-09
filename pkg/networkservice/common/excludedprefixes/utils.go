@@ -34,7 +34,7 @@ func removeDuplicates(elements []string) []string {
 
 func exclude(source, exclude []string) []string {
 	var s string
-	var excludeMap = make(map[string]struct{})
+	excludeMap := make(map[string]struct{})
 
 	for _, e := range exclude {
 		excludeMap[e] = struct{}{}

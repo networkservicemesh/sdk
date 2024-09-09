@@ -16,23 +16,23 @@
 
 package log
 
-// Field structure that is used for additional information in the logs
+// Field structure that is used for additional information in the logs.
 type Field struct {
 	k string
 	v interface{}
 }
 
-// NewField creates Field
+// NewField creates Field.
 func NewField(k string, v interface{}) *Field {
 	return &Field{k, v}
 }
 
-// Key returns key
+// Key returns key.
 func (f *Field) Key() string {
 	return f.k
 }
 
-// Val returns value
+// Val returns value.
 func (f *Field) Val() interface{} {
 	return f.v
 }

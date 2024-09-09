@@ -85,6 +85,7 @@ func TestNSServerBranches(t *testing.T) {
 		{next.NewMonitorConnectionServer(), next.NewMonitorConnectionServer(visitMCServer(), next.NewMonitorConnectionServer()), visitMCServer()},
 	}
 	expects := []int{1, 2, 3, 0, 1, 2, 2, 2}
+
 	for i, sample := range servers {
 		s := next.NewMonitorConnectionServer(sample...)
 		ctx := visit(context.Background())
@@ -93,15 +94,18 @@ func TestNSServerBranches(t *testing.T) {
 		assert.Equal(t, expects[i], visitValue(eventSrv.Context()), fmt.Sprintf("sample index: %v", i))
 	}
 }
+
 func TestDataRaceMonitorConnectionServer(t *testing.T) {
 	s := next.NewMonitorConnectionServer(emptyMCServer())
 	wg := sync.WaitGroup{}
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
 			_ = s.MonitorConnections(nil, &testEmptyMCMCServer{context: context.Background()})
 		}()
 	}
+
 	wg.Wait()
 }

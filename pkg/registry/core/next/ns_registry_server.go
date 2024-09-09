@@ -26,10 +26,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 )
 
-// NetworkServiceRegistryServerWrapper - function that wraps a registry server
+// NetworkServiceRegistryServerWrapper - function that wraps a registry server.
 type NetworkServiceRegistryServerWrapper func(server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer
 
-// NetworkServiceRegistryServerChainer - function that chains registry servers
+// NetworkServiceRegistryServerChainer - function that chains registry servers.
 type NetworkServiceRegistryServerChainer func(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer
 
 type nextNetworkServiceRegistryServer struct {
@@ -38,7 +38,7 @@ type nextNetworkServiceRegistryServer struct {
 	nextParent registry.NetworkServiceRegistryServer
 }
 
-// NewWrappedNetworkServiceRegistryServer - creates a chain of servers with each one wrapped in wrapper
+// NewWrappedNetworkServiceRegistryServer - creates a chain of servers with each one wrapped in wrapper.
 func NewWrappedNetworkServiceRegistryServer(wrapper NetworkServiceRegistryServerWrapper, servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	rv := &nextNetworkServiceRegistryServer{servers: make([]registry.NetworkServiceRegistryServer, 0, len(servers))}
 	for _, s := range servers {
@@ -47,7 +47,7 @@ func NewWrappedNetworkServiceRegistryServer(wrapper NetworkServiceRegistryServer
 	return rv
 }
 
-// NewNetworkServiceRegistryServer - creates a chain of servers
+// NewNetworkServiceRegistryServer - creates a chain of servers.
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	return NewWrappedNetworkServiceRegistryServer(func(server registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 		return server

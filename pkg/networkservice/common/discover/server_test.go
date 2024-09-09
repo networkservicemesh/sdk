@@ -188,7 +188,7 @@ func TestDiscoverCandidatesServer_MatchEmptySourceSelector(t *testing.T) {
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
-			require.Equal(t, want, nses[0].NetworkServiceLabels)
+			require.Equal(t, want, nses[0].GetNetworkServiceLabels())
 		}),
 	)
 
@@ -226,7 +226,7 @@ func TestDiscoverCandidatesServer_MatchNonEmptySourceSelector(t *testing.T) {
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
-			require.Equal(t, want, nses[0].NetworkServiceLabels)
+			require.Equal(t, want, nses[0].GetNetworkServiceLabels())
 		}),
 	)
 
@@ -264,7 +264,7 @@ func TestDiscoverCandidatesServer_MatchEmptySourceSelectorGoingFirst(t *testing.
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
-			require.Equal(t, want, nses[0].NetworkServiceLabels)
+			require.Equal(t, want, nses[0].GetNetworkServiceLabels())
 		}),
 	)
 
@@ -319,7 +319,7 @@ func TestDiscoverCandidatesServer_MatchSelectedNSE(t *testing.T) {
 
 	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			NetworkServiceEndpointName: nses[0].Name,
+			NetworkServiceEndpointName: nses[0].GetName(),
 		},
 	}
 
@@ -362,7 +362,7 @@ func TestDiscoverCandidatesServer_NoMatchServiceFound(t *testing.T) {
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
-			require.Equal(t, want, nses[0].NetworkServiceLabels)
+			require.Equal(t, want, nses[0].GetNetworkServiceLabels())
 		}),
 	)
 
@@ -398,7 +398,7 @@ func TestDiscoverCandidatesServer_NoMatchServiceEndpointFound(t *testing.T) {
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
-			require.Equal(t, want, nses[0].NetworkServiceLabels)
+			require.Equal(t, want, nses[0].GetNetworkServiceLabels())
 		}),
 	)
 
@@ -422,7 +422,7 @@ func TestDiscoverCandidatesServer_MatchExactService(t *testing.T) {
 		checkcontext.NewServer(t, func(t *testing.T, ctx context.Context) {
 			nses := discover.Candidates(ctx).Endpoints
 			require.Len(t, nses, 1)
-			require.Equal(t, nsName, nses[0].NetworkServiceNames[0])
+			require.Equal(t, nsName, nses[0].GetNetworkServiceNames()[0])
 		}),
 	)
 
@@ -467,7 +467,7 @@ func TestDiscoverCandidatesServer_MatchExactService(t *testing.T) {
 
 	conn, err := server.Request(ctx, request.Clone())
 	require.NoError(t, err)
-	require.Equal(t, payload.IP, conn.Payload)
+	require.Equal(t, payload.IP, conn.GetPayload())
 }
 
 func TestDiscoverCandidatesServer_MatchExactEndpoint(t *testing.T) {
@@ -548,7 +548,7 @@ func TestDiscoverCandidatesServer_NoEndpointOnClose(t *testing.T) {
 }
 
 func Test_Discover_Scale_FromZero_vL3(t *testing.T) {
-	var ns = &registry.NetworkService{
+	ns := &registry.NetworkService{
 		Name:    "ns-1",
 		Payload: "IP",
 		Matches: []*registry.Match{
@@ -589,7 +589,7 @@ func Test_Discover_Scale_FromZero_vL3(t *testing.T) {
 		},
 	}
 
-	var nseA = &registry.NetworkServiceEndpoint{
+	nseA := &registry.NetworkServiceEndpoint{
 		Name: "nse-A",
 		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 			"ns-1": {Labels: map[string]string{
@@ -600,7 +600,7 @@ func Test_Discover_Scale_FromZero_vL3(t *testing.T) {
 		},
 	}
 
-	var nseB = &registry.NetworkServiceEndpoint{
+	nseB := &registry.NetworkServiceEndpoint{
 		Name: "nse-B",
 		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 			"ns-1": {Labels: map[string]string{
@@ -611,7 +611,7 @@ func Test_Discover_Scale_FromZero_vL3(t *testing.T) {
 		},
 	}
 
-	var nseC = &registry.NetworkServiceEndpoint{
+	nseC := &registry.NetworkServiceEndpoint{
 		Name: "nse-C",
 		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 			"ns-1": {Labels: map[string]string{
@@ -620,7 +620,7 @@ func Test_Discover_Scale_FromZero_vL3(t *testing.T) {
 		},
 	}
 
-	var nseD = &registry.NetworkServiceEndpoint{
+	nseD := &registry.NetworkServiceEndpoint{
 		Name: "nse-D",
 		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
 			"ns-1": {Labels: map[string]string{

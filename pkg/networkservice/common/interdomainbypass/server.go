@@ -38,23 +38,23 @@ type interdomainBypassServer struct {
 	m genericsync.Map[string, *url.URL]
 }
 
-// NewServer - returns a new NetworkServiceServer that injects the URL to remote side into context on requesting resolved endpoint
+// NewServer - returns a new NetworkServiceServer that injects the URL to remote side into context on requesting resolved endpoint.
 func NewServer(rs *registry.NetworkServiceEndpointRegistryServer, listenOn *url.URL) networkservice.NetworkServiceServer {
-	var rv = new(interdomainBypassServer)
+	rv := new(interdomainBypassServer)
 	*rs = interdomainbypass.NewNetworkServiceEndpointRegistryServer(&rv.m, listenOn)
 	return rv
 }
 
 func (n *interdomainBypassServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	u, ok := n.m.Load(request.Connection.NetworkServiceEndpointName)
+	u, ok := n.m.Load(request.GetConnection().GetNetworkServiceEndpointName())
 	// Always true when we are on local nsmgr proxy side.
 	// True on theremote nsmgr proxy side when it is floating interdomain usecase.
 	if ok {
 		ctx = clienturlctx.WithClientURL(ctx, u)
 		return next.Server(ctx).Request(ctx, request)
 	}
-	originalNSEName := request.GetConnection().NetworkServiceEndpointName
-	originalNS := request.GetConnection().NetworkService
+	originalNSEName := request.GetConnection().GetNetworkServiceEndpointName()
+	originalNS := request.GetConnection().GetNetworkService()
 	request.GetConnection().NetworkServiceEndpointName = interdomain.Target(originalNSEName)
 	request.GetConnection().NetworkService = interdomain.Target(originalNS)
 	resp, err := next.Server(ctx).Request(ctx, request)
@@ -67,7 +67,7 @@ func (n *interdomainBypassServer) Request(ctx context.Context, request *networks
 }
 
 func (n *interdomainBypassServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	u, ok := n.m.Load(conn.NetworkServiceEndpointName)
+	u, ok := n.m.Load(conn.GetNetworkServiceEndpointName())
 	// Always true when we are on local nsmgr proxy side.
 	// True on theremote nsmgr proxy side when it is floating interdomain usecase.
 	if ok {

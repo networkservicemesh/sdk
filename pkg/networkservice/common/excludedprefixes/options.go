@@ -18,20 +18,20 @@ package excludedprefixes
 
 import "net/url"
 
-// ServerOption - method for excludedPrefixesServer
+// ServerOption - method for excludedPrefixesServer.
 type ServerOption func(server *excludedPrefixesServer)
 
-// WithConfigPath - returns method that set configPath in excludedPrefixesServer
+// WithConfigPath - returns method that set configPath in excludedPrefixesServer.
 func WithConfigPath(s string) ServerOption {
 	return func(args *excludedPrefixesServer) {
 		args.configPath = s
 	}
 }
 
-// ClientOption - method for excludedPrefixesClient
+// ClientOption - method for excludedPrefixesClient.
 type ClientOption func(client *excludedPrefixesClient)
 
-// WithAwarenessGroups - returns method that sets awarenessGroups in excludedPrefixesClient
+// WithAwarenessGroups - returns method that sets awarenessGroups in excludedPrefixesClient.
 func WithAwarenessGroups(awarenessGroups [][]*url.URL) ClientOption {
 	return func(args *excludedPrefixesClient) {
 		groups := make([]*awarenessGroup, len(awarenessGroups))

@@ -30,7 +30,7 @@ func withEventFactory(parent context.Context, eventFactory EventFactory) context
 	return ctx
 }
 
-// FromContext - returns EventFactory from context
+// FromContext - returns EventFactory from context.
 func FromContext(ctx context.Context) EventFactory {
 	value := fromContext(ctx)
 	if value == nil {

@@ -49,10 +49,10 @@ func TestCloseClient(t *testing.T) {
 	})
 	assert.NotNil(t, t, resp)
 	assert.NoError(t, err)
-	assert.Equal(t, mark, resp.GetNetworkServiceLabels()[mark].Labels[mark])
+	assert.Equal(t, mark, resp.GetNetworkServiceLabels()[mark].GetLabels()[mark])
 	resp = resp.Clone()
-	delete(resp.GetNetworkServiceLabels()[mark].Labels, mark)
-	assert.Empty(t, resp.GetNetworkServiceLabels()[mark].Labels)
+	delete(resp.GetNetworkServiceLabels()[mark].GetLabels(), mark)
+	assert.Empty(t, resp.GetNetworkServiceLabels()[mark].GetLabels())
 	_, err = client.Unregister(ctx, resp)
 	assert.NoError(t, err)
 }
@@ -81,6 +81,6 @@ func (m *markClient) Find(ctx context.Context, in *registry.NetworkServiceEndpoi
 
 func (m *markClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
 	assert.NotNil(m.t, in.GetNetworkServiceLabels())
-	assert.Equal(m.t, mark, in.GetNetworkServiceLabels()[mark].Labels[mark])
+	assert.Equal(m.t, mark, in.GetNetworkServiceLabels()[mark].GetLabels()[mark])
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)
 }

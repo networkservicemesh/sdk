@@ -52,7 +52,7 @@ func TestNewExcludedPrefixesService(t *testing.T) {
 	require.NoError(t, os.WriteFile(configPath, []byte(testConfig), os.ModePerm))
 
 	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-		require.Equal(t, request.Connection.Context.IpContext.ExcludedPrefixes, prefixes)
+		require.Equal(t, request.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes(), prefixes)
 	}))
 	req := request()
 
@@ -117,7 +117,7 @@ func TestUniqueRequestPrefixes(t *testing.T) {
 	defer func() { _ = os.Remove(configPath) }()
 
 	server := chain.NewNetworkServiceServer(excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)), checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-		require.Equal(t, uniquePrefixes, request.Connection.Context.IpContext.ExcludedPrefixes)
+		require.Equal(t, uniquePrefixes, request.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 	}))
 	req := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
@@ -154,11 +154,11 @@ func TestFilePrefixesChanged(t *testing.T) {
 		excludedprefixes.NewServer(context.Background(), excludedprefixes.WithConfigPath(configPath)),
 		checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
 			if isFirst {
-				require.ElementsMatch(t, diffPrefxies, request.Connection.Context.IpContext.ExcludedPrefixes)
+				require.ElementsMatch(t, diffPrefxies, request.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes())
 				isFirst = false
 			}
 
-			prefixesAfterServer = request.Connection.Context.IpContext.ExcludedPrefixes
+			prefixesAfterServer = request.GetConnection().GetContext().GetIpContext().GetExcludedPrefixes()
 		}),
 	)
 
@@ -179,7 +179,7 @@ func TestFilePrefixesChanged(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		_, err = server.Request(context.Background(), req)
-		fmt.Printf("%v\n", prefixesAfterServer)
+		fmt.Printf("%v\n", prefixesAfterServer) //nolint:forbidigo
 		return cmp.Equal(prefixesAfterServer, append(diffPrefxies, newFilePrefixes...), cmp.Transformer("Sort", func(in []string) []string {
 			out := append([]string(nil), in...)
 			sort.Strings(out)

@@ -85,8 +85,8 @@ type serverOptions struct {
 }
 
 func (s *serverOptions) openMapIPChannel(ctx context.Context) <-chan map[string]string {
-	var r = make(chan map[string]string)
-	var fCh = fs.WatchFile(ctx, s.mapipFilePath)
+	r := make(chan map[string]string)
+	fCh := fs.WatchFile(ctx, s.mapipFilePath)
 	go func() {
 		defer close(r)
 		for data := range fCh {
@@ -105,17 +105,17 @@ func (s *serverOptions) openMapIPChannel(ctx context.Context) <-chan map[string]
 	return r
 }
 
-// Option modifies option value
+// Option modifies option value.
 type Option func(o *serverOptions)
 
-// WithName sets name for the server
+// WithName sets name for the server.
 func WithName(name string) Option {
 	return func(o *serverOptions) {
 		o.name = name
 	}
 }
 
-// WithAuthorizeServer sets authorize server for the server
+// WithAuthorizeServer sets authorize server for the server.
 func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Option {
 	if authorizeServer == nil {
 		panic("authorizeServer cannot be nil")
@@ -126,7 +126,7 @@ func WithAuthorizeServer(authorizeServer networkservice.NetworkServiceServer) Op
 	}
 }
 
-// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element
+// WithAuthorizeMonitorConnectionServer sets authorization MonitorConnectionServer chain element.
 func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer networkservice.MonitorConnectionServer) Option {
 	if authorizeMonitorConnectionServer == nil {
 		panic("authorizeMonitorConnectionServer cannot be nil")
@@ -136,7 +136,7 @@ func WithAuthorizeMonitorConnectionServer(authorizeMonitorConnectionServer netwo
 	}
 }
 
-// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element
+// WithAuthorizeNSRegistryServer sets authorization NetworkServiceRegistry chain element.
 func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.NetworkServiceRegistryServer) Option {
 	if authorizeNSRegistryServer == nil {
 		panic("authorizeNSRegistryServer cannot be nil")
@@ -146,7 +146,7 @@ func WithAuthorizeNSRegistryServer(authorizeNSRegistryServer registryapi.Network
 	}
 }
 
-// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element
+// WithAuthorizeNSERegistryServer sets authorization NetworkServiceEndpointRegistry chain element.
 func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer) Option {
 	if authorizeNSERegistryServer == nil {
 		panic("authorizeNSERegistryServer cannot be nil")
@@ -156,7 +156,7 @@ func WithAuthorizeNSERegistryServer(authorizeNSERegistryServer registryapi.Netwo
 	}
 }
 
-// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element
+// WithAuthorizeNSRegistryClient sets authorization NetworkServiceRegistry chain element.
 func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registryapi.NetworkServiceRegistryClient) Option {
 	if authorizeNSRegistryClient == nil {
 		panic("authorizeNSRegistryClient cannot be nil")
@@ -166,7 +166,7 @@ func WithAuthorizeNSRegistryClient(authorizeNSRegistryClient registryapi.Network
 	}
 }
 
-// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element
+// WithAuthorizeNSERegistryClient sets authorization NetworkServiceEndpointRegistry chain element.
 func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient) Option {
 	if authorizeNSERegistryClient == nil {
 		panic("authorizeNSERegistryClient cannot be nil")
@@ -176,35 +176,35 @@ func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.Netwo
 	}
 }
 
-// WithListenOn sets current listenOn url
+// WithListenOn sets current listenOn url.
 func WithListenOn(u *url.URL) Option {
 	return func(o *serverOptions) {
 		o.listenOn = u
 	}
 }
 
-// WithMapIPFilePath sets the custom path for the file that contains internal to external IPs information in YAML format
+// WithMapIPFilePath sets the custom path for the file that contains internal to external IPs information in YAML format.
 func WithMapIPFilePath(p string) Option {
 	return func(o *serverOptions) {
 		o.mapipFilePath = p
 	}
 }
 
-// WithDialOptions sets connect Options for the server
+// WithDialOptions sets connect Options for the server.
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
 		o.dialOptions = dialOptions
 	}
 }
 
-// WithDialTimeout sets dial timeout for the server
+// WithDialTimeout sets dial timeout for the server.
 func WithDialTimeout(dialTimeout time.Duration) Option {
 	return func(o *serverOptions) {
 		o.dialTimeout = dialTimeout
 	}
 }
 
-// NewServer creates new proxy NSMgr
+// NewServer creates new proxy NSMgr.
 func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...Option) nsmgr.Nsmgr {
 	rv := new(nsmgrProxyServer)
 	opts := &serverOptions{
@@ -269,7 +269,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		),
 	)
 
-	var nsServerChain = registryconnect.NewNetworkServiceRegistryServer(
+	nsServerChain := registryconnect.NewNetworkServiceRegistryServer(
 		chain.NewNetworkServiceRegistryClient(
 			begin.NewNetworkServiceRegistryClient(),
 			clienturl.NewNetworkServiceRegistryClient(proxyURL),
@@ -290,7 +290,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		nsServerChain,
 	)
 
-	var nseServerChain = chain.NewNetworkServiceEndpointRegistryServer(
+	nseServerChain := chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,

@@ -81,7 +81,7 @@ func NewNetworkServiceEndpointRegistryServer(errorChance float32) registry.Netwo
 }
 
 func (s *randomErrorNSEServer) Register(ctx context.Context, ns *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	// nolint
+	//nolint
 	val := rand.Float32()
 	if val > s.errorChance {
 		return nil, errors.New("random error")

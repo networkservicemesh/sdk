@@ -24,12 +24,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PrefixPool - keeps prefixes for both IPv4 and IPv6 addresses
+// PrefixPool - keeps prefixes for both IPv4 and IPv6 addresses.
 type PrefixPool struct {
 	ip4, ip6 *IPPool
 }
 
-// NewPool - Creates new PrefixPool with initial prefixes list
+// NewPool - Creates new PrefixPool with initial prefixes list.
 func NewPool(prefixes ...string) (*PrefixPool, error) {
 	pool := &PrefixPool{
 		ip4: New(net.IPv4len),
@@ -43,7 +43,7 @@ func NewPool(prefixes ...string) (*PrefixPool, error) {
 	return pool, nil
 }
 
-// AddPrefixes - adds prefixes to the pool
+// AddPrefixes - adds prefixes to the pool.
 func (pool *PrefixPool) AddPrefixes(prefixes ...string) error {
 	for _, prefix := range prefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
@@ -56,7 +56,7 @@ func (pool *PrefixPool) AddPrefixes(prefixes ...string) error {
 	return nil
 }
 
-// ExcludePrefixes - removes prefixes from the pool
+// ExcludePrefixes - removes prefixes from the pool.
 func (pool *PrefixPool) ExcludePrefixes(prefixes ...string) error {
 	for _, prefix := range prefixes {
 		_, ipNet, err := net.ParseCIDR(prefix)
@@ -69,7 +69,7 @@ func (pool *PrefixPool) ExcludePrefixes(prefixes ...string) error {
 	return nil
 }
 
-// GetPrefixes - returns the list of saved prefixes
+// GetPrefixes - returns the list of saved prefixes.
 func (pool *PrefixPool) GetPrefixes() []string {
 	return append(pool.ip4.GetPrefixes(), pool.ip6.GetPrefixes()...)
 }

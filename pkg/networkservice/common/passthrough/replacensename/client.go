@@ -30,13 +30,13 @@ import (
 
 type replaceNSEClient struct{}
 
-// NewClient creates new instance of NetworkServiceClient chain element, which replaces NetworkServiceEndpointName in the connection
+// NewClient creates new instance of NetworkServiceClient chain element, which replaces NetworkServiceEndpointName in the connection.
 func NewClient() networkservice.NetworkServiceClient {
 	return &replaceNSEClient{}
 }
 
 func (s *replaceNSEClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	prevNseName := request.Connection.NetworkServiceEndpointName
+	prevNseName := request.GetConnection().GetNetworkServiceEndpointName()
 	request.Connection.NetworkServiceEndpointName, _ = load(ctx)
 
 	conn, err = next.Client(ctx).Request(ctx, request, opts...)
@@ -44,7 +44,7 @@ func (s *replaceNSEClient) Request(ctx context.Context, request *networkservice.
 		return nil, err
 	}
 
-	store(ctx, conn.NetworkServiceEndpointName)
+	store(ctx, conn.GetNetworkServiceEndpointName())
 	conn.NetworkServiceEndpointName = prevNseName
 
 	return conn, nil

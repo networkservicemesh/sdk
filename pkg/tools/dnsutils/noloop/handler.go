@@ -19,7 +19,6 @@ package noloop
 
 import (
 	"context"
-
 	"sync"
 
 	"github.com/miekg/dns"
@@ -41,7 +40,7 @@ func (n *noloopDNSHandler) ServeDNS(ctx context.Context, rp dns.ResponseWriter, 
 	next.Handler(ctx).ServeDNS(ctx, rp, m)
 }
 
-// NewDNSHandler creates a new dns handelr that prevents loops
+// NewDNSHandler creates a new dns handelr that prevents loops.
 func NewDNSHandler() dnsutils.Handler {
 	return new(noloopDNSHandler)
 }

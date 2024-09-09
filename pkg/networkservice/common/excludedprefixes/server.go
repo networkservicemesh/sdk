@@ -74,7 +74,7 @@ func (eps *excludedPrefixesServer) init(ctx context.Context) {
 	}()
 }
 
-// Note: request.Connection and Connection.Context should not be nil
+// Note: request.Connection and Connection.Context should not be nil.
 func (eps *excludedPrefixesServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	eps.once.Do(func() {
 		eps.init(ctx)
@@ -101,7 +101,7 @@ func (eps *excludedPrefixesServer) Close(ctx context.Context, connection *networ
 
 // NewServer -  creates a networkservice.NetworkServiceServer chain element that can read excluded prefixes from config
 // map and add them to request to avoid repeated usage.
-// Note: request.Connection and Connection.Context should not be nil when calling Request
+// Note: request.Connection and Connection.Context should not be nil when calling Request.
 func NewServer(ctx context.Context, setters ...ServerOption) networkservice.NetworkServiceServer {
 	server := &excludedPrefixesServer{
 		configPath: PrefixesFilePathDefault,

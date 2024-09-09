@@ -31,13 +31,13 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// DefaultNsmgrProxyService default NSM nsmgr proxy service name for SRV lookup
+// DefaultNsmgrProxyService default NSM nsmgr proxy service name for SRV lookup.
 const DefaultNsmgrProxyService = "nsmgr-proxy.nsm-system"
 
-// DefaultRegistryService default NSM registry service name for SRV lookup
+// DefaultRegistryService default NSM registry service name for SRV lookup.
 const DefaultRegistryService = "registry.nsm-system"
 
-// Resolver is DNS resolver
+// Resolver is DNS resolver.
 type Resolver interface {
 	// LookupSRV tries to resolve an SRV query of the given service,
 	// protocol, and domain name. The proto is "tcp" or "udp".

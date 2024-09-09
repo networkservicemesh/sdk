@@ -49,7 +49,7 @@ func (n *switchCaseNSServer) Register(ctx context.Context, service *registry.Net
 
 func (n *switchCaseNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
 	for _, c := range n.cases {
-		if c.Condition(server.Context(), query.NetworkService) {
+		if c.Condition(server.Context(), query.GetNetworkService()) {
 			return c.Action.Find(query, server)
 		}
 	}

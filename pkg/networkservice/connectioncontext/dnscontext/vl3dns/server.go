@@ -62,7 +62,7 @@ type clientDNSNameKey struct{}
 // chainCtx is using for signal to stop dns server.
 // opts configure vl3dns networkservice instance with specific behavior.
 func NewServer(chainCtx context.Context, dnsServerIPCh <-chan net.IP, opts ...Option) networkservice.NetworkServiceServer {
-	var result = &vl3DNSServer{
+	result := &vl3DNSServer{
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		dnsConfigs:        new(genericsync.Map[string, []*networkservice.DNSConfig]),
@@ -107,7 +107,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		request.Connection.Context.DnsContext = new(networkservice.DNSContext)
 	}
 
-	var clientsConfigs = request.GetConnection().GetContext().GetDnsContext().GetConfigs()
+	clientsConfigs := request.GetConnection().GetContext().GetDnsContext().GetConfigs()
 
 	recordNames, err := n.buildSrcDNSRecords(request.GetConnection())
 	if err != nil {
@@ -115,7 +115,7 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 	}
 
 	if v, ok := metadata.Map(ctx, false).LoadAndDelete(clientDNSNameKey{}); ok {
-		var previousNames = v.([]string)
+		previousNames := v.([]string)
 		if !compareStringSlices(previousNames, recordNames) {
 			for _, prevName := range previousNames {
 				n.dnsServerRecords.Delete(prevName)
@@ -140,9 +140,9 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		}
 		configs := make([]*networkservice.DNSConfig, 0)
 		if srcRoutes := resp.GetContext().GetIpContext().GetSrcRoutes(); len(srcRoutes) > 0 {
-			var lastPrefix = srcRoutes[len(srcRoutes)-1].Prefix
+			lastPrefix := srcRoutes[len(srcRoutes)-1].Prefix
 			for _, config := range clientsConfigs {
-				for _, serverIP := range config.DnsServerIps {
+				for _, serverIP := range config.GetDnsServerIps() {
 					if dnsServerIPStr == serverIP {
 						continue
 					}
@@ -158,10 +158,10 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 }
 
 func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	n.dnsConfigs.Delete(conn.Id)
+	n.dnsConfigs.Delete(conn.GetId())
 
 	if v, ok := metadata.Map(ctx, false).LoadAndDelete(clientDNSNameKey{}); ok {
-		var names = v.([]string)
+		names := v.([]string)
 		for _, name := range names {
 			n.dnsServerRecords.Delete(name)
 		}
@@ -186,16 +186,16 @@ func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection, dnsRecords []
 		}
 
 		// Add dnsConfig to the connection
-		var dnsContext = c.GetContext().GetDnsContext()
+		dnsContext := c.GetContext().GetDnsContext()
 		configToAdd := &networkservice.DNSConfig{
 			DnsServerIps:  []string{dnsServerIP.String()},
 			SearchDomains: searchDomains,
 		}
-		if !dnsutils.ContainsDNSConfig(dnsContext.Configs, configToAdd) {
+		if !dnsutils.ContainsDNSConfig(dnsContext.GetConfigs(), configToAdd) {
 			dnsContext.Configs = append(dnsContext.Configs, configToAdd)
 		}
 		return dnsServerIP.String(), nil
-	} else if c.GetPath().GetPathSegments()[0].Name == c.GetCurrentPathSegment().Name {
+	} else if c.GetPath().GetPathSegments()[0].GetName() == c.GetCurrentPathSegment().GetName() {
 		// If it calls itself - this is not an error, but a request to allocate a dns address
 		return "", nil
 	}
@@ -205,7 +205,7 @@ func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection, dnsRecords []
 func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]string, error) {
 	var result []string
 	for _, templ := range n.domainSchemeTemplates {
-		var recordBuilder = new(strings.Builder)
+		recordBuilder := new(strings.Builder)
 		if err := templ.Execute(recordBuilder, c); err != nil {
 			return nil, errors.Wrap(err, "error occurred executing the template or writing its output")
 		}
@@ -231,7 +231,7 @@ func withinPrefix(ipAddr, prefix string) bool {
 	if err != nil {
 		return false
 	}
-	var pool = ippool.NewWithNet(ipNet)
+	pool := ippool.NewWithNet(ipNet)
 	return pool.ContainsString(ipAddr)
 }
 

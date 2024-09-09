@@ -56,7 +56,7 @@ func pemEncodingX509Cert(cert *x509.Certificate) string {
 	return string(certpem)
 }
 
-// ParseX509Cert - parses x509 certificate from the passed credentials.AuthInfo
+// ParseX509Cert - parses x509 certificate from the passed credentials.AuthInfo.
 func ParseX509Cert(authInfo credentials.AuthInfo) *x509.Certificate {
 	var peerCert *x509.Certificate
 

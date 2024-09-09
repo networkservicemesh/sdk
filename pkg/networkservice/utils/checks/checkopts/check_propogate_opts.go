@@ -26,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injectopts"
 )
 
-// CheckPropogateOptsClient - returns NetworkServiceClient that checks to make sure the clientUnderTest is passing through the grpc.CallOptions
+// CheckPropogateOptsClient - returns NetworkServiceClient that checks to make sure the clientUnderTest is passing through the grpc.CallOptions.
 func CheckPropogateOptsClient(t *testing.T, clientUnderTest networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		injectopts.NewClient(),

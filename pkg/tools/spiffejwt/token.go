@@ -29,7 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// TokenGeneratorFunc - creates a token.TokenGeneratorFunc that creates spiffe JWT tokens from the cert returned by getCert()
+// TokenGeneratorFunc - creates a token.TokenGeneratorFunc that creates spiffe JWT tokens from the cert returned by getCert().
 func TokenGeneratorFunc(source x509svid.Source, maxTokenLifeTime time.Duration) token.GeneratorFunc {
 	return func(authInfo credentials.AuthInfo) (string, time.Time, error) {
 		ownSVID, err := source.GetX509SVID()

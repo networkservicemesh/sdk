@@ -39,7 +39,7 @@ const (
 	telemetryEnv = "TELEMETRY"
 )
 
-// IsEnabled returns true if opentelemetry enabled
+// IsEnabled returns true if opentelemetry enabled.
 func IsEnabled() bool {
 	if v, err := strconv.ParseBool(os.Getenv(telemetryEnv)); err == nil {
 		return v
@@ -71,7 +71,7 @@ func (o *opentelemetry) Close() error {
 	return nil
 }
 
-// Init - creates opentelemetry tracer and meter providers
+// Init - creates opentelemetry tracer and meter providers.
 func Init(ctx context.Context, spanExporter sdktrace.SpanExporter, metricReader sdkmetric.Reader, service string) io.Closer {
 	o := &opentelemetry{
 		ctx: ctx,

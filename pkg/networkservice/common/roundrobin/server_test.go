@@ -49,7 +49,7 @@ func TestSelectEndpointServer_CleanRequest(t *testing.T) {
 		switchcase.NewServer(
 			&switchcase.ServerCase{
 				Condition: func(_ context.Context, conn *networkservice.Connection) bool {
-					return conn.NetworkServiceEndpointName == nse1
+					return conn.GetNetworkServiceEndpointName() == nse1
 				},
 				Server: next.NewNetworkServiceServer(
 					checkrequest.NewServer(t, func(_ *testing.T, request *networkservice.NetworkServiceRequest) {
@@ -83,6 +83,6 @@ func TestSelectEndpointServer_CleanRequest(t *testing.T) {
 	require.NoError(t, err)
 
 	require.True(t, hasBeenRequested)
-	require.Equal(t, nse2, conn.NetworkServiceEndpointName)
-	require.Equal(t, map[string]string{nse2: nse2}, conn.Labels)
+	require.Equal(t, nse2, conn.GetNetworkServiceEndpointName())
+	require.Equal(t, map[string]string{nse2: nse2}, conn.GetLabels())
 }

@@ -47,7 +47,7 @@ func (n *switchCaseNSEServer) Register(ctx context.Context, service *registry.Ne
 
 func (n *switchCaseNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	for _, c := range n.cases {
-		if c.Condition(server.Context(), query.NetworkServiceEndpoint) {
+		if c.Condition(server.Context(), query.GetNetworkServiceEndpoint()) {
 			return c.Action.Find(query, server)
 		}
 	}

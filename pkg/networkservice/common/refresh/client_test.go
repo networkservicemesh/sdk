@@ -135,13 +135,13 @@ func TestRefreshClient_ValidRefresh(t *testing.T) {
 	require.Eventually(t, cloneClient.validator(2), testWait, testTick)
 
 	lastRequestConn := cloneClient.GetLastRequest().GetConnection()
-	require.Equal(t, conn.Id, lastRequestConn.Id)
-	require.Equal(t, len(conn.Path.PathSegments), len(lastRequestConn.Path.PathSegments))
-	for i := 0; i < len(conn.Path.PathSegments); i++ {
-		connSegment := conn.Path.PathSegments[i]
-		lastRequestSegment := lastRequestConn.Path.PathSegments[i]
+	require.Equal(t, conn.GetId(), lastRequestConn.GetId())
+	require.Equal(t, len(conn.GetPath().GetPathSegments()), len(lastRequestConn.GetPath().GetPathSegments()))
+	for i := 0; i < len(conn.GetPath().GetPathSegments()); i++ {
+		connSegment := conn.GetPath().GetPathSegments()[i]
+		lastRequestSegment := lastRequestConn.GetPath().GetPathSegments()[i]
 		require.Condition(t, func() (success bool) {
-			return connSegment.Expires.AsTime().Before(lastRequestSegment.Expires.AsTime())
+			return connSegment.GetExpires().AsTime().Before(lastRequestSegment.GetExpires().AsTime())
 		})
 	}
 }
@@ -222,6 +222,7 @@ func TestRefreshClient_RestartsRefreshAtAnotherRequest(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		clockMock.Add(expireTimeout / 10)
 	}
+
 	require.Eventually(t, cloneClient.validator(count+1), testWait, testTick)
 	require.Never(t, cloneClient.validator(count+5), testWait, testTick)
 }
@@ -281,7 +282,7 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 	}
 
 	refreshSrv := newRefreshTesterServer(t, sandboxMinDuration, sandboxExpireTimeout)
@@ -291,6 +292,7 @@ func TestRefreshClient_Sandbox(t *testing.T) {
 	nsc := domain.Nodes[1].NewClient(ctx, nscTokenGenerator)
 
 	refreshSrv.beforeRequest("test-conn")
+
 	_, err = nsc.Request(ctx, mkRequest("test-conn", nil))
 	require.NoError(t, err)
 	refreshSrv.afterRequest()
@@ -362,14 +364,16 @@ func TestRefreshClient_CalculatesShortestTokenTimeout(t *testing.T) {
 		Mock: clockmock.New(ctx),
 	}
 
-	var countClient = &countutil.Client{}
+	countClient := &countutil.Client{}
 
 	const timeoutDelta = 10 * time.Millisecond
+
 	for _, testDataElement := range testData {
 		clockMock.Reset(timeNow)
 
 		var pathChain []networkservice.NetworkServiceClient
-		var clientChain = []networkservice.NetworkServiceClient{
+
+		clientChain := []networkservice.NetworkServiceClient{
 			begin.NewClient(),
 			metadata.NewClient(),
 			injectclock.NewClient(&clockMock),

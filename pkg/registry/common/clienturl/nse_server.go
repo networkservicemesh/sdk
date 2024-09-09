@@ -32,7 +32,7 @@ type clientURLNSEServer struct {
 	u *url.URL
 }
 
-// NewNetworkServiceEndpointRegistryServer - returns a new NSE registry server chain element that sets client URL in context
+// NewNetworkServiceEndpointRegistryServer - returns a new NSE registry server chain element that sets client URL in context.
 func NewNetworkServiceEndpointRegistryServer(u *url.URL) registry.NetworkServiceEndpointRegistryServer {
 	return &clientURLNSEServer{
 		u: u,

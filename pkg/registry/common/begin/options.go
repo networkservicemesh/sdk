@@ -25,17 +25,17 @@ type option struct {
 	extendContext context.Context
 }
 
-// Option - event option
+// Option - event option.
 type Option func(*option)
 
-// CancelContext - optionally provide a context that, when canceled will preclude the event from running
+// CancelContext - optionally provide a context that, when canceled will preclude the event from running.
 func CancelContext(cancelCtx context.Context) Option {
 	return func(o *option) {
 		o.cancelCtx = cancelCtx
 	}
 }
 
-// ExtendContext - optionally provides a context which extends factory's context with its values
+// ExtendContext - optionally provides a context which extends factory's context with its values.
 func ExtendContext(extendCountext context.Context) Option {
 	return func(o *option) {
 		o.extendContext = extendCountext

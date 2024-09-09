@@ -36,7 +36,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
-// This test reproduces the situation when refresh changes the eventFactory context
+// This test reproduces the situation when refresh changes the eventFactory context.
 func TestContextValues_Client(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -88,7 +88,7 @@ func TestContextValues_Client(t *testing.T) {
 	eventFactoryCl.callRefresh()
 }
 
-// This test reproduces the situation when Unregister and Register were called at the same time
+// This test reproduces the situation when Unregister and Register were called at the same time.
 func TestRefreshDuringUnregister_Client(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -131,7 +131,7 @@ func TestRefreshDuringUnregister_Client(t *testing.T) {
 	eventFactoryCl.callRefresh()
 }
 
-// This test checks if the timeout for the Register/Unregister called from the event factory is correct
+// This test checks if the timeout for the Register/Unregister called from the event factory is correct.
 func TestContextTimeout_Client(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -221,14 +221,14 @@ type failedNSEClient struct {
 }
 
 func (f *failedNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
-	if in.Url == failedNSEURLClient {
+	if in.GetUrl() == failedNSEURLClient {
 		return nil, errors.New("failed")
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
 func (f *failedNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if in.Url == failedNSEURLClient {
+	if in.GetUrl() == failedNSEURLClient {
 		return nil, errors.New("failed")
 	}
 	return next.NetworkServiceEndpointRegistryClient(ctx).Unregister(ctx, in, opts...)

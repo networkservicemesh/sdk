@@ -34,7 +34,7 @@ const (
 	prefixBitsSize       = 64
 )
 
-// IPPool holds available ip addresses in the structure of red-black tree
+// IPPool holds available ip addresses in the structure of red-black tree.
 type IPPool struct {
 	root     *treeNode
 	lock     sync.Mutex
@@ -42,7 +42,7 @@ type IPPool struct {
 	ipLength int
 }
 
-// treeNode is a single element within the IP pool tree
+// treeNode is a single element within the IP pool tree.
 type treeNode struct {
 	Value  *ipRange
 	color  color
@@ -62,7 +62,7 @@ func New(ipLength int) *IPPool {
 	}
 }
 
-// NewWithNet instantiates a ip pool as red-black tree with the specified ip network
+// NewWithNet instantiates a ip pool as red-black tree with the specified ip network.
 func NewWithNet(ipNet *net.IPNet) *IPPool {
 	ipPool := &IPPool{
 		ipLength: len(ipNet.IP),
@@ -71,7 +71,7 @@ func NewWithNet(ipNet *net.IPNet) *IPPool {
 	return ipPool
 }
 
-// NewWithNetString instantiates a ip pool as red-black tree with the specified ip network
+// NewWithNetString instantiates a ip pool as red-black tree with the specified ip network.
 func NewWithNetString(ipNetString string) *IPPool {
 	_, ipNet, err := net.ParseCIDR(ipNetString)
 	if err != nil {
@@ -81,7 +81,7 @@ func NewWithNetString(ipNetString string) *IPPool {
 	return NewWithNet(ipNet)
 }
 
-// Clone - make a clone of the pool
+// Clone - make a clone of the pool.
 func (tree *IPPool) Clone() *IPPool {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
@@ -105,7 +105,7 @@ func (tree *IPPool) clone() *IPPool {
 	return newPool
 }
 
-// Add - adds ip address to the pool
+// Add - adds ip address to the pool.
 func (tree *IPPool) Add(ip net.IP) {
 	if ip == nil || tree.ipLength != len(ip) {
 		return
@@ -117,7 +117,7 @@ func (tree *IPPool) Add(ip net.IP) {
 	tree.add(ipAddressFromIP(ip))
 }
 
-// AddString - adds ip address to the pool by string value
+// AddString - adds ip address to the pool by string value.
 func (tree *IPPool) AddString(in string) {
 	ip := net.ParseIP(in)
 	if tree.ipLength == net.IPv4len {
@@ -126,7 +126,7 @@ func (tree *IPPool) AddString(in string) {
 	tree.Add(ip)
 }
 
-// AddNet - adds ip addresses from network to the pool
+// AddNet - adds ip addresses from network to the pool.
 func (tree *IPPool) AddNet(ipNet *net.IPNet) {
 	if ipNet == nil || tree.ipLength != len(ipNet.IP) {
 		return
@@ -138,7 +138,7 @@ func (tree *IPPool) AddNet(ipNet *net.IPNet) {
 	tree.addRange(ipRangeFromIPNet(ipNet))
 }
 
-// AddNetString - adds ip addresses from network to the pool by string value
+// AddNetString - adds ip addresses from network to the pool by string value.
 func (tree *IPPool) AddNetString(ipNetString string) {
 	_, ipNet, err := net.ParseCIDR(ipNetString)
 	if err != nil {
@@ -148,7 +148,7 @@ func (tree *IPPool) AddNetString(ipNetString string) {
 	tree.AddNet(ipNet)
 }
 
-// ContainsNetString parses ipNetRaw string and checks that pool contains whole ipNet
+// ContainsNetString parses ipNetRaw string and checks that pool contains whole ipNet.
 func (tree *IPPool) ContainsNetString(ipNetRaw string) bool {
 	_, ipNet, err := net.ParseCIDR(ipNetRaw)
 	if err != nil {
@@ -158,14 +158,14 @@ func (tree *IPPool) ContainsNetString(ipNetRaw string) bool {
 	return tree.ContainsNet(ipNet)
 }
 
-// ContainsNet checks that pool contains whole ipNet
+// ContainsNet checks that pool contains whole ipNet.
 func (tree *IPPool) ContainsNet(ipNet *net.IPNet) bool {
 	if ipNet == nil {
 		return false
 	}
 
-	var node = tree.root
-	var ipRange = ipRangeFromIPNet(ipNet)
+	node := tree.root
+	ipRange := ipRangeFromIPNet(ipNet)
 
 	for node != nil {
 		compare := node.Value.CompareRange(ipRange)
@@ -183,7 +183,7 @@ func (tree *IPPool) ContainsNet(ipNet *net.IPNet) bool {
 	return false
 }
 
-// Contains - check the pool contains ip address
+// Contains - check the pool contains ip address.
 func (tree *IPPool) Contains(ip net.IP) bool {
 	if ip == nil {
 		return false
@@ -192,12 +192,12 @@ func (tree *IPPool) Contains(ip net.IP) bool {
 	return tree.lookup(ipAddressFromIP(ip)) != nil
 }
 
-// ContainsString - check the pool contains ip by string value
+// ContainsString - check the pool contains ip by string value.
 func (tree *IPPool) ContainsString(in string) bool {
 	return tree.Contains(net.ParseIP(in))
 }
 
-// Exclude - exclude network from pool
+// Exclude - exclude network from pool.
 func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	if ipNet == nil {
 		return
@@ -209,7 +209,7 @@ func (tree *IPPool) Exclude(ipNet *net.IPNet) {
 	tree.deleteRange(ipRangeFromIPNet(ipNet))
 }
 
-// ExcludeString - exclude network from pool by string value
+// ExcludeString - exclude network from pool by string value.
 func (tree *IPPool) ExcludeString(ipNetString string) {
 	_, ipNet, err := net.ParseCIDR(ipNetString)
 	if err != nil {
@@ -219,7 +219,7 @@ func (tree *IPPool) ExcludeString(ipNetString string) {
 	tree.Exclude(ipNet)
 }
 
-// Pull - returns next IP address from pool
+// Pull - returns next IP address from pool.
 func (tree *IPPool) Pull() (net.IP, error) {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
@@ -231,7 +231,7 @@ func (tree *IPPool) Pull() (net.IP, error) {
 	return ipFromIPAddress(ip, tree.ipLength), nil
 }
 
-// PullIPString - returns requested IP address from the pool by string
+// PullIPString - returns requested IP address from the pool by string.
 func (tree *IPPool) PullIPString(ipString string, exclude ...*IPPool) (*net.IPNet, error) {
 	ip, _, err := net.ParseCIDR(ipString)
 	if err != nil {
@@ -241,7 +241,7 @@ func (tree *IPPool) PullIPString(ipString string, exclude ...*IPPool) (*net.IPNe
 	return tree.PullIP(ip, exclude...)
 }
 
-// PullIP - returns requested IP address from the pool
+// PullIP - returns requested IP address from the pool.
 func (tree *IPPool) PullIP(ip net.IP, exclude ...*IPPool) (*net.IPNet, error) {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
@@ -266,7 +266,7 @@ func (tree *IPPool) PullIP(ip net.IP, exclude ...*IPPool) (*net.IPNet, error) {
 	}, nil
 }
 
-// PullP2PAddrs - returns next IP addresses pair from pool for peer-to-peer connection
+// PullP2PAddrs - returns next IP addresses pair from pool for peer-to-peer connection.
 func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet, err error) {
 	tree.lock.Lock()
 	defer tree.lock.Unlock()
@@ -309,7 +309,7 @@ func (tree *IPPool) PullP2PAddrs(exclude ...*IPPool) (srcNet, dstNet *net.IPNet,
 	return srcNet, dstNet, nil
 }
 
-// GetPrefixes returns the list of saved prefixes
+// GetPrefixes returns the list of saved prefixes.
 func (tree *IPPool) GetPrefixes() []string {
 	tree.lock.Lock()
 	clone := tree.clone()
@@ -352,7 +352,7 @@ func (tree *IPPool) excludeNode(exclude *treeNode) {
 	tree.excludeNode(exclude.Right)
 }
 
-// Empty returns true if pool does not contain any nodes
+// Empty returns true if pool does not contain any nodes.
 func (tree *IPPool) Empty() bool {
 	return tree.root == nil
 }
@@ -397,7 +397,7 @@ func (tree *IPPool) addRange(ipR *ipRange) {
 	tree.size++
 }
 
-// add - inserts IP address into the pool
+// add - inserts IP address into the pool.
 func (tree *IPPool) add(ip *ipAddress) {
 	ipR := &ipRange{
 		start: ip.Clone(),

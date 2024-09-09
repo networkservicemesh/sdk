@@ -99,6 +99,7 @@ func (t *conciseNetworkServiceEndpointRegistryClient) Register(ctx context.Conte
 	}
 	return rv, nil
 }
+
 func (t *conciseNetworkServiceEndpointRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	conciseFindClient := &conciseNetworkServiceEndpointRegistryFindClient{
 		operation: typeutils.GetFuncName(t.traced, methodNameRecv),
@@ -162,7 +163,7 @@ func (t *conciseNetworkServiceEndpointRegistryClient) Unregister(ctx context.Con
 	return rv, nil
 }
 
-// NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing
+// NewNetworkServiceEndpointRegistryClient - wraps registry.NetworkServiceEndpointRegistryClient with tracing.
 func NewNetworkServiceEndpointRegistryClient(traced registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	return &conciseNetworkServiceEndpointRegistryClient{traced: traced}
 }
@@ -261,7 +262,7 @@ func (t *conciseNetworkServiceEndpointRegistryServer) Unregister(ctx context.Con
 	return rv, nil
 }
 
-// NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing
+// NewNetworkServiceEndpointRegistryServer - wraps registry.NetworkServiceEndpointRegistryServer with tracing.
 func NewNetworkServiceEndpointRegistryServer(traced registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
 	return &conciseNetworkServiceEndpointRegistryServer{traced: traced}
 }

@@ -23,17 +23,17 @@ type options struct {
 	tryTimeout time.Duration
 }
 
-// Option is NS/NSE retry client config option
+// Option is NS/NSE retry client config option.
 type Option func(*options)
 
-// WithTryTimeout sets timeout for the register/unregister/find operations
+// WithTryTimeout sets timeout for the register/unregister/find operations.
 func WithTryTimeout(tryTimeout time.Duration) Option {
 	return func(o *options) {
 		o.tryTimeout = tryTimeout
 	}
 }
 
-// WithInterval sets delay interval before next try
+// WithInterval sets delay interval before next try.
 func WithInterval(interval time.Duration) Option {
 	return func(o *options) {
 		o.interval = interval

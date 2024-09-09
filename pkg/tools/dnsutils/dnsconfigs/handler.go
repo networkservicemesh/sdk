@@ -43,10 +43,10 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 
 	h.configs.Range(func(key string, value []*networkservice.DNSConfig) bool {
 		for _, conf := range value {
-			for _, ip := range conf.DnsServerIps {
+			for _, ip := range conf.GetDnsServerIps() {
 				dnsIPs = append(dnsIPs, url.URL{Scheme: "udp", Host: ip})
 			}
-			searchDomains = append(searchDomains, conf.SearchDomains...)
+			searchDomains = append(searchDomains, conf.GetSearchDomains()...)
 		}
 
 		return true
@@ -86,7 +86,7 @@ func (h *dnsConfigsHandler) ServeDNS(ctx context.Context, rw dns.ResponseWriter,
 	dns.HandleFailed(rw, m)
 }
 
-// NewDNSHandler creates a new dns handler that stores DNS configs
+// NewDNSHandler creates a new dns handler that stores DNS configs.
 func NewDNSHandler(configs *genericsync.Map[string, []*networkservice.DNSConfig]) dnsutils.Handler {
 	return &dnsConfigsHandler{
 		configs: configs,

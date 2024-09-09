@@ -21,17 +21,17 @@ type options struct {
 	doneCh  chan struct{}
 }
 
-// Option - options for the cleanup chain element
+// Option - options for the cleanup chain element.
 type Option func(*options)
 
-// WithoutGRPCCall - closes client connection to prevent calling requests/closes on other endpoints
+// WithoutGRPCCall - closes client connection to prevent calling requests/closes on other endpoints.
 func WithoutGRPCCall() Option {
 	return func(o *options) {
 		o.ccClose = true
 	}
 }
 
-// WithDoneChan - receives a channel to notify the end of cleaning
+// WithDoneChan - receives a channel to notify the end of cleaning.
 func WithDoneChan(doneCh chan struct{}) Option {
 	return func(o *options) {
 		o.doneCh = doneCh

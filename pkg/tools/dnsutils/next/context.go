@@ -33,7 +33,7 @@ func withNextHandler(parent context.Context, next dnsutils.Handler) context.Cont
 	return context.WithValue(parent, key{}, next)
 }
 
-// Handler returns next handler or tail
+// Handler returns next handler or tail.
 func Handler(ctx context.Context) dnsutils.Handler {
 	rv, ok := ctx.Value(key{}).(dnsutils.Handler)
 	if ok && rv != nil {

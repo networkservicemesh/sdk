@@ -67,9 +67,9 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "nse-maker",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 		NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-			nsReg.Name: {Labels: map[string]string{"create-nse": "true"}},
+			nsReg.GetName(): {Labels: map[string]string{"create-nse": "true"}},
 		},
 	}
 
@@ -81,9 +81,9 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 		domain: domain,
 		nseReg: &registry.NetworkServiceEndpoint{
 			Name:                "nse-impl",
-			NetworkServiceNames: []string{nsReg.Name},
+			NetworkServiceNames: []string{nsReg.GetName()},
 			NetworkServiceLabels: map[string]*registry.NetworkServiceLabels{
-				nsReg.Name: {Labels: map[string]string{"nodeName": "node[1]"}},
+				nsReg.GetName(): {Labels: map[string]string{"nodeName": "node[1]"}},
 			},
 		},
 		serverFactory: func() networkservice.NetworkServiceServer {
@@ -104,7 +104,7 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 	// check first request
 	conn, err := nsc.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			NetworkService: nsReg.Name,
+			NetworkService: nsReg.GetName(),
 		},
 	})
 	require.NoError(t, err)
@@ -121,7 +121,7 @@ func TestCreateEndpointDuringRequest(t *testing.T) {
 	// check new request
 	_, err = nsc.Request(ctx, &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
-			NetworkService: nsReg.Name,
+			NetworkService: nsReg.GetName(),
 		},
 	})
 	require.NoError(t, err)

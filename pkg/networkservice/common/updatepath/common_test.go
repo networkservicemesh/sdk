@@ -107,9 +107,9 @@ var samples = []*sample{
 			require.NoError(t, err)
 			require.NotNil(t, conn)
 
-			requirePathEqual(t, path(0, 1), conn.Path, 0)
+			requirePathEqual(t, path(0, 1), conn.GetPath(), 0)
 
-			require.Equal(t, conn.Id, conn.Path.PathSegments[0].Id)
+			require.Equal(t, conn.GetId(), conn.GetPath().GetPathSegments()[0].GetId())
 		},
 	},
 	{
@@ -127,9 +127,9 @@ var samples = []*sample{
 
 			path := path(0, 1)
 			path.PathSegments[0].Id = connectionID
-			requirePathEqual(t, path, conn.Path)
+			requirePathEqual(t, path, conn.GetPath())
 
-			require.Equal(t, connectionID, conn.Id)
+			require.Equal(t, connectionID, conn.GetId())
 		},
 	},
 	{
@@ -145,9 +145,9 @@ var samples = []*sample{
 			require.NoError(t, err)
 			require.NotNil(t, conn)
 
-			requirePathEqual(t, path(1, 2), conn.Path)
+			requirePathEqual(t, path(1, 2), conn.GetPath())
 
-			require.Equal(t, pathSegmentID2, conn.Id)
+			require.Equal(t, pathSegmentID2, conn.GetId())
 		},
 	},
 	{
@@ -187,11 +187,11 @@ var samples = []*sample{
 			server := next.NewNetworkServiceServer(
 				newUpdatePathServer(nse3),
 				checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-					connPath = request.Connection.Path
+					connPath = request.GetConnection().GetPath()
 					requirePathEqual(t, path(2, 3), connPath, 2)
-					require.Equal(t, connPath.PathSegments[2].Id, request.Connection.Id)
-					require.NotEqual(t, pathSegmentID3, request.Connection.Id)
-					require.NotEqual(t, pathSegmentID2, request.Connection.Id)
+					require.Equal(t, connPath.GetPathSegments()[2].GetId(), request.GetConnection().GetId())
+					require.NotEqual(t, pathSegmentID3, request.GetConnection().GetId())
+					require.NotEqual(t, pathSegmentID2, request.GetConnection().GetId())
 				}),
 			)
 
@@ -202,9 +202,9 @@ var samples = []*sample{
 			require.NotNil(t, conn)
 
 			connPath.Index = 1
-			requirePathEqual(t, connPath, conn.Path, 2)
+			requirePathEqual(t, connPath, conn.GetPath(), 2)
 
-			require.Equal(t, pathSegmentID2, conn.Id)
+			require.Equal(t, pathSegmentID2, conn.GetId())
 		},
 	},
 	{
@@ -218,10 +218,10 @@ var samples = []*sample{
 			server := next.NewNetworkServiceServer(
 				newUpdatePathServer(nse3),
 				checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-					connPath = request.Connection.Path
+					connPath = request.GetConnection().GetPath()
 					requirePathEqual(t, path(2, 3), connPath, 2)
-					require.Equal(t, connPath.PathSegments[2].Id, request.Connection.Id)
-					require.NotEqual(t, pathSegmentID2, request.Connection.Id)
+					require.Equal(t, connPath.GetPathSegments()[2].GetId(), request.GetConnection().GetId())
+					require.NotEqual(t, pathSegmentID2, request.GetConnection().GetId())
 				}),
 			)
 
@@ -230,9 +230,9 @@ var samples = []*sample{
 			require.NotNil(t, conn)
 
 			connPath.Index = 1
-			requirePathEqual(t, connPath, conn.Path, 2)
+			requirePathEqual(t, connPath, conn.GetPath(), 2)
 
-			require.Equal(t, pathSegmentID2, conn.Id)
+			require.Equal(t, pathSegmentID2, conn.GetId())
 		},
 	},
 	{
@@ -245,8 +245,8 @@ var samples = []*sample{
 			server := next.NewNetworkServiceServer(
 				newUpdatePathServer(nse3),
 				checkrequest.NewServer(t, func(t *testing.T, request *networkservice.NetworkServiceRequest) {
-					requirePathEqual(t, path(2, 3), request.Connection.Path)
-					require.Equal(t, pathSegmentID3, request.Connection.Id)
+					requirePathEqual(t, path(2, 3), request.GetConnection().GetPath())
+					require.Equal(t, pathSegmentID3, request.GetConnection().GetId())
 				}),
 			)
 
@@ -254,9 +254,9 @@ var samples = []*sample{
 			require.NoError(t, err)
 			require.NotNil(t, conn)
 
-			requirePathEqual(t, path(1, 3), conn.Path)
+			requirePathEqual(t, path(1, 3), conn.GetPath())
 
-			require.Equal(t, pathSegmentID2, conn.Id)
+			require.Equal(t, pathSegmentID2, conn.GetId())
 		},
 	},
 }

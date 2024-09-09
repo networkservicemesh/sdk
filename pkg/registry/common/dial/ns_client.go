@@ -86,6 +86,7 @@ func (c *dialNSClient) Register(ctx context.Context, in *registry.NetworkService
 	}
 	return conn, nil
 }
+
 func (c *dialNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
 	// If no clientURL, we have no work to do
 	// call the next in the chain

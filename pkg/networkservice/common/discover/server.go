@@ -61,9 +61,9 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		if err != nil {
 			return nil, err
 		}
-		u, err := url.Parse(nse.Url)
+		u, err := url.Parse(nse.GetUrl())
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse url %s", nse.Url)
+			return nil, errors.Wrapf(err, "failed to parse url %s", nse.GetUrl())
 		}
 		return next.Server(ctx).Request(clienturlctx.WithClientURL(ctx, u), request)
 	}
@@ -76,7 +76,7 @@ func (d *discoverCandidatesServer) Request(ctx context.Context, request *network
 		return nil, err
 	}
 
-	request.GetConnection().Payload = ns.Payload
+	request.GetConnection().Payload = ns.GetPayload()
 
 	return next.Server(ctx).Request(WithCandidates(ctx, nses, ns), request.Clone())
 }
@@ -103,9 +103,9 @@ func (d *discoverCandidatesServer) Close(ctx context.Context, conn *networkservi
 		return next.Server(ctx).Close(ctx, conn)
 	}
 
-	u, err := url.Parse(nse.Url)
+	u, err := url.Parse(nse.GetUrl())
 	if err != nil {
-		logger.Errorf("failed to parse url: %s: %v", nse.Url, err)
+		logger.Errorf("failed to parse url: %s: %v", nse.GetUrl(), err)
 		return next.Server(ctx).Close(ctx, conn)
 	}
 
@@ -126,7 +126,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoint(ctx context.Co
 	nseList := registry.ReadNetworkServiceEndpointList(nseRespStream)
 
 	for _, nse := range nseList {
-		if nse.Name == nseName {
+		if nse.GetName() == nseName {
 			return nse, nil
 		}
 	}
@@ -139,7 +139,7 @@ func (d *discoverCandidatesServer) discoverNetworkServiceEndpoints(ctx context.C
 
 	query := &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{
-			NetworkServiceNames: []string{ns.Name},
+			NetworkServiceNames: []string{ns.GetName()},
 		},
 	}
 
@@ -172,7 +172,7 @@ func (d *discoverCandidatesServer) discoverNetworkService(ctx context.Context, n
 	nsList := registry.ReadNetworkServiceList(nsRespStream)
 
 	for _, ns := range nsList {
-		if ns.Name == name {
+		if ns.GetName() == name {
 			return ns, nil
 		}
 	}

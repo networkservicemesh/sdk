@@ -42,7 +42,7 @@ func Test_AwarenessGroupsDecoder_CorrectInput(t *testing.T) {
 	url4, err := url.Parse("kernel://ns-4/nsm-4?color=white")
 	require.NoError(t, err)
 
-	var expected = [][]*url.URL{
+	expected := [][]*url.URL{
 		{url1, url2},
 		{url3},
 		{url4},

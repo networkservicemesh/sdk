@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-// Clock is an interface for accessing time functions
+// Clock is an interface for accessing time functions.
 type Clock interface {
 	Now() time.Time
 	Since(t time.Time) time.Duration

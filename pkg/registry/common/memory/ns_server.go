@@ -41,7 +41,7 @@ type memoryNSServer struct {
 	eventChannelSize int
 }
 
-// NewNetworkServiceRegistryServer creates new memory based NetworkServiceRegistryServer
+// NewNetworkServiceRegistryServer creates new memory based NetworkServiceRegistryServer.
 func NewNetworkServiceRegistryServer(options ...Option) registry.NetworkServiceRegistryServer {
 	s := &memoryNSServer{
 		eventChannelSize: defaultEventChannelSize,
@@ -63,7 +63,7 @@ func (s *memoryNSServer) Register(ctx context.Context, ns *registry.NetworkServi
 		return nil, err
 	}
 
-	s.networkServices.Store(r.Name, r.Clone())
+	s.networkServices.Store(r.GetName(), r.Clone())
 
 	s.sendEvent(r)
 
@@ -80,7 +80,7 @@ func (s *memoryNSServer) sendEvent(event *registry.NetworkService) {
 }
 
 func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server registry.NetworkServiceRegistry_FindServer) error {
-	if !query.Watch {
+	if !query.GetWatch() {
 		for _, ns := range s.allMatches(query) {
 			nsResp := &registry.NetworkServiceResponse{
 				NetworkService: ns,
@@ -115,7 +115,7 @@ func (s *memoryNSServer) Find(query *registry.NetworkServiceQuery, server regist
 
 func (s *memoryNSServer) allMatches(query *registry.NetworkServiceQuery) (matches []*registry.NetworkService) {
 	s.networkServices.Range(func(_ string, ns *registry.NetworkService) bool {
-		if matchutils.MatchNetworkServices(query.NetworkService, ns) {
+		if matchutils.MatchNetworkServices(query.GetNetworkService(), ns) {
 			matches = append(matches, ns.Clone())
 		}
 		return true
@@ -149,7 +149,7 @@ func (s *memoryNSServer) receiveEvent(
 	case <-server.Context().Done():
 		return errors.WithStack(io.EOF)
 	case event := <-eventCh:
-		if matchutils.MatchNetworkServices(query.NetworkService, event) {
+		if matchutils.MatchNetworkServices(query.GetNetworkService(), event) {
 			nse := &registry.NetworkServiceResponse{
 				NetworkService: event,
 			}
@@ -166,7 +166,7 @@ func (s *memoryNSServer) receiveEvent(
 }
 
 func (s *memoryNSServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {
-	s.networkServices.Delete(ns.Name)
+	s.networkServices.Delete(ns.GetName())
 
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

@@ -41,7 +41,7 @@ const (
 
 var _ connectionState = zero
 
-// EventFactory - allows firing off a Request or Close event from midchain
+// EventFactory - allows firing off a Request or Close event from midchain.
 type EventFactory interface {
 	Request(opts ...Option) <-chan error
 	Close(opts ...Option) <-chan error

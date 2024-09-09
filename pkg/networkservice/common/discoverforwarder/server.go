@@ -52,7 +52,7 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 		panic("nsClient can not be nil")
 	}
 
-	var result = &discoverForwarderServer{
+	result := &discoverForwarderServer{
 		nseClient:            nseClient,
 		nsClient:             nsClient,
 		forwarderServiceName: "forwarder",
@@ -66,10 +66,10 @@ func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registr
 }
 
 func (d *discoverForwarderServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	var forwarderName = loadForwarderName(ctx)
-	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
+	forwarderName := loadForwarderName(ctx)
+	logger := log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 
-	if request.GetConnection().State == networkservice.State_RESELECT_REQUESTED {
+	if request.GetConnection().GetState() == networkservice.State_RESELECT_REQUESTED {
 		forwarderName = ""
 	}
 
@@ -92,7 +92,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		return nil, errors.Wrapf(err, "failed to find %s on %s", d.forwarderServiceName, d.nsmgrURL)
 	}
 
-	nses := d.matchForwarders(request.Connection.GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
+	nses := d.matchForwarders(request.GetConnection().GetLabels(), ns, registry.ReadNetworkServiceEndpointList(stream))
 	if len(nses) == 0 {
 		if forwarderName != "" {
 			return nil, errors.Errorf("forwarder %v is not available", forwarderName)
@@ -101,10 +101,10 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 	}
 
 	if forwarderName == "" && request.GetConnection().GetState() != networkservice.State_RESELECT_REQUESTED {
-		segments := request.Connection.GetPath().GetPathSegments()
-		if pathIndex := int(request.Connection.GetPath().Index); len(segments) > pathIndex+1 {
+		segments := request.GetConnection().GetPath().GetPathSegments()
+		if pathIndex := int(request.GetConnection().GetPath().GetIndex()); len(segments) > pathIndex+1 {
 			for i, candidate := range nses {
-				if candidate.Name == segments[pathIndex+1].GetName() {
+				if candidate.GetName() == segments[pathIndex+1].GetName() {
 					nses[0], nses[i] = nses[i], nses[0]
 					break
 				}
@@ -112,14 +112,14 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 		}
 	}
 
-	var candidatesErr = errors.New("all forwarders have failed")
+	candidatesErr := errors.New("all forwarders have failed")
 
-	// TODO: Should we consider about load balancing?
+	//nolint:nolintlint // TODO: Should we consider about load balancing?
 	// https://github.com/networkservicemesh/sdk/issues/790
 	for i, candidate := range nses {
-		u, err := url.Parse(candidate.Url)
+		u, err := url.Parse(candidate.GetUrl())
 		if err != nil {
-			logger.Errorf("can not parse forwarder=%v url=%v error=%v", candidate.Name, candidate.Url, err.Error())
+			logger.Errorf("can not parse forwarder=%v url=%v error=%v", candidate.GetName(), candidate.GetUrl(), err.Error())
 			continue
 		}
 
@@ -130,8 +130,8 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			}
 			return resp, nil
 		}
-		logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
-		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select forwawrder %v --> %v", i, candidate.Name, err.Error())
+		logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.GetName(), candidate.GetUrl(), err.Error())
+		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select forwawrder %v --> %v", i, candidate.GetName(), err.Error())
 	}
 
 	return nil, candidatesErr
@@ -141,16 +141,16 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 	// Unlike Request, Close method should always call next element in chain
 	// to make sure we clear resources in the current app.
 
-	var forwarderName = loadForwarderName(ctx)
+	forwarderName := loadForwarderName(ctx)
 
 	if forwarderName == "" {
 		segments := conn.GetPath().GetPathSegments()
-		if pathIndex := int(conn.GetPath().Index); len(segments) > pathIndex+1 {
+		if pathIndex := int(conn.GetPath().GetIndex()); len(segments) > pathIndex+1 {
 			forwarderName = segments[pathIndex+1].GetName()
 		}
 	}
 
-	var logger = log.FromContext(ctx).WithField("discoverForwarderServer", "request")
+	logger := log.FromContext(ctx).WithField("discoverForwarderServer", "request")
 	if forwarderName == "" {
 		logger.Error("connection doesn't have forwarder")
 		return next.Server(ctx).Close(ctx, conn)
@@ -173,9 +173,9 @@ func (d *discoverForwarderServer) Close(ctx context.Context, conn *networkservic
 		return next.Server(ctx).Close(ctx, conn)
 	}
 
-	u, err := url.Parse(nses[0].Url)
+	u, err := url.Parse(nses[0].GetUrl())
 	if err != nil {
-		logger.Errorf("can not parse forwarder url %v: %v", nses[0].Url, err.Error())
+		logger.Errorf("can not parse forwarder url %v: %v", nses[0].GetUrl(), err.Error())
 		return next.Server(ctx).Close(ctx, conn)
 	}
 
@@ -195,23 +195,23 @@ func (d *discoverForwarderServer) matchForwarders(nsLabels map[string]string, ns
 			continue
 		}
 
-		var matchLabels = match.GetMetadata().GetLabels()
+		matchLabels := match.GetMetadata().GetLabels()
 		if matchLabels == nil {
 			matchLabels = map[string]string{
 				"p2p": "true",
 			}
 		}
 		for _, nse := range nses {
-			var forwarderLabels = nse.GetNetworkServiceLabels()[d.forwarderServiceName]
+			forwarderLabels := nse.GetNetworkServiceLabels()[d.forwarderServiceName]
 			if forwarderLabels == nil {
 				continue
 			}
-			if matchutils.IsSubset(forwarderLabels.Labels, matchLabels, nsLabels) {
+			if matchutils.IsSubset(forwarderLabels.GetLabels(), matchLabels, nsLabels) {
 				result = append(result, nse)
 			}
 		}
 
-		if match.Fallthrough && len(result) == 0 {
+		if match.GetFallthrough() && len(result) == 0 {
 			continue
 		}
 
@@ -236,7 +236,7 @@ func (d *discoverForwarderServer) discoverNetworkService(ctx context.Context, na
 
 	nsList := registry.ReadNetworkServiceList(nsRespStream)
 	for _, ns := range nsList {
-		if ns.Name == name {
+		if ns.GetName() == name {
 			return ns, nil
 		}
 	}

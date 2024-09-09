@@ -72,7 +72,7 @@ func TestMonitorConnectionServer_MonitorConnections(t *testing.T) {
 	senderCancelFunc := make([]context.CancelFunc, numSenders)
 
 	eventCh := make(chan *networkservice.ConnectionEvent, numEvents)
-	selector := &networkservice.MonitorScopeSelector{} // TODO
+	selector := &networkservice.MonitorScopeSelector{} //nolint:nolintlint // TODO
 
 	eventMonitorStartCh := make(chan int, numEvents)
 

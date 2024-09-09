@@ -84,7 +84,7 @@ func newParallelServer(t *testing.T) *parallelServer {
 }
 
 func (s *parallelServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	raw, _ := s.states.LoadOrStore(request.Connection.Id, new(int32))
+	raw, _ := s.states.LoadOrStore(request.GetConnection().GetId(), new(int32))
 	statePtr := raw.(*int32)
 
 	state := atomic.LoadInt32(statePtr)
@@ -94,7 +94,7 @@ func (s *parallelServer) Request(ctx context.Context, request *networkservice.Ne
 }
 
 func (s *parallelServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	raw, _ := s.states.LoadOrStore(conn.Id, new(int32))
+	raw, _ := s.states.LoadOrStore(conn.GetId(), new(int32))
 	statePtr := raw.(*int32)
 
 	state := atomic.LoadInt32(statePtr)

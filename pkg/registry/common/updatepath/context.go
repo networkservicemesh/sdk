@@ -23,7 +23,7 @@ import (
 
 type key struct{}
 
-// ExpirationTimeFromContext returns the expiration time stored in context
+// ExpirationTimeFromContext returns the expiration time stored in context.
 func ExpirationTimeFromContext(ctx context.Context) *time.Time {
 	if value, ok := ctx.Value(key{}).(*time.Time); ok {
 		return value
@@ -31,7 +31,7 @@ func ExpirationTimeFromContext(ctx context.Context) *time.Time {
 	return nil
 }
 
-// withExpirationTime sets the expiration time stored in context
+// withExpirationTime sets the expiration time stored in context.
 func withExpirationTime(ctx context.Context, t *time.Time) context.Context {
 	return context.WithValue(ctx, key{}, t)
 }

@@ -33,7 +33,7 @@ import (
 func TestSwitchClient(t *testing.T) {
 	for _, s := range testSamples() {
 		t.Run(s.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testSwitchClient(t, s.conditions, s.result)
 		})
 	}
@@ -44,7 +44,6 @@ func testSwitchClient(t *testing.T, conditions []switchcase.Condition, expected 
 
 	var cases []*switchcase.ClientCase
 	for i, cond := range conditions {
-		i := i
 		cases = append(cases, &switchcase.ClientCase{
 			Condition: cond,
 			Client: checkcontext.NewClient(t, func(*testing.T, context.Context) {

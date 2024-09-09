@@ -26,7 +26,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 )
 
-// CheckPropagatesErrorClient - NetworkServiceClient that will check to see if the clientUnderTest correctly propagates error
+// CheckPropagatesErrorClient - NetworkServiceClient that will check to see if the clientUnderTest correctly propagates error.
 func CheckPropagatesErrorClient(t *testing.T, clientUnderTest networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return chain.NewNetworkServiceClient(
 		NewClient(t, false),
@@ -35,7 +35,7 @@ func CheckPropagatesErrorClient(t *testing.T, clientUnderTest networkservice.Net
 	)
 }
 
-// CheckPropogatesErrorServer - NetworkServiceServer that will check to see if the serverUnderTest correctly propagates error
+// CheckPropogatesErrorServer - NetworkServiceServer that will check to see if the serverUnderTest correctly propagates error.
 func CheckPropogatesErrorServer(t *testing.T, serverUnderTest networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return chain.NewNetworkServiceServer(
 		NewServer(t, false),

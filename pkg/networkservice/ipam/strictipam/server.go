@@ -37,7 +37,7 @@ func NewServer(newIPAMServer func(...*net.IPNet) networkservice.NetworkServiceSe
 	if newIPAMServer == nil {
 		panic("newIPAMServer should not be nil")
 	}
-	var ipPool = ippool.New(net.IPv6len)
+	ipPool := ippool.New(net.IPv6len)
 	for _, p := range prefixes {
 		ipPool.AddNet(p)
 	}

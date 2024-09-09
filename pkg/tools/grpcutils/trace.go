@@ -23,17 +23,17 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// TraceState is a type that defines the state of the traces stored in grpc metadata
+// TraceState is a type that defines the state of the traces stored in grpc metadata.
 type TraceState int
 
 const (
-	// TraceUndefined - no state is defined
+	// TraceUndefined - no state is defined.
 	TraceUndefined TraceState = iota
 
-	// TraceOn - tracing is enabled
+	// TraceOn - tracing is enabled.
 	TraceOn
 
-	// TraceOff - tracing is disabled
+	// TraceOff - tracing is disabled.
 	TraceOff
 )
 
@@ -41,7 +41,7 @@ const (
 	grpcTraceKey string = "GrpcTracing"
 )
 
-// TraceFromContext - checks if incoming metadata allows traces
+// TraceFromContext - checks if incoming metadata allows traces.
 func TraceFromContext(ctx context.Context) TraceState {
 	md, ok := metadata.FromIncomingContext(ctx)
 	if ok {
@@ -57,12 +57,12 @@ func TraceFromContext(ctx context.Context) TraceState {
 	return TraceUndefined
 }
 
-// WithTrace - enable/disable traces for outgoing context
+// WithTrace - enable/disable traces for outgoing context.
 func WithTrace(ctx context.Context, state TraceState) context.Context {
 	return metadata.AppendToOutgoingContext(ctx, grpcTraceKey, strconv.Itoa(int(state)))
 }
 
-// PassTraceToOutgoing - passes trace state from incoming to outgoing context
+// PassTraceToOutgoing - passes trace state from incoming to outgoing context.
 func PassTraceToOutgoing(ctx context.Context) context.Context {
 	if !hasOutgoingTrace(ctx) {
 		return WithTrace(ctx, TraceFromContext(ctx))
@@ -70,7 +70,7 @@ func PassTraceToOutgoing(ctx context.Context) context.Context {
 	return ctx
 }
 
-// hasOutgoingTrace - checks if outgoing context already has trace state
+// hasOutgoingTrace - checks if outgoing context already has trace state.
 func hasOutgoingTrace(ctx context.Context) bool {
 	md, ok := metadata.FromOutgoingContext(ctx)
 	if ok {

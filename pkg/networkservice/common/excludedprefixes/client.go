@@ -55,7 +55,7 @@ type excludedPrefixesClient struct {
 	executor         serialize.Executor
 }
 
-// NewClient - creates a networkservice.NetworkServiceClient chain element that excludes prefixes already used by other NetworkServices
+// NewClient - creates a networkservice.NetworkServiceClient chain element that excludes prefixes already used by other NetworkServices.
 func NewClient(opts ...ClientOption) networkservice.NetworkServiceClient {
 	client := &excludedPrefixesClient{
 		excludedPrefixes: make([]string, 0),
@@ -192,7 +192,7 @@ func (epc *excludedPrefixesClient) Close(ctx context.Context, conn *networkservi
 func getRoutePrefixes(routes []*networkservice.Route) []string {
 	var rv []string
 	for _, route := range routes {
-		var o, b = route.GetPrefixIPNet().Mask.Size()
+		o, b := route.GetPrefixIPNet().Mask.Size()
 		if o != b {
 			continue
 		}
@@ -211,7 +211,7 @@ func validateIPs(ipContext *networkservice.IPContext, excludedPrefixes []string)
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse %s as CIDR", prefix)
 		}
-		// TODO: Think about validating routes with prefixes size less than /32 and /128
+		//nolint:nolintlint // TODO: Think about validating routes with prefixes size less than /32 and /128
 		if prefixLen, maxLen := ipNet.Mask.Size(); prefixLen != maxLen {
 			continue
 		}
@@ -243,8 +243,8 @@ func getNSURL(request *networkservice.NetworkServiceRequest) *url.URL {
 
 	nsurl.Host = request.GetConnection().GetNetworkService()
 	mechanism := request.GetConnection().GetMechanism()
-	if mechanism == nil && len(request.MechanismPreferences) > 0 {
-		mechanism = request.MechanismPreferences[0]
+	if mechanism == nil && len(request.GetMechanismPreferences()) > 0 {
+		mechanism = request.GetMechanismPreferences()[0]
 	}
 
 	nsurl.Scheme = strings.ToLower(mechanism.GetType())

@@ -49,8 +49,8 @@ func TestKernelMechanismClient_ShouldSetInterfaceName(t *testing.T) {
 	_, err := c.Request(context.Background(), req)
 	require.NoError(t, err)
 
-	require.Len(t, req.MechanismPreferences, 1)
-	require.Equal(t, expectedIfaceName, req.MechanismPreferences[0].Parameters[kernelmech.InterfaceNameKey])
+	require.Len(t, req.GetMechanismPreferences(), 1)
+	require.Equal(t, expectedIfaceName, req.GetMechanismPreferences()[0].GetParameters()[kernelmech.InterfaceNameKey])
 }
 
 func TestKernelMechanismClient_ShouldNotDoublingMechanisms(t *testing.T) {
@@ -61,7 +61,7 @@ func TestKernelMechanismClient_ShouldNotDoublingMechanisms(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		_, err := c.Request(context.Background(), req)
 		require.NoError(t, err)
-		require.Len(t, req.MechanismPreferences, 1)
+		require.Len(t, req.GetMechanismPreferences(), 1)
 	}
 }
 
@@ -76,7 +76,7 @@ func TestKernelMechanismClient_ShouldSetValidNetNSURL(t *testing.T) {
 
 	_, err := c.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, netNSURL, req.MechanismPreferences[0].Parameters[kernelmech.NetNSURL])
+	require.Equal(t, netNSURL, req.GetMechanismPreferences()[0].GetParameters()[kernelmech.NetNSURL])
 }
 
 func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
@@ -86,7 +86,7 @@ func TestKernelMechanismClient_ShouldSetRandomInteraceName(t *testing.T) {
 	_, err := c.Request(context.Background(), req)
 	require.NoError(t, err)
 
-	ifname := req.MechanismPreferences[0].Parameters[kernelmech.InterfaceNameKey]
+	ifname := req.GetMechanismPreferences()[0].GetParameters()[kernelmech.InterfaceNameKey]
 
 	require.Len(t, ifname, kernelmech.LinuxIfMaxLength)
 	require.True(t, strings.HasPrefix(ifname, "nsm"))

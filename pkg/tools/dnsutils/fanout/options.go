@@ -16,10 +16,10 @@
 
 package fanout
 
-// Option modifies default fanout dns handler values
+// Option modifies default fanout dns handler values.
 type Option func(*fanoutHandler)
 
-// WithDefaultDNSPort sets default DNS port for fanout dns handler if it is not presented in the client's URL
+// WithDefaultDNSPort sets default DNS port for fanout dns handler if it is not presented in the client's URL.
 func WithDefaultDNSPort(port uint16) Option {
 	return func(h *fanoutHandler) {
 		h.dnsPort = port

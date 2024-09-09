@@ -22,7 +22,7 @@ import (
 	"strings"
 )
 
-// TrimLogTime - to format logs
+// TrimLogTime - to format logs.
 func TrimLogTime(buff fmt.Stringer) string {
 	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line
 	// To check if output matches our expectations, we need to somehow get rid of this info.

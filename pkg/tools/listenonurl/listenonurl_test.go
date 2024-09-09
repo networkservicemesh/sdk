@@ -34,7 +34,8 @@ func TestGetPublicURL(t *testing.T) {
 			u: &url.URL{
 				Scheme: "file",
 				Host:   "",
-				Path:   "/local-path"},
+				Path:   "/local-path",
+			},
 			ips: []net.Addr{ // 10.244.2.13/24
 				&net.IPNet{IP: net.IPv4(10, 244, 2, 13), Mask: net.IPv4Mask(255, 255, 255, 0)},
 			},

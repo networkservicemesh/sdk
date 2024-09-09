@@ -29,17 +29,17 @@ type dialOpts struct {
 	tokenGenerator token.GeneratorFunc
 }
 
-// DialOption is an option pattern for DialOptions
+// DialOption is an option pattern for DialOptions.
 type DialOption func(o *dialOpts)
 
-// WithTokenGenerator sets tokenGenerator for DialOptions
+// WithTokenGenerator sets tokenGenerator for DialOptions.
 func WithTokenGenerator(tokenGenerator token.GeneratorFunc) DialOption {
 	return func(opts *dialOpts) {
 		opts.tokenGenerator = tokenGenerator
 	}
 }
 
-// DialOptions is a helper method for building []grpc.DialOption for testing
+// DialOptions is a helper method for building []grpc.DialOption for testing.
 func DialOptions(options ...DialOption) []grpc.DialOption {
 	tokenResetCh := make(chan struct{})
 	close(tokenResetCh)

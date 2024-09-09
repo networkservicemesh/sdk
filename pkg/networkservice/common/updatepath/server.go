@@ -37,18 +37,18 @@ type updatePathServer struct {
 //
 //	name - name of the client
 //
-// Workflow are documented in common.go
+// Workflow are documented in common.go.
 func NewServer(name string) networkservice.NetworkServiceServer {
 	return &updatePathServer{name: name}
 }
 
 func (i *updatePathServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
-	if request.Connection == nil {
+	if request.GetConnection() == nil {
 		request.Connection = &networkservice.Connection{}
 	}
 
 	var index uint32
-	request.Connection, index, err = updatePath(request.Connection, i.name)
+	request.Connection, index, err = updatePath(request.GetConnection(), i.name)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (i *updatePathServer) Request(ctx context.Context, request *networkservice.
 		return nil, err
 	}
 
-	conn.Id = conn.Path.PathSegments[index].Id
+	conn.Id = conn.GetPath().GetPathSegments()[index].GetId()
 	conn.Path.Index = index
 
 	return conn, nil

@@ -35,18 +35,18 @@ type updatePathClient struct {
 //
 //	name - name of the client
 //
-// Workflow are documented in common.go
+// Workflow are documented in common.go.
 func NewClient(name string) networkservice.NetworkServiceClient {
 	return &updatePathClient{name: name}
 }
 
 func (i *updatePathClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
-	if request.Connection == nil {
+	if request.GetConnection() == nil {
 		request.Connection = &networkservice.Connection{}
 	}
 
 	var index uint32
-	request.Connection, index, err = updatePath(request.Connection, i.name)
+	request.Connection, index, err = updatePath(request.GetConnection(), i.name)
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (i *updatePathClient) Request(ctx context.Context, request *networkservice.
 	}
 
 	if conn.GetPath() != nil && len(conn.GetPath().GetPathSegments()) > int(index) {
-		conn.Id = conn.GetPath().GetPathSegments()[index].Id
+		conn.Id = conn.GetPath().GetPathSegments()[index].GetId()
 		conn.GetPath().Index = index
 	}
 

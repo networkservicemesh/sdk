@@ -16,5 +16,5 @@
 
 package externalips
 
-// DefaultFilePath is path to the default file for monitoring IPs
+// DefaultFilePath is path to the default file for monitoring IPs.
 const DefaultFilePath = "/var/lib/networkservicemesh/config/ipmap.yaml"

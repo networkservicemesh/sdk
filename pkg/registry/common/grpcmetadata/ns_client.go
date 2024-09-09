@@ -29,10 +29,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-type grpcMetadataNSClient struct {
-}
+type grpcMetadataNSClient struct{}
 
-// NewNetworkServiceRegistryClient - returns grpcmetadata NS client that sends metadata to server and receives it back
+// NewNetworkServiceRegistryClient - returns grpcmetadata NS client that sends metadata to server and receives it back.
 func NewNetworkServiceRegistryClient() registry.NetworkServiceRegistryClient {
 	return &grpcMetadataNSClient{}
 }

@@ -69,7 +69,7 @@ func Test_DNSResolveV6(t *testing.T) {
 func assertDNSResolves(t *testing.T, registryURL string) {
 	const srv = "service1"
 
-	var resolver = sandbox.NewFakeResolver()
+	resolver := sandbox.NewFakeResolver()
 
 	u, err := url.Parse(registryURL)
 	require.NoError(t, err)
@@ -88,7 +88,7 @@ func assertDNSResolves(t *testing.T, registryURL string) {
 
 	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@domain1"})
 	require.NoError(t, err)
-	require.Equal(t, "nse-1@domain1", resp.Name)
+	require.Equal(t, "nse-1@domain1", resp.GetName())
 
 	resp, err = s.Register(ctx, &registry.NetworkServiceEndpoint{
 		Name:                "nse-1",
@@ -102,10 +102,10 @@ func assertDNSResolves(t *testing.T, registryURL string) {
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, "nse-1@domain1", resp.Name)
+	require.Equal(t, "nse-1@domain1", resp.GetName())
 	require.Len(t, resp.GetNetworkServiceLabels(), 1)
 	require.NotNil(t, resp.GetNetworkServiceLabels()["ns1@domain1"])
-	require.Equal(t, "myapp", resp.GetNetworkServiceLabels()["ns1@domain1"].Labels["app"])
+	require.Equal(t, "myapp", resp.GetNetworkServiceLabels()["ns1@domain1"].GetLabels()["app"])
 
 	_, err = s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@domain1"})
 	require.NoError(t, err)
@@ -128,7 +128,7 @@ func Test_DNSResolve_LookupNsmgrProxy(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var resolver = sandbox.NewFakeResolver()
+	resolver := sandbox.NewFakeResolver()
 
 	regURL, err := url.Parse("tcp://127.0.0.1:80")
 	require.NoError(t, err)
@@ -156,7 +156,7 @@ func Test_DNSResolve_LookupNsmgrProxy(t *testing.T) {
 
 	r, err := resp.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nsmgrProxyURL.String(), r.NetworkServiceEndpoint.Url)
+	require.Equal(t, nsmgrProxyURL.String(), r.GetNetworkServiceEndpoint().GetUrl())
 
 	_, err = s.Unregister(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1@" + domain})
 	require.NoError(t, err)

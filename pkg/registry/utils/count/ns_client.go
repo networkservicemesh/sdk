@@ -28,30 +28,30 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 )
 
-// countNSClient is a client type for counting Register / Unregister / Find
+// countNSClient is a client type for counting Register / Unregister / Find.
 type countNSClient struct {
 	counter *CallCounter
 }
 
-// Register - increments registration call count
+// Register - increments registration call count.
 func (c *countNSClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
 	atomic.AddInt32(&c.counter.totalRegisterCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Register(ctx, in, opts...)
 }
 
-// Unregister - increments un-registration call count
+// Unregister - increments un-registration call count.
 func (c *countNSClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*emptypb.Empty, error) {
 	atomic.AddInt32(&c.counter.totalUnregisterCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Unregister(ctx, in, opts...)
 }
 
-// Find - increments find call count
+// Find - increments find call count.
 func (c *countNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
 	atomic.AddInt32(&c.counter.totalFindCalls, 1)
 	return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 }
 
-// NewNetworkServiceRegistryClient - creates a new chain element counting Register / Unregister / Find calls
+// NewNetworkServiceRegistryClient - creates a new chain element counting Register / Unregister / Find calls.
 func NewNetworkServiceRegistryClient(counter *CallCounter) registry.NetworkServiceRegistryClient {
 	return &countNSClient{
 		counter: counter,

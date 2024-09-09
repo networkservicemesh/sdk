@@ -58,8 +58,8 @@ func TestRegTimeServer_Register(t *testing.T) {
 	// 1. Register
 	reg, err := s.Register(ctx, testNSE())
 	require.NoError(t, err)
-	require.NotNil(t, reg.InitialRegistrationTime)
-	require.True(t, clockMock.Now().Equal(reg.InitialRegistrationTime.AsTime().Local()))
+	require.NotNil(t, reg.GetInitialRegistrationTime())
+	require.True(t, clockMock.Now().Equal(reg.GetInitialRegistrationTime().AsTime().Local()))
 	registeredNse := reg.Clone()
 
 	// 2. Find
@@ -67,13 +67,13 @@ func TestRegTimeServer_Register(t *testing.T) {
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
 	})
 	require.Len(t, nses, 1)
-	require.True(t, proto.Equal(nses[0].InitialRegistrationTime, registeredNse.InitialRegistrationTime))
+	require.True(t, proto.Equal(nses[0].GetInitialRegistrationTime(), registeredNse.GetInitialRegistrationTime()))
 
 	// 3.1 Refresh
 	reg, err = s.Register(ctx, reg.Clone())
 	require.NoError(t, err)
-	require.NotNil(t, reg.InitialRegistrationTime)
-	require.True(t, proto.Equal(reg.InitialRegistrationTime, registeredNse.InitialRegistrationTime))
+	require.NotNil(t, reg.GetInitialRegistrationTime())
+	require.True(t, proto.Equal(reg.GetInitialRegistrationTime(), registeredNse.GetInitialRegistrationTime()))
 
 	// 3.2 Refresh with empty field
 	regClone := reg.Clone()
@@ -81,8 +81,8 @@ func TestRegTimeServer_Register(t *testing.T) {
 	clockMock.Add(time.Second)
 	reg, err = s.Register(ctx, regClone)
 	require.NoError(t, err)
-	require.NotNil(t, reg.InitialRegistrationTime)
-	require.True(t, proto.Equal(reg.InitialRegistrationTime, registeredNse.InitialRegistrationTime))
+	require.NotNil(t, reg.GetInitialRegistrationTime())
+	require.True(t, proto.Equal(reg.GetInitialRegistrationTime(), registeredNse.GetInitialRegistrationTime()))
 
 	// 4. Unregister
 	_, err = s.Unregister(ctx, reg.Clone())
@@ -92,8 +92,8 @@ func TestRegTimeServer_Register(t *testing.T) {
 	clockMock.Add(time.Second * 3)
 	reg, err = s.Register(ctx, testNSE())
 	require.NoError(t, err)
-	require.NotNil(t, reg.InitialRegistrationTime)
-	require.True(t, clockMock.Now().Equal(reg.InitialRegistrationTime.AsTime().Local()))
+	require.NotNil(t, reg.GetInitialRegistrationTime())
+	require.True(t, clockMock.Now().Equal(reg.GetInitialRegistrationTime().AsTime().Local()))
 }
 
 func find(t *testing.T, mem registry.NetworkServiceEndpointRegistryServer, query *registry.NetworkServiceEndpointQuery) (nses []*registry.NetworkServiceEndpoint) {
@@ -107,7 +107,7 @@ func find(t *testing.T, mem registry.NetworkServiceEndpointRegistryServer, query
 	}()
 
 	for nseResp := range ch {
-		nses = append(nses, nseResp.NetworkServiceEndpoint)
+		nses = append(nses, nseResp.GetNetworkServiceEndpoint())
 	}
 
 	return nses

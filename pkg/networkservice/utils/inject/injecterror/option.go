@@ -21,24 +21,24 @@ type options struct {
 	requestErrorTimes, closeErrorTimes []int
 }
 
-// Option is an option pattern for injectErrorClient/Server
+// Option is an option pattern for injectErrorClient/Server.
 type Option func(o *options)
 
-// WithError sets injectErrorClient/Server error
+// WithError sets injectErrorClient/Server error.
 func WithError(err error) Option {
 	return func(o *options) {
 		o.err = err
 	}
 }
 
-// WithRequestErrorTimes sets injectErrorClient/Server request error times
+// WithRequestErrorTimes sets injectErrorClient/Server request error times.
 func WithRequestErrorTimes(failureTimes ...int) Option {
 	return func(o *options) {
 		o.requestErrorTimes = failureTimes
 	}
 }
 
-// WithCloseErrorTimes sets injectErrorClient/Server close error times
+// WithCloseErrorTimes sets injectErrorClient/Server close error times.
 func WithCloseErrorTimes(failureTimes ...int) Option {
 	return func(o *options) {
 		o.closeErrorTimes = failureTimes

@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
-// ExampleForwarder - example of how to use the connect chain element in a forwarder
+// ExampleForwarder - example of how to use the connect chain element in a forwarder.
 func ExampleNewServer() {
 	var dialOptions []grpc.DialOption
 	var callOptions []grpc.CallOption

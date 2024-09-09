@@ -31,7 +31,7 @@ type nextDNSHandler struct {
 	nextParent dnsutils.Handler
 }
 
-// ServerWrapper - A function that wraps a dnsutils.Handler
+// ServerWrapper - A function that wraps a dnsutils.Handler.
 type ServerWrapper func(dnsutils.Handler) dnsutils.Handler
 
 // NewWrappedDNSHandler - chains together the servers provides with the wrapper wrapped around each one in turn.
@@ -43,7 +43,7 @@ func NewWrappedDNSHandler(wrapper ServerWrapper, handlers ...dnsutils.Handler) d
 	return rv
 }
 
-// NewDNSHandler creates a new chain of dns handlers
+// NewDNSHandler creates a new chain of dns handlers.
 func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
 	return &nextDNSHandler{handlers: handlers}
 }

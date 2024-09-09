@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkopts"
 )
 
-// ClientSuite - test suite to check that a NetworkServiceClient implementing a Mechanism meets basic contracts
+// ClientSuite - test suite to check that a NetworkServiceClient implementing a Mechanism meets basic contracts.
 type ClientSuite struct {
 	suite.Suite
 	clientUnderTest      networkservice.NetworkServiceClient
@@ -77,7 +77,7 @@ func NewClientSuite(
 	}
 }
 
-// TestPropagatesError - tests that the clientUnderTest returns an error when the next element in the chain returned an error to it
+// TestPropagatesError - tests that the clientUnderTest returns an error when the next element in the chain returned an error to it.
 func (m *ClientSuite) TestPropagatesError() {
 	check := checkerror.CheckPropagatesErrorClient(m.T(), m.clientUnderTest)
 	_, err := check.Request(m.configureContext(context.Background()), m.Request.Clone())
@@ -86,7 +86,7 @@ func (m *ClientSuite) TestPropagatesError() {
 	assert.NotNil(m.T(), err)
 }
 
-// TestPropogatesOpts - tests that the clientUnderTest passes along the grpc.CallOptions to the next client in the chain
+// TestPropogatesOpts - tests that the clientUnderTest passes along the grpc.CallOptions to the next client in the chain.
 func (m *ClientSuite) TestPropogatesOpts() {
 	contract := checkopts.CheckPropogateOptsClient(m.T(), m.clientUnderTest)
 	_, err := contract.Request(m.configureContext(context.Background()), m.Request.Clone())
@@ -112,7 +112,7 @@ func (m *ClientSuite) TestSetsMechanismPreference() {
 	assert.Nil(m.T(), err)
 }
 
-// TestContextOnReturn - test that the clientUnderTest has the correct side effects on the context.Context when it returns
+// TestContextOnReturn - test that the clientUnderTest has the correct side effects on the context.Context when it returns.
 func (m *ClientSuite) TestContextOnReturn() {
 	contract := CheckClientContextOnReturn(m.T(),
 		m.clientUnderTest,
@@ -125,7 +125,7 @@ func (m *ClientSuite) TestContextOnReturn() {
 	assert.Nil(m.T(), err)
 }
 
-// TestContextAfter - tests that the clientUnderTest has no side effects on the context.Context before it calls the next element in the chain
+// TestContextAfter - tests that the clientUnderTest has no side effects on the context.Context before it calls the next element in the chain.
 func (m *ClientSuite) TestContextAfter() {
 	contract := CheckClientContextAfter(m.T(),
 		m.clientUnderTest,

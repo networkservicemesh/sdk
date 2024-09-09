@@ -71,10 +71,10 @@ func (c *clientFilter) Recv() (*networkservice.ConnectionEvent, error) {
 
 			// Construct the outgoing Connection
 			connOut := c.conn.Clone()
-			connOut.Path = connIn.Path
+			connOut.Path = connIn.GetPath()
 			connOut.GetPath().Index = c.conn.GetPath().GetIndex()
-			connOut.Context = connIn.Context
-			connOut.State = connIn.State
+			connOut.Context = connIn.GetContext()
+			connOut.State = connIn.GetState()
 
 			// If it's deleted, mark the event state down
 			if eventIn.GetType() == networkservice.ConnectionEventType_DELETE {

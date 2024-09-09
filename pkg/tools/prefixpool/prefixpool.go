@@ -29,14 +29,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-// PrefixPool is a structure that contains information about prefixes
+// PrefixPool is a structure that contains information about prefixes.
 type PrefixPool struct {
 	mutex       sync.RWMutex
 	prefixes    []string
 	connections map[string]*connectionRecord
 }
 
-// GetPrefixes returns the list of saved prefixes
+// GetPrefixes returns the list of saved prefixes.
 func (impl *PrefixPool) GetPrefixes() []string {
 	impl.mutex.Lock()
 	copyArray := make([]string, len(impl.prefixes))
@@ -50,7 +50,7 @@ type connectionRecord struct {
 	prefixes []string
 }
 
-// New is a PrefixPool constructor
+// New is a PrefixPool constructor.
 func New(prefixes ...string) (*PrefixPool, error) {
 	for _, prefix := range prefixes {
 		_, _, err := net.ParseCIDR(prefix)
@@ -64,7 +64,7 @@ func New(prefixes ...string) (*PrefixPool, error) {
 	}, nil
 }
 
-// ReleaseExcludedPrefixes releases excluded prefixes back the pool of available ones
+// ReleaseExcludedPrefixes releases excluded prefixes back the pool of available ones.
 func (impl *PrefixPool) ReleaseExcludedPrefixes(excludedPrefixes []string) error {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
@@ -79,7 +79,7 @@ func (impl *PrefixPool) ReleaseExcludedPrefixes(excludedPrefixes []string) error
 	return nil
 }
 
-// ExcludePrefixes excludes prefixes from the pool of available prefixes
+// ExcludePrefixes excludes prefixes from the pool of available prefixes.
 func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) (removedPrefixesList []string, retErr error) {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
@@ -151,7 +151,7 @@ func (impl *PrefixPool) ExcludePrefixes(excludedPrefixes []string) (removedPrefi
 	return removedPrefixes, nil
 }
 
-/* Split the wider range removing the avoided smaller range from it */
+/* Split the wider range removing the avoided smaller range from it. */
 func extractSubnet(wider, smaller *net.IPNet) (retSubnets []string, retErr error) {
 	root := wider
 	prefixLen, _ := smaller.Mask.Size()
@@ -184,7 +184,7 @@ func extractSubnet(wider, smaller *net.IPNet) (retSubnets []string, retErr error
 	return append(leftParts, rightParts...), nil
 }
 
-// Extract extracts source and destination from the given connection
+// Extract extracts source and destination from the given connection.
 func (impl *PrefixPool) Extract(connectionID string, family networkservice.IpFamily_Family, requests ...*networkservice.ExtraPrefixRequest) (srcIP, dstIP *net.IPNet, requested []string, err error) {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
@@ -234,7 +234,7 @@ func (impl *PrefixPool) Extract(connectionID string, family networkservice.IpFam
 	return &net.IPNet{IP: src, Mask: ipNet.Mask}, &net.IPNet{IP: dst, Mask: ipNet.Mask}, requested, nil
 }
 
-// ExtractPrefixes extracts requested prefixes
+// ExtractPrefixes extracts requested prefixes.
 func (impl *PrefixPool) ExtractPrefixes(connectionID string, requests ...*networkservice.ExtraPrefixRequest) (requested []string, err error) {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
@@ -259,7 +259,7 @@ func (impl *PrefixPool) ExtractPrefixes(connectionID string, requests ...*networ
 	return requested, nil
 }
 
-// Release releases prefixes from the connection
+// Release releases prefixes from the connection.
 func (impl *PrefixPool) Release(connectionID string) error {
 	impl.mutex.Lock()
 	defer impl.mutex.Unlock()
@@ -284,7 +284,7 @@ func (impl *PrefixPool) Release(connectionID string) error {
 	return nil
 }
 
-// GetConnectionInformation returns information about connection
+// GetConnectionInformation returns information about connection.
 func (impl *PrefixPool) GetConnectionInformation(connectionID string) (ipNet string, prefixes []string, err error) {
 	impl.mutex.RLock()
 	defer impl.mutex.RUnlock()
@@ -295,7 +295,7 @@ func (impl *PrefixPool) GetConnectionInformation(connectionID string) (ipNet str
 	return conn.ipNet.String(), conn.prefixes, nil
 }
 
-// Intersect returns is there any intersection with existing prefixes
+// Intersect returns is there any intersection with existing prefixes.
 func (impl *PrefixPool) Intersect(prefix string) (intersection bool, err error) {
 	_, subnet, err := net.ParseCIDR(prefix)
 	if err != nil {
@@ -327,7 +327,7 @@ func intersect(first, second *net.IPNet) (contains, isFirstBigger bool) {
 	return widerRange.Contains(narrowerRange.IP), firstIsBigger
 }
 
-// ExtractPrefixes extracts prefixes from given requests
+// ExtractPrefixes extracts prefixes from given requests.
 func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixRequest) (requested, remaining []string, err error) {
 	// Check if requests are valid.
 	for _, request := range requests {
@@ -346,8 +346,8 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 
 	// We need to firstly find required prefixes available.
 	for _, request := range requests {
-		for i := uint32(0); i < request.RequiredNumber; i++ {
-			prefix, leftPrefixes, err := extractPrefix(newPrefixes, request.PrefixLen)
+		for i := uint32(0); i < request.GetRequiredNumber(); i++ {
+			prefix, leftPrefixes, err := extractPrefix(newPrefixes, request.GetPrefixLen())
 			if err != nil {
 				return nil, prefixes, err
 			}
@@ -357,8 +357,8 @@ func ExtractPrefixes(prefixes []string, requests ...*networkservice.ExtraPrefixR
 	}
 	// We need to fit some more prefixes up to Requested ones
 	for _, request := range requests {
-		for i := request.RequiredNumber; i < request.RequestedNumber; i++ {
-			prefix, leftPrefixes, err := extractPrefix(newPrefixes, request.PrefixLen)
+		for i := request.GetRequiredNumber(); i < request.GetRequestedNumber(); i++ {
+			prefix, leftPrefixes, err := extractPrefix(newPrefixes, request.GetPrefixLen())
 			if err != nil {
 				// It seems there is no more prefixes available, but since we have all Required already we could go.
 				break

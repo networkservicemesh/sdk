@@ -22,24 +22,24 @@ type options struct {
 	registryService   string
 }
 
-// Option is option to configure dnsresovle chain elements
+// Option is option to configure dnsresovle chain elements.
 type Option func(*options)
 
-// WithResolver sets DNS resolver by default used net.DefaultResolver
+// WithResolver sets DNS resolver by default used net.DefaultResolver.
 func WithResolver(r Resolver) Option {
 	return func(o *options) {
 		o.resolver = r
 	}
 }
 
-// WithNSMgrProxyService sets default service of nsmgr-proxy to lookup DNS SRV records
+// WithNSMgrProxyService sets default service of nsmgr-proxy to lookup DNS SRV records.
 func WithNSMgrProxyService(service string) Option {
 	return func(o *options) {
 		o.nsmgrProxyService = service
 	}
 }
 
-// WithRegistryService sets default service of nsmgr-proxy to lookup DNS SRV records
+// WithRegistryService sets default service of nsmgr-proxy to lookup DNS SRV records.
 func WithRegistryService(service string) Option {
 	return func(o *options) {
 		o.registryService = service

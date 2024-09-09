@@ -36,7 +36,7 @@ import (
 type filterMechanismsClient struct{}
 
 // NewClient - filters out remote mechanisms if connection is received from a unix file socket, otherwise filters
-// out local mechanisms
+// out local mechanisms.
 func NewClient() networkservice.NetworkServiceClient {
 	return new(filterMechanismsClient)
 }
@@ -58,7 +58,7 @@ func (s *filterMechanismsClient) Close(ctx context.Context, conn *networkservice
 func filterMechanismsByCls(mechanisms []*networkservice.Mechanism, mechanismCls string) []*networkservice.Mechanism {
 	var result []*networkservice.Mechanism
 	for _, mechanism := range mechanisms {
-		if mechanism.Cls == mechanismCls {
+		if mechanism.GetCls() == mechanismCls {
 			result = append(result, mechanism)
 		}
 	}

@@ -33,7 +33,7 @@ type metadataNSEServer struct {
 	Map genericsync.Map[string, *metaData]
 }
 
-// NewNetworkServiceEndpointServer - enables per nse.Name metadata for the nse registry client
+// NewNetworkServiceEndpointServer - enables per nse.Name metadata for the nse registry client.
 func NewNetworkServiceEndpointServer() registry.NetworkServiceEndpointRegistryServer {
 	return &metadataNSEServer{}
 }

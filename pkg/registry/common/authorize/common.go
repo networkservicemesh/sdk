@@ -28,7 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer
+// RegistryOpaInput represents input for policies in authorizNSEServer and authorizeNSServer.
 type RegistryOpaInput struct {
 	ResourceID         string                      `json:"resource_id"`
 	ResourceName       string                      `json:"resource_name"`

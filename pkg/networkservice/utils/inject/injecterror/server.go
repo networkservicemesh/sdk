@@ -33,7 +33,7 @@ type injectErrorServer struct {
 	requestErrorSupplier, closeErrorSupplier *errorSupplier
 }
 
-// NewServer returns a server chain element returning error on Close/Request on given times
+// NewServer returns a server chain element returning error on Close/Request on given times.
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	o := &options{
 		err:               errors.New("error originates in injectErrorServer"),

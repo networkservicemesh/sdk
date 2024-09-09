@@ -47,13 +47,13 @@ func TestKernelMechanismServer_ShouldSetInterfaceName(t *testing.T) {
 	}
 	conn, err := s.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, expectedIfaceName, conn.Mechanism.Parameters[kernelmech.InterfaceNameKey])
+	require.Equal(t, expectedIfaceName, conn.GetMechanism().GetParameters()[kernelmech.InterfaceNameKey])
 
 	// Refresh
 	req.Connection = conn.Clone()
 	conn, err = s.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, expectedIfaceName, conn.Mechanism.Parameters[kernelmech.InterfaceNameKey])
+	require.Equal(t, expectedIfaceName, conn.GetMechanism().GetParameters()[kernelmech.InterfaceNameKey])
 }
 
 func TestKernelMechanismServer_ShouldSetValidNetNSURL(t *testing.T) {
@@ -67,13 +67,13 @@ func TestKernelMechanismServer_ShouldSetValidNetNSURL(t *testing.T) {
 
 	conn, err := s.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, netNSURL, conn.Mechanism.Parameters[kernelmech.NetNSURL])
+	require.Equal(t, netNSURL, conn.GetMechanism().GetParameters()[kernelmech.NetNSURL])
 
 	// Refresh
 	req.Connection = conn.Clone()
 	conn, err = s.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, netNSURL, conn.Mechanism.Parameters[kernelmech.NetNSURL])
+	require.Equal(t, netNSURL, conn.GetMechanism().GetParameters()[kernelmech.NetNSURL])
 }
 
 func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
@@ -87,7 +87,7 @@ func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
 
 	conn, err := s.Request(context.Background(), req)
 	require.NoError(t, err)
-	ifname := conn.Mechanism.Parameters[kernelmech.InterfaceNameKey]
+	ifname := conn.GetMechanism().GetParameters()[kernelmech.InterfaceNameKey]
 
 	require.Len(t, ifname, kernelmech.LinuxIfMaxLength)
 	require.True(t, strings.HasPrefix(ifname, "nsm"))
@@ -99,7 +99,7 @@ func TestKernelMechanismServer_ShouldSetRandomInteraceName(t *testing.T) {
 	req.Connection = conn.Clone()
 	conn, err = s.Request(context.Background(), req)
 	require.NoError(t, err)
-	require.Equal(t, ifname, conn.Mechanism.Parameters[kernelmech.InterfaceNameKey])
+	require.Equal(t, ifname, conn.GetMechanism().GetParameters()[kernelmech.InterfaceNameKey])
 }
 
 func TestKernelMechanismServer_FailedToGenerateRandomName(t *testing.T) {

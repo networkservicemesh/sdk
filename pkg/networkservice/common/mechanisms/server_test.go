@@ -182,7 +182,7 @@ func TestDownstreamError(t *testing.T) {
 func TestFewWrongMechanisms(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	var unsupportedErr = errors.New("unsupported")
+	unsupportedErr := errors.New("unsupported")
 
 	server := next.NewNetworkServiceServer(
 		mechanisms.NewServer(map[string]networkservice.NetworkServiceServer{
@@ -245,6 +245,7 @@ func TestDontCallNextByItself(t *testing.T) {
 	assert.Equal(t, 2, len(ch))
 }
 
+//nolint:dupl
 func TestMetrics(t *testing.T) {
 	s := server()
 	metricsKey := "server_interface"
@@ -258,10 +259,10 @@ func TestMetrics(t *testing.T) {
 
 		conn, err := s.Request(context.Background(), request)
 		require.NoError(t, err)
-		require.NotNil(t, conn.Path)
-		require.Len(t, conn.Path.PathSegments, 1)
-		require.NotNil(t, conn.Path.PathSegments[0].Metrics)
+		require.NotNil(t, conn.GetPath())
+		require.Len(t, conn.GetPath().GetPathSegments(), 1)
+		require.NotNil(t, conn.GetPath().GetPathSegments()[0].GetMetrics())
 
-		require.Equal(t, fmt.Sprintf("%s/%s", request.MechanismPreferences[0].Type, ifname), conn.Path.PathSegments[0].Metrics[metricsKey])
+		require.Equal(t, fmt.Sprintf("%s/%s", request.GetMechanismPreferences()[0].GetType(), ifname), conn.GetPath().GetPathSegments()[0].GetMetrics()[metricsKey])
 	}
 }

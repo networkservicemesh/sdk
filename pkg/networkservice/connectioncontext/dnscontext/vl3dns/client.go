@@ -64,8 +64,8 @@ func (n *vl3DNSClient) Request(ctx context.Context, request *networkservice.Netw
 	if err == nil {
 		configs := make([]*networkservice.DNSConfig, 0)
 		for _, config := range resp.GetContext().GetDnsContext().GetConfigs() {
-			var skip = false
-			for _, ip := range config.DnsServerIps {
+			skip := false
+			for _, ip := range config.GetDnsServerIps() {
 				if ip == n.dnsServerIP.String() {
 					skip = true
 					break

@@ -34,7 +34,7 @@ type beginClient struct {
 	genericsync.Map[string, *eventFactoryClient]
 }
 
-// NewClient - creates a new begin chain element
+// NewClient - creates a new begin chain element.
 func NewClient() networkservice.NetworkServiceClient {
 	return &beginClient{}
 }
@@ -110,7 +110,7 @@ func (b *beginClient) Close(ctx context.Context, conn *networkservice.Connection
 			return
 		}
 		// Always close with the last valid Connection we got
-		conn = eventFactoryClient.request.Connection
+		conn = eventFactoryClient.request.GetConnection()
 		withEventFactoryCtx := withEventFactory(ctx, eventFactoryClient)
 		emp, err = next.Client(withEventFactoryCtx).Close(withEventFactoryCtx, conn, opts...)
 		// afterCloseFunc() is used to cleanup things like the entry in the Map for EventFactories

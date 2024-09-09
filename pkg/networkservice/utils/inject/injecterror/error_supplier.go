@@ -29,7 +29,7 @@ type errorSupplier struct {
 // supply returns an error or nil depending on errorTimes
 // * [0, 2, 3] - will return an error on 0, 2, 3 times
 // * [-1] - will return an error on all requests
-// * [1, 4, -1] - will return an error on 0 time and on all times starting from 4
+// * [1, 4, -1] - will return an error on 0 time and on all times starting from 4.
 func (e *errorSupplier) supply() error {
 	defer func() { e.count.Inc() }()
 

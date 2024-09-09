@@ -35,9 +35,9 @@ type swapIPClient struct {
 	internalToExternalMap *atomic.Value
 }
 
-// NewClient creates new swap chain element. Expects public IP address of node
+// NewClient creates new swap chain element. Expects public IP address of node.
 func NewClient(updateIPMapCh <-chan map[string]string) networkservice.NetworkServiceClient {
-	var v = new(atomic.Value)
+	v := new(atomic.Value)
 	v.Store(map[string]string{})
 	go func() {
 		for data := range updateIPMapCh {

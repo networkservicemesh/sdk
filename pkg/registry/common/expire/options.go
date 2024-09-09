@@ -22,10 +22,10 @@ type options struct {
 	defaultExpiration time.Duration
 }
 
-// Option is option to configure expire chain element
+// Option is option to configure expire chain element.
 type Option func(*options)
 
-// WithDefaultExpiration sets the default expiration for endpoints
+// WithDefaultExpiration sets the default expiration for endpoints.
 func WithDefaultExpiration(d time.Duration) Option {
 	return func(o *options) {
 		o.defaultExpiration = d

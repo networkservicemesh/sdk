@@ -37,11 +37,15 @@ import (
 
 type contextKeyType string
 
-const contextPassingKey contextKeyType = "context"
-const executionOrderKey contextKeyType = "order"
+const (
+	contextPassingKey contextKeyType = "context"
+	executionOrderKey contextKeyType = "order"
+)
 
-type appendServer string
-type appendClient string
+type (
+	appendServer string
+	appendClient string
+)
 
 var (
 	reqCtx = context.WithValue(context.Background(), contextPassingKey, "req")
@@ -83,8 +87,10 @@ func appendContext(ctxPtr *context.Context, prefix, str string) func() {
 	}
 }
 
-type errorClient struct{}
-type errorServer struct{}
+type (
+	errorClient struct{}
+	errorServer struct{}
+)
 
 var errAlways = errors.New("errorClient and errorServer always return this error")
 

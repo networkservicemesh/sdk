@@ -75,7 +75,7 @@ func logResponse(ctx context.Context, response proto.Message, prefixes ...string
 	}
 }
 
-// Diff - calculate a protobuf message diff
+// Diff - calculate a protobuf message diff.
 func Diff(oldMessage, newMessage protoreflect.Message) (map[string]interface{}, bool) {
 	diffMessage := map[string]interface{}{}
 	oldReflectMessage := oldMessage

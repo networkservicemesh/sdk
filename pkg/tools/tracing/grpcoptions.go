@@ -30,7 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
-// WithTracing - returns array of grpc.ServerOption that should be passed to grpc.Dial to enable opentelemetry tracing
+// WithTracing - returns array of grpc.ServerOption that should be passed to grpc.Dial to enable opentelemetry tracing.
 func WithTracing() []grpc.ServerOption {
 	if opentelemetry.IsEnabled() {
 		interceptor := func(
@@ -53,7 +53,7 @@ func WithTracing() []grpc.ServerOption {
 	}
 }
 
-// WithTracingDial returns array of grpc.DialOption that should be passed to grpc.Dial to enable opentelemetry tracing
+// WithTracingDial returns array of grpc.DialOption that should be passed to grpc.Dial to enable opentelemetry tracing.
 func WithTracingDial() []grpc.DialOption {
 	if opentelemetry.IsEnabled() {
 		interceptor := func(

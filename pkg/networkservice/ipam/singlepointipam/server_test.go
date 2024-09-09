@@ -53,13 +53,13 @@ func newRequest() *networkservice.NetworkServiceRequest {
 }
 
 func validateConn(t *testing.T, conn *networkservice.Connection, src string) {
-	require.Equal(t, src, conn.Context.IpContext.SrcIpAddrs[0])
+	require.Equal(t, src, conn.GetContext().GetIpContext().GetSrcIpAddrs()[0])
 }
 
 func validateConns(t *testing.T, conn *networkservice.Connection, srcs []string) {
-	require.Equal(t, len(srcs), len(conn.Context.IpContext.SrcIpAddrs))
+	require.Equal(t, len(srcs), len(conn.GetContext().GetIpContext().GetSrcIpAddrs()))
 	for i, src := range srcs {
-		require.Equal(t, src, conn.Context.IpContext.SrcIpAddrs[i])
+		require.Equal(t, src, conn.GetContext().GetIpContext().GetSrcIpAddrs()[i])
 	}
 }
 
@@ -296,7 +296,7 @@ func TestRefreshRequest(t *testing.T) {
 	validateConn(t, conn, "192.168.0.2/16")
 
 	req = newRequest()
-	req.Connection.Id = conn.Id
+	req.Connection.Id = conn.GetId()
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConn(t, conn, "192.168.0.2/16")
@@ -322,7 +322,7 @@ func TestRefreshRequestIPv6(t *testing.T) {
 	validateConn(t, conn, "fe80::2/64")
 
 	req = newRequest()
-	req.Connection.Id = conn.Id
+	req.Connection.Id = conn.GetId()
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConn(t, conn, "fe80::2/64")
@@ -368,7 +368,6 @@ func TestRefreshNextError(t *testing.T) {
 	validateConn(t, conn, "192.168.0.2/16")
 }
 
-//nolint:dupl
 func TestServers(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)
@@ -400,7 +399,6 @@ func TestServers(t *testing.T) {
 	validateConns(t, conn4, []string{"192.168.0.3/16", "fd00::3/8"})
 }
 
-//nolint:dupl
 func TestRefreshRequestMultiServer(t *testing.T) {
 	_, ipNet1, err := net.ParseCIDR("192.168.3.4/16")
 	require.NoError(t, err)

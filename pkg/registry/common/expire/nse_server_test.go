@@ -27,6 +27,7 @@ import (
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/golang/protobuf/ptypes/empty"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc/credentials"
@@ -67,7 +68,7 @@ func find(ctx context.Context, c registry.NetworkServiceEndpointRegistryClient) 
 
 	var nseResp *registry.NetworkServiceEndpointResponse
 	for nseResp, err = stream.Recv(); err == nil; nseResp, err = stream.Recv() {
-		nses = append(nses, nseResp.NetworkServiceEndpoint)
+		nses = append(nses, nseResp.GetNetworkServiceEndpoint())
 	}
 
 	if err != io.EOF {
@@ -113,7 +114,7 @@ func TestExpireNSEServer_ShouldCorrectlySetExpirationTime_InRemoteCase(t *testin
 	})
 	require.NoError(t, err)
 
-	require.Equal(t, expireTimeout, clockMock.Until(resp.ExpirationTime.AsTime().Local()))
+	require.Equal(t, expireTimeout, clockMock.Until(resp.GetExpirationTime().AsTime().Local()))
 }
 
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing.T) {
@@ -141,7 +142,7 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromInput_AndWork(t *testing
 	})
 	require.NoError(t, err)
 
-	require.Equal(t, clockMock.Until(resp.ExpirationTime.AsTime()), expireTimeout/2)
+	require.Equal(t, clockMock.Until(resp.GetExpirationTime().AsTime()), expireTimeout/2)
 
 	clockMock.Add(expireTimeout / 2)
 	require.Eventually(t, func() bool {
@@ -167,7 +168,7 @@ func TestExpireNSEServer_ShouldSetDefaultExpiration(t *testing.T) {
 	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
 
-	require.Equal(t, expireTimeout, clockMock.Until(resp.ExpirationTime.AsTime()))
+	require.Equal(t, expireTimeout, clockMock.Until(resp.GetExpirationTime().AsTime()))
 }
 
 func TestExpireNSEServer_ShouldUseLessExpirationTime_DefaultExpireTimeout(t *testing.T) {
@@ -189,7 +190,7 @@ func TestExpireNSEServer_ShouldUseLessExpirationTime_DefaultExpireTimeout(t *tes
 	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
 
-	require.Equal(t, expireTimeout/2, clockMock.Until(resp.ExpirationTime.AsTime()))
+	require.Equal(t, expireTimeout/2, clockMock.Until(resp.GetExpirationTime().AsTime()))
 }
 
 func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
@@ -215,7 +216,7 @@ func TestExpireNSEServer_ShouldUseLessExpirationTimeFromResponse(t *testing.T) {
 	resp, err := s.Register(ctx, &registry.NetworkServiceEndpoint{Name: "nse-1"})
 	require.NoError(t, err)
 
-	require.Equal(t, expireTimeout/2, clockMock.Until(resp.ExpirationTime.AsTime()))
+	require.Equal(t, expireTimeout/2, clockMock.Until(resp.GetExpirationTime().AsTime()))
 }
 
 func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
@@ -248,7 +249,7 @@ func TestExpireNSEServer_ShouldRemoveNSEAfterExpirationTime(t *testing.T) {
 	nses, err := find(ctx, c)
 	require.NoError(t, err)
 	require.Len(t, nses, 1)
-	require.Equal(t, nseName, nses[0].Name)
+	require.Equal(t, nseName, nses[0].GetName())
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
@@ -361,7 +362,7 @@ func TestExpireNSEServer_UnregisterFailure(t *testing.T) {
 	nses, err := find(ctx, c)
 	require.NoError(t, err)
 	require.Len(t, nses, 1)
-	require.Equal(t, nseName, nses[0].Name)
+	require.Equal(t, nseName, nses[0].GetName())
 
 	clockMock.Add(expireTimeout)
 	require.Eventually(t, func() bool {
@@ -414,21 +415,21 @@ type remoteNSEServer struct {
 
 func (s *remoteNSEServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to ctx.Err")
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, nse.Clone())
 }
 
 func (s *remoteNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	if err := server.Context().Err(); err != nil {
-		return err
+		return errors.Wrap(err, "failed to server.Context().Err()")
 	}
 	return next.NetworkServiceEndpointRegistryServer(server.Context()).Find(query, server)
 }
 
 func (s *remoteNSEServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to ctx.Err")
 	}
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse.Clone())
 }

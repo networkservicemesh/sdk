@@ -63,7 +63,7 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 	rawMap := getRawMap(s.nsPathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
-		ResourceName:       ns.Name,
+		ResourceName:       ns.GetName(),
 		ResourcePathIdsMap: rawMap,
 		PathSegments:       leftSide.PathSegments,
 		Index:              leftSide.Index,
@@ -76,7 +76,7 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 	if err != nil {
 		return nil, err
 	}
-	s.nsPathIdsMap.Store(ns.Name, ns.PathIds)
+	s.nsPathIdsMap.Store(ns.GetName(), ns.GetPathIds())
 	return ns, nil
 }
 
@@ -96,7 +96,7 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 	rawMap := getRawMap(s.nsPathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
-		ResourceName:       ns.Name,
+		ResourceName:       ns.GetName(),
 		ResourcePathIdsMap: rawMap,
 		PathSegments:       leftSide.PathSegments,
 		Index:              leftSide.Index,
@@ -105,6 +105,6 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 
-	s.nsPathIdsMap.Delete(ns.Name)
+	s.nsPathIdsMap.Delete(ns.GetName())
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

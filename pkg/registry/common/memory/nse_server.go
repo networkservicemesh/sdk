@@ -41,7 +41,7 @@ type memoryNSEServer struct {
 	eventChannelSize        int
 }
 
-// NewNetworkServiceEndpointRegistryServer creates new memory based NetworkServiceEndpointRegistryServer
+// NewNetworkServiceEndpointRegistryServer creates new memory based NetworkServiceEndpointRegistryServer.
 func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
 	s := &memoryNSEServer{
 		eventChannelSize: defaultEventChannelSize,
@@ -63,7 +63,7 @@ func (s *memoryNSEServer) Register(ctx context.Context, nse *registry.NetworkSer
 		return nil, err
 	}
 
-	s.networkServiceEndpoints.Store(r.Name, r.Clone())
+	s.networkServiceEndpoints.Store(r.GetName(), r.Clone())
 
 	s.sendEvent(&registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: r})
 
@@ -80,7 +80,7 @@ func (s *memoryNSEServer) sendEvent(event *registry.NetworkServiceEndpointRespon
 }
 
 func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
-	if !query.Watch {
+	if !query.GetWatch() {
 		for _, nse := range s.allMatches(query) {
 			nseResp := &registry.NetworkServiceEndpointResponse{
 				NetworkServiceEndpoint: nse,
@@ -118,7 +118,7 @@ func (s *memoryNSEServer) Find(query *registry.NetworkServiceEndpointQuery, serv
 
 func (s *memoryNSEServer) allMatches(query *registry.NetworkServiceEndpointQuery) (matches []*registry.NetworkServiceEndpoint) {
 	s.networkServiceEndpoints.Range(func(_ string, nse *registry.NetworkServiceEndpoint) bool {
-		if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, nse) {
+		if matchutils.MatchNetworkServiceEndpoints(query.GetNetworkServiceEndpoint(), nse) {
 			matches = append(matches, nse.Clone())
 		}
 		return true
@@ -152,7 +152,7 @@ func (s *memoryNSEServer) receiveEvent(
 	case <-server.Context().Done():
 		return errors.WithStack(io.EOF)
 	case event := <-eventCh:
-		if matchutils.MatchNetworkServiceEndpoints(query.NetworkServiceEndpoint, event.NetworkServiceEndpoint) {
+		if matchutils.MatchNetworkServiceEndpoints(query.GetNetworkServiceEndpoint(), event.GetNetworkServiceEndpoint()) {
 			if err := server.Send(event); err != nil {
 				if server.Context().Err() != nil {
 					return errors.WithStack(io.EOF)

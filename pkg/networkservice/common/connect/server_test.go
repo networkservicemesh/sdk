@@ -148,7 +148,7 @@ func TestConnectServer_Request(t *testing.T) {
 	requestNext.Connection.Context.ExtraContext["a"] = "A"
 	require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
 
-	require.Equal(t, requestNext.Connection.String(), conn.String())
+	require.Equal(t, requestNext.GetConnection().String(), conn.String())
 
 	// 6. Request B
 
@@ -174,7 +174,7 @@ func TestConnectServer_Request(t *testing.T) {
 	requestNext.Connection.Context.ExtraContext["b"] = "B"
 	require.Equal(t, requestNext.String(), serverNext.capturedRequest.String())
 
-	require.Equal(t, requestNext.Connection.String(), conn.String())
+	require.Equal(t, requestNext.GetConnection().String(), conn.String())
 
 	// 8. Close B
 

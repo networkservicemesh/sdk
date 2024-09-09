@@ -51,7 +51,7 @@ func serve(ctx context.Context, t *testing.T, u *url.URL, register func(server *
 	}()
 }
 
-// CheckURLFree returns is given url is free for Listen
+// CheckURLFree returns is given url is free for Listen.
 func CheckURLFree(u *url.URL) bool {
 	ln, err := net.Listen(grpcutils.TargetToNetAddr(grpcutils.URLToTarget(u)))
 	if err == nil {
@@ -60,7 +60,7 @@ func CheckURLFree(u *url.URL) bool {
 	return err == nil
 }
 
-// CloneURL clones given url
+// CloneURL clones given url.
 func CloneURL(u *url.URL) *url.URL {
 	if u == nil {
 		return nil

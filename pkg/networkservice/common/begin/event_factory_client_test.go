@@ -18,7 +18,6 @@ package begin_test
 
 import (
 	"context"
-
 	"sync/atomic"
 	"testing"
 	"time"
@@ -42,7 +41,8 @@ import (
 )
 
 // This test reproduces the situation when refresh changes the eventFactory context
-// nolint:dupl
+//
+//nolint:dupl
 func TestContextValues_Client(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -93,8 +93,7 @@ func TestContextValues_Client(t *testing.T) {
 	eventFactoryCl.callRefresh()
 }
 
-// This test reproduces the situation when Close and Request were called at the same time
-// nolint:dupl
+// This test reproduces the situation when Close and Request were called at the same time.
 func TestRefreshDuringClose_Client(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -136,7 +135,7 @@ func TestRefreshDuringClose_Client(t *testing.T) {
 	eventFactoryCl.callRefresh()
 }
 
-// This test checks if the timeout for the Request/Close called from the event factory is correct
+// This test checks if the timeout for the Request/Close called from the event factory is correct.
 func TestContextTimeout_Client(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -170,7 +169,7 @@ func TestContextTimeout_Client(t *testing.T) {
 	eventFactoryCl.callClose()
 }
 
-// This test checks if the eventFactory reselect option cancels Close ctx correctly
+// This test checks if the eventFactory reselect option cancels Close ctx correctly.
 func TestContextCancellationOnReselect(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -273,14 +272,14 @@ const failedNSENameClient = "failedNSE"
 type failedNSEClient struct{}
 
 func (f *failedNSEClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
-	if request.GetConnection().NetworkServiceEndpointName == failedNSENameClient {
+	if request.GetConnection().GetNetworkServiceEndpointName() == failedNSENameClient {
 		return nil, errors.New("failed")
 	}
 	return next.Client(ctx).Request(ctx, request, opts...)
 }
 
 func (f *failedNSEClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*emptypb.Empty, error) {
-	if conn.NetworkServiceEndpointName == failedNSENameClient {
+	if conn.GetNetworkServiceEndpointName() == failedNSENameClient {
 		return nil, errors.New("failed")
 	}
 	return next.Client(ctx).Close(ctx, conn, opts...)

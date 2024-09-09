@@ -18,7 +18,6 @@ package vl3mtu_test
 
 import (
 	"context"
-
 	"testing"
 	"time"
 
@@ -119,7 +118,7 @@ func Test_vl3MtuServer(t *testing.T) {
 
 	require.NotNil(t, event)
 	require.Equal(t, networkservice.ConnectionEventType_UPDATE, event.GetType())
-	require.Equal(t, networkservice.State_REFRESH_REQUESTED, event.GetConnections()[segmentNames[0]].State)
+	require.Equal(t, networkservice.State_REFRESH_REQUESTED, event.GetConnections()[segmentNames[0]].GetState())
 	require.Len(t, event.GetConnections()[segmentNames[0]].GetPath().GetPathSegments(), 1)
 	require.Equal(t, segmentNames[0], event.GetConnections()[segmentNames[0]].GetPath().GetPathSegments()[0].GetName())
 
@@ -217,7 +216,7 @@ func Test_vl3MtuServer_SpoiledConnection(t *testing.T) {
 	require.NoError(t, err)
 	eventConn, ok := event.GetConnections()[id1]
 	require.True(t, ok)
-	require.Equal(t, networkservice.State_REFRESH_REQUESTED, eventConn.State)
+	require.Equal(t, networkservice.State_REFRESH_REQUESTED, eventConn.GetState())
 
 	_, ok = event.GetConnections()[invalidID]
 	require.False(t, ok)

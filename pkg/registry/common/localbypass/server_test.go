@@ -58,7 +58,7 @@ func TestLocalBypassNSEServer(t *testing.T) {
 		Url: nseURL,
 	})
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nse.Url)
+	require.Equal(t, nseURL, nse.GetUrl())
 
 	stream, err := adapters.NetworkServiceEndpointServerToClient(mem).Find(ctx, &registry.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: new(registry.NetworkServiceEndpoint),
@@ -67,7 +67,7 @@ func TestLocalBypassNSEServer(t *testing.T) {
 
 	nseResp, err := stream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nsmgrURL, nseResp.NetworkServiceEndpoint.Url)
+	require.Equal(t, nsmgrURL, nseResp.GetNetworkServiceEndpoint().GetUrl())
 
 	// 2. Find
 	stream, err = adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
@@ -77,7 +77,7 @@ func TestLocalBypassNSEServer(t *testing.T) {
 
 	nseResp, err = stream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nseResp.NetworkServiceEndpoint.Url)
+	require.Equal(t, nseURL, nseResp.GetNetworkServiceEndpoint().GetUrl())
 
 	// 3. Unregister
 	_, err = server.Unregister(ctx, nse)
@@ -111,7 +111,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 		Url:  nseURL,
 	})
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nse.Url)
+	require.Equal(t, nseURL, nse.GetUrl())
 
 	// 2. Find
 	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
@@ -121,7 +121,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 
 	nseResp, err := stream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nseResp.NetworkServiceEndpoint.Url)
+	require.Equal(t, nseURL, nseResp.GetNetworkServiceEndpoint().GetUrl())
 
 	// 3. Restart
 	server = next.NewNetworkServiceEndpointRegistryServer(
@@ -139,7 +139,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 	if err != nil {
 		require.Error(t, err, io.EOF) // either return nothing
 	} else {
-		require.Equal(t, nseURL, nseResp.NetworkServiceEndpoint.Url) // or return valid
+		require.Equal(t, nseURL, nseResp.GetNetworkServiceEndpoint().GetUrl()) // or return valid
 	}
 
 	// 5. Refresh register
@@ -154,7 +154,7 @@ func TestLocalBypassNSEServer_Restart(t *testing.T) {
 
 	nseResp, err = stream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nseResp.NetworkServiceEndpoint.Url)
+	require.Equal(t, nseURL, nseResp.GetNetworkServiceEndpoint().GetUrl())
 }
 
 func TestLocalBypassNSEServer_RegisterNSESameName(t *testing.T) {
@@ -176,7 +176,7 @@ func TestLocalBypassNSEServer_RegisterNSESameName(t *testing.T) {
 		Url:  nseURL,
 	})
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nse.Url)
+	require.Equal(t, nseURL, nse.GetUrl())
 
 	// 2. NSE restarted with the same name but different URL
 	nseRestartedURL := "tcp://1.1.1.2"
@@ -185,7 +185,7 @@ func TestLocalBypassNSEServer_RegisterNSESameName(t *testing.T) {
 		Url:  nseRestartedURL,
 	})
 	require.NoError(t, err)
-	require.Equal(t, nseRestartedURL, nse.Url)
+	require.Equal(t, nseRestartedURL, nse.GetUrl())
 
 	// 3. Find
 	stream, err := adapters.NetworkServiceEndpointServerToClient(server).Find(ctx, &registry.NetworkServiceEndpointQuery{
@@ -195,7 +195,7 @@ func TestLocalBypassNSEServer_RegisterNSESameName(t *testing.T) {
 
 	nseResp, err := stream.Recv()
 	require.NoError(t, err)
-	require.Equal(t, nseRestartedURL, nseResp.NetworkServiceEndpoint.Url)
+	require.Equal(t, nseRestartedURL, nseResp.GetNetworkServiceEndpoint().GetUrl())
 
 	// 4. Unregister
 	_, err = server.Unregister(ctx, nse)
@@ -240,7 +240,7 @@ func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 				return
 			}
 
-			require.Equal(t, nseURL, nseResp.NetworkServiceEndpoint.Url)
+			require.Equal(t, nseURL, nseResp.GetNetworkServiceEndpoint().GetUrl())
 		}
 	}()
 
@@ -249,7 +249,7 @@ func TestLocalBypassNSEServer_SlowRegistryFind(t *testing.T) {
 		Url: nseURL,
 	})
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nse.Url)
+	require.Equal(t, nseURL, nse.GetUrl())
 
 	// 3. Unregister
 	_, err = server.Unregister(ctx, nse)
@@ -301,7 +301,7 @@ func TestLocalByPass_ShouldCorrectlyHandleNSEsFromFloatingRegistry(t *testing.T)
 	l := registry.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, l, 1)
-	require.Equal(t, expectedURL, l[0].Url)
+	require.Equal(t, expectedURL, l[0].GetUrl())
 }
 
 func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
@@ -331,13 +331,13 @@ func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 		nseResp, err := stream.Recv()
 		require.NoError(t, err)
 
-		require.Equal(t, nseURL, nseResp.NetworkServiceEndpoint.Url)
+		require.Equal(t, nseURL, nseResp.GetNetworkServiceEndpoint().GetUrl())
 
 		// Unregister update
 		nseResp, err = stream.Recv()
 		require.NoError(t, err)
 
-		require.True(t, nseResp.Deleted)
+		require.True(t, nseResp.GetDeleted())
 	}()
 
 	// 2. Register
@@ -345,7 +345,7 @@ func TestLocalBypassNSEServer_SlowRegistryFindWatch(t *testing.T) {
 		Url: nseURL,
 	})
 	require.NoError(t, err)
-	require.Equal(t, nseURL, nse.Url)
+	require.Equal(t, nseURL, nse.GetUrl())
 
 	// 3. Unregister
 	_, err = server.Unregister(ctx, nse)

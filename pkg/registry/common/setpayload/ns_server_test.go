@@ -35,7 +35,7 @@ func TestSetPayload_Empty(t *testing.T) {
 	reg, err := server.Register(context.Background(), ns)
 	require.NoError(t, err)
 
-	require.Equal(t, payload.IP, ns.Payload)
+	require.Equal(t, payload.IP, ns.GetPayload())
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.NoError(t, err)
@@ -48,7 +48,7 @@ func TestSetPayload_Ethernet(t *testing.T) {
 	reg, err := server.Register(context.Background(), ns)
 	require.NoError(t, err)
 
-	require.Equal(t, payload.Ethernet, ns.Payload)
+	require.Equal(t, payload.Ethernet, ns.GetPayload())
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.NoError(t, err)
@@ -63,7 +63,7 @@ func TestSetPayload_WithCustomPayload(t *testing.T) {
 	reg, err := server.Register(context.Background(), ns)
 	require.NoError(t, err)
 
-	require.Equal(t, testPayload, reg.Payload)
+	require.Equal(t, testPayload, reg.GetPayload())
 
 	_, err = server.Unregister(context.Background(), reg)
 	require.NoError(t, err)

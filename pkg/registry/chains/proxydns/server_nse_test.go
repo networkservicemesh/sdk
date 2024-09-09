@@ -50,7 +50,7 @@ domain1:                                                           domain2:
 |                                                           | Find |                 |
 |  local registry -> nsmgr proxy registry -> proxy registry | ---> | local registry  |
 |                                                           |      |                 |
-------------------------------------------------------------       ------------------
+------------------------------------------------------------       ------------------.
 */
 func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -98,7 +98,7 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 
 	stream, err := client.Find(ctx, &registryapi.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-			Name: reg.Name + "@" + domain2.Name,
+			Name: reg.GetName() + "@" + domain2.Name,
 		},
 	})
 
@@ -107,7 +107,7 @@ func TestInterdomainNetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, reg.Name+"@"+domain2.Name, list[0].Name)
+	require.Equal(t, reg.GetName()+"@"+domain2.Name, list[0].GetName())
 }
 
 /*
@@ -124,7 +124,7 @@ domain1:
 |                                                                                 |
 |    local registry -> nsmgr proxy registry -> proxy registry -> local registry   |
 |                                                                                 |
------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------.
 */
 func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -158,6 +158,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.Nil(t, err)
+
 	defer func() {
 		_ = cc.Close()
 	}()
@@ -166,7 +167,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 
 	stream, err := client.Find(context.Background(), &registryapi.NetworkServiceEndpointQuery{
 		NetworkServiceEndpoint: &registryapi.NetworkServiceEndpoint{
-			Name: reg.Name + "@" + domain1.Name,
+			Name: reg.GetName() + "@" + domain1.Name,
 		},
 	})
 
@@ -175,7 +176,7 @@ func TestLocalDomain_NetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, "nse-1@"+domain1.Name, list[0].Name)
+	require.Equal(t, "nse-1@"+domain1.Name, list[0].GetName())
 }
 
 /*
@@ -193,7 +194,7 @@ domain1:                                                             domain2:
 |                                                           | 2.Find |                 | 1. Register  |                                                           |
 |  local registry -> nsmgr proxy registry -> proxy registry |  --->  | local registry  | <----------- |  local registry -> nsmgr proxy registry -> proxy registry |
 |                                                           |        |                 |              |                                                           |
-------------------------------------------------------------         ------------------               ------------------------------------------------------------
+------------------------------------------------------------         ------------------               ------------------------------------------------------------.
 */
 func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
@@ -237,10 +238,11 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	)
 	require.Nil(t, err)
 
-	name := strings.Split(reg.Name, "@")[0]
+	name := strings.Split(reg.GetName(), "@")[0]
 
 	cc, err := grpc.DialContext(ctx, grpcutils.URLToTarget(domain1.Registry.URL), grpc.WithBlock(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.Nil(t, err)
+
 	defer func() {
 		_ = cc.Close()
 	}()
@@ -258,5 +260,5 @@ func TestInterdomainFloatingNetworkServiceEndpointRegistry(t *testing.T) {
 	list := registryapi.ReadNetworkServiceEndpointList(stream)
 
 	require.Len(t, list, 1)
-	require.Equal(t, name+"@"+domain3.Name, list[0].Name)
+	require.Equal(t, name+"@"+domain3.Name, list[0].GetName())
 }

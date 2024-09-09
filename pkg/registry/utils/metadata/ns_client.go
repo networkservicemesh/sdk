@@ -33,7 +33,7 @@ type metaDataNSClient struct {
 	Map genericsync.Map[string, *metaData]
 }
 
-// NewNetworkServiceClient - enables per ns.Name metadata for the ns registry client
+// NewNetworkServiceClient - enables per ns.Name metadata for the ns registry client.
 func NewNetworkServiceClient() registry.NetworkServiceRegistryClient {
 	return &metaDataNSClient{}
 }

@@ -38,7 +38,7 @@ func URLToTarget(u *url.URL) (target string) {
 	return u.String()
 }
 
-// AddressToURL - convert net.Addr to a proper URL object
+// AddressToURL - convert net.Addr to a proper URL object.
 func AddressToURL(addr net.Addr) *url.URL {
 	if tcpAddr, ok := addr.(*net.TCPAddr); ok {
 		if tcpAddr.IP.IsUnspecified() {
@@ -48,7 +48,7 @@ func AddressToURL(addr net.Addr) *url.URL {
 	return NetworkAddressToURL(addr.Network(), addr.String())
 }
 
-// NetworkAddressToURL - convert a network + address to proper URL object
+// NetworkAddressToURL - convert a network + address to proper URL object.
 func NetworkAddressToURL(network, address string) *url.URL {
 	if network == unixScheme {
 		return &url.URL{Scheme: network, Path: address}
@@ -56,13 +56,13 @@ func NetworkAddressToURL(network, address string) *url.URL {
 	return &url.URL{Scheme: network, Host: address}
 }
 
-// TargetToURL - convert target to a proper URL object
+// TargetToURL - convert target to a proper URL object.
 func TargetToURL(address string) *url.URL {
 	network, addr := TargetToNetAddr(address)
 	return NetworkAddressToURL(network, addr)
 }
 
-// TargetToNetAddr returns the network and address from a GRPC target
+// TargetToNetAddr returns the network and address from a GRPC target.
 func TargetToNetAddr(target string) (network, addr string) {
 	// Borrowed with love from grpc.parseDialTarget https://github.com/grpc/grpc-go/blob/9aa97f9/rpc_util.go#L821
 	network = "tcp"

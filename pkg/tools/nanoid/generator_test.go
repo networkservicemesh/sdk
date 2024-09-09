@@ -34,8 +34,10 @@ func TestNoCollisions(t *testing.T) {
 	for i := 0; i < 50*1000; i++ {
 		id, err := nanoid.GenerateString(idLen)
 		require.NoError(t, err)
+
 		_, ok := used[id]
 		require.False(t, ok, "Collision detected for id: %s", id)
+
 		used[id] = true
 	}
 }
@@ -47,6 +49,7 @@ func TestFlatDistribution(t *testing.T) {
 	for i := 0; i < count; i++ {
 		id, err := nanoid.GenerateString(idLen)
 		require.NoError(t, err, "Error generating nanoid")
+
 		for _, char := range id {
 			chars[char]++
 		}
@@ -54,19 +57,20 @@ func TestFlatDistribution(t *testing.T) {
 
 	require.Equal(t, len(chars), len(nanoid.DefaultAlphabet), "Unexpected number of unique characters")
 
-	max := 0.0
-	min := math.MaxFloat64
+	maxNumber := 0.0
+	minNumber := math.MaxFloat64
 	for _, count := range chars {
 		distribution := float64(count*len(nanoid.DefaultAlphabet)) / float64(count*idLen)
-		if distribution > max {
-			max = distribution
+		if distribution > maxNumber {
+			maxNumber = distribution
 		}
-		if distribution < min {
-			min = distribution
+
+		if distribution < minNumber {
+			minNumber = distribution
 		}
 	}
 
-	require.True(t, max-min <= 0.05, "Distribution is not flat")
+	require.True(t, maxNumber-minNumber <= 0.05, "Distribution is not flat")
 }
 
 func TestCustomAlphabet(t *testing.T) {

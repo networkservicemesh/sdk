@@ -38,7 +38,7 @@ func Test_NSC_ConnectsToVl3NSE(t *testing.T) {
 	})
 	ipam := vl3.NewIPAM("10.0.0.1/24")
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		vl3.NewServer(context.Background(), ipam),
 	)
@@ -77,7 +77,7 @@ func Test_NSC_ConnectsToVl3NSE_PrefixHasChanged(t *testing.T) {
 
 	ipam := vl3.NewIPAM("12.0.0.1/24")
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		vl3.NewServer(context.Background(), ipam),
 	)
@@ -120,7 +120,7 @@ func Test_NSC_ConnectsToVl3NSE_Close(t *testing.T) {
 
 	ipam := vl3.NewIPAM("10.0.0.1/24")
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		vl3.NewServer(context.Background(), ipam),
 	)
@@ -176,7 +176,7 @@ func Test_NSC_ConnectsToVl3NSE_DualStack(t *testing.T) {
 	ipam2 := vl3.NewIPAM("2001:db8::/112")
 	ipams = append(ipams, ipam2)
 
-	var server = next.NewNetworkServiceServer(
+	server := next.NewNetworkServiceServer(
 		metadata.NewServer(),
 		strictvl3ipam.NewServer(context.Background(), vl3.NewServer, ipams...),
 	)

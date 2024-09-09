@@ -29,7 +29,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// Span - unified interface for opentelemetry spans
+// Span - unified interface for opentelemetry spans.
 type Span interface {
 	Log(level, format string, v ...interface{})
 	LogObject(k, v interface{})
@@ -39,7 +39,7 @@ type Span interface {
 	ToString() string
 }
 
-// Opentelemetry span
+// Opentelemetry span.
 type otelSpan struct {
 	rootSpan      opentelemetry.Span
 	span          opentelemetry.Span

@@ -31,7 +31,7 @@ import (
 
 type mechanismTranslationClient struct{}
 
-// NewClient returns a new translation client chain element
+// NewClient returns a new translation client chain element.
 func NewClient() networkservice.NetworkServiceClient {
 	return new(mechanismTranslationClient)
 }
@@ -48,11 +48,11 @@ func (c *mechanismTranslationClient) Request(ctx context.Context, request *netwo
 	if err != nil {
 		return nil, err
 	}
-	store(ctx, clientConn.Mechanism)
+	store(ctx, clientConn.GetMechanism())
 
 	// 3. Translate connection mechanism
 	conn = clientConn.Clone()
-	conn.Mechanism = request.Connection.GetMechanism()
+	conn.Mechanism = request.GetConnection().GetMechanism()
 
 	return conn, nil
 }

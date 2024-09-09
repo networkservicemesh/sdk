@@ -16,10 +16,10 @@
 
 package clusterinfo
 
-// Option overrides default configuration
+// Option overrides default configuration.
 type Option = func(*clusterinfoServer)
 
-// WithConfigPath replaces defeault clusterinfo config file path
+// WithConfigPath replaces defeault clusterinfo config file path.
 func WithConfigPath(p string) func(o *clusterinfoServer) {
 	return func(o *clusterinfoServer) {
 		o.configPath = p

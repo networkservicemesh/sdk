@@ -67,22 +67,21 @@ var _ networkservice.MonitorConnectionServer = &monitorConnectionServer{}
 
 func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_ error) {
 	m.executor.AsyncExec(func() {
-		if event.Type == networkservice.ConnectionEventType_UPDATE {
+		if event.GetType() == networkservice.ConnectionEventType_UPDATE {
 			for _, conn := range event.GetConnections() {
 				m.connections[conn.GetId()] = conn.Clone()
 			}
 		}
-		if event.Type == networkservice.ConnectionEventType_DELETE {
+		if event.GetType() == networkservice.ConnectionEventType_DELETE {
 			for _, conn := range event.GetConnections() {
 				delete(m.connections, conn.GetId())
 			}
 		}
-		if event.Type == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER {
+		if event.GetType() == networkservice.ConnectionEventType_INITIAL_STATE_TRANSFER {
 			// sending event with INIITIAL_STATE_TRANSFER not permitted
 			return
 		}
 		for id, filter := range m.filters {
-			id, filter := id, filter
 			e := event.Clone()
 			filter.executor.AsyncExec(func() {
 				var err error
@@ -105,7 +104,7 @@ func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_
 	return nil
 }
 
-// EventConsumer - interface for monitor events sending
+// EventConsumer - interface for monitor events sending.
 type EventConsumer interface {
 	Send(event *networkservice.ConnectionEvent) (err error)
 }

@@ -37,10 +37,10 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 )
 
-// NSURL - wrapper around *url.URL to allow easy extraction of NSM related information
+// NSURL - wrapper around *url.URL to allow easy extraction of NSM related information.
 type NSURL url.URL
 
-// Mechanism - return Mechanism for the requested Network Service
+// Mechanism - return Mechanism for the requested Network Service.
 func (n *NSURL) Mechanism() *networkservice.Mechanism {
 	mechanism := &networkservice.Mechanism{Cls: cls.LOCAL, Type: strings.ToUpper(n.Scheme)}
 	segments := strings.Split(n.Path, "/")
@@ -52,7 +52,7 @@ func (n *NSURL) Mechanism() *networkservice.Mechanism {
 	return mechanism
 }
 
-// Labels - return the source Labels for the requested Network Service
+// Labels - return the source Labels for the requested Network Service.
 func (n *NSURL) Labels() map[string]string {
 	labels := make(map[string]string)
 	for k, values := range (*url.URL)(n).Query() {
@@ -61,7 +61,7 @@ func (n *NSURL) Labels() map[string]string {
 	return labels
 }
 
-// NetworkService - return the name of the requested Network Service
+// NetworkService - return the name of the requested Network Service.
 func (n *NSURL) NetworkService() string {
 	if n.User.Username() != "" {
 		return fmt.Sprintf("%s@%s", n.User.Username(), (*url.URL)(n).Hostname())

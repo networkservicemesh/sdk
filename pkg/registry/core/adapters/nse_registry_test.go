@@ -42,7 +42,7 @@ func (t *echoNetworkServiceEndpointClient) Register(_ context.Context, in *regis
 func (t *echoNetworkServiceEndpointClient) Find(ctx context.Context, in *registry.NetworkServiceEndpointQuery, _ ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
 	ch := make(chan *registry.NetworkServiceEndpointResponse)
 	go func() {
-		ch <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: in.NetworkServiceEndpoint}
+		ch <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: in.GetNetworkServiceEndpoint()}
 		close(ch)
 	}()
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, ch), nil
@@ -60,7 +60,7 @@ func (e echoNetworkServiceEndpointServer) Register(ctx context.Context, service 
 
 func (e echoNetworkServiceEndpointServer) Find(query *registry.NetworkServiceEndpointQuery, server registry.NetworkServiceEndpointRegistry_FindServer) error {
 	nseResp := &registry.NetworkServiceEndpointResponse{
-		NetworkServiceEndpoint: query.NetworkServiceEndpoint,
+		NetworkServiceEndpoint: query.GetNetworkServiceEndpoint(),
 	}
 	return server.Send(nseResp)
 }
@@ -111,7 +111,7 @@ func TestNetworkServiceEndpointFind(t *testing.T) {
 		s := streamchannel.NewNetworkServiceEndpointFindServer(context.Background(), ch)
 		err := server.Find(&registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "test"}}, s)
 		require.Nil(t, err)
-		require.Equal(t, "test", (<-ch).NetworkServiceEndpoint.Name)
+		require.Equal(t, "test", (<-ch).GetNetworkServiceEndpoint().GetName())
 		close(ch)
 	}
 }
@@ -130,8 +130,7 @@ func adaptNetworkServiceEndpointClientToServerFewTimes(n int, client registry.Ne
 	return s
 }
 
-type writeNSEServer struct {
-}
+type writeNSEServer struct{}
 
 func (w *writeNSEServer) Register(ctx context.Context, service *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
 	ctx = context.WithValue(ctx, testKey, true)
@@ -165,8 +164,7 @@ func TestNSEClientPassingContext(t *testing.T) {
 	require.NoError(t, err)
 }
 
-type writeNSEClient struct {
-}
+type writeNSEClient struct{}
 
 func (s *writeNSEClient) Register(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*registry.NetworkServiceEndpoint, error) {
 	ctx = context.WithValue(ctx, testKey, true)

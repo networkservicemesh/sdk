@@ -58,7 +58,7 @@ const (
 	nsServerSendErrorKey       = "nsServerSendError"
 )
 
-// withLog - provides corresponding logger in context
+// withLog - provides corresponding logger in context.
 func withLog(parent context.Context, methodName string) (c context.Context, f func()) {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -84,7 +84,7 @@ func withLog(parent context.Context, methodName string) (c context.Context, f fu
 	}
 }
 
-// withConnectionInfo - Provides a traceInfo in context
+// withConnectionInfo - Provides a traceInfo in context.
 func withTrace(parent context.Context) context.Context {
 	if parent == nil {
 		panic("cannot create context from nil parent")
@@ -97,7 +97,7 @@ func withTrace(parent context.Context) context.Context {
 	return context.WithValue(parent, traceInfoKey, &struct{}{})
 }
 
-// trace - return traceInfo from context
+// trace - return traceInfo from context.
 func trace(ctx context.Context) bool {
 	return ctx.Value(traceInfoKey) != nil
 }

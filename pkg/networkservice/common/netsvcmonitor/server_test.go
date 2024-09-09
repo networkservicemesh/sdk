@@ -42,11 +42,11 @@ func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
 		goleak.VerifyNone(t)
 	})
 
-	var testCtx, cancel = context.WithTimeout(context.Background(), time.Second)
+	testCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 
-	var nsServer = memory.NewNetworkServiceRegistryServer()
-	var nseServer = memory.NewNetworkServiceEndpointRegistryServer()
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nseServer := memory.NewNetworkServiceEndpointRegistryServer()
 	var counter count.Server
 
 	_, _ = nsServer.Register(context.Background(), &registry.NetworkService{
@@ -58,7 +58,7 @@ func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
 		NetworkServiceNames: []string{"service-1"},
 	})
 
-	var server = chain.NewNetworkServiceServer(
+	server := chain.NewNetworkServiceServer(
 		metadata.NewServer(),
 		begin.NewServer(),
 		netsvcmonitor.NewServer(
@@ -69,14 +69,14 @@ func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
 		&counter,
 	)
 
-	var request = &networkservice.NetworkServiceRequest{
+	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:                         "1",
 			NetworkService:             "service-1",
 			NetworkServiceEndpointName: "endpoint-1",
 		},
 	}
-	var _, err = server.Request(testCtx, request)
+	_, err := server.Request(testCtx, request)
 	require.NoError(t, err)
 	require.Equal(t, 0, counter.Closes())
 	for i := 0; i < 10; i++ {
@@ -99,15 +99,15 @@ func Test_Netsvcmonitor_And_GroupOfSimilarNetworkServices(t *testing.T) {
 }
 
 func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
-	var testCtx, cancel = context.WithTimeout(context.Background(), time.Second*5)
+	testCtx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	t.Cleanup(func() {
 		require.Eventually(t, func() bool {
 			return goleak.Find(goleak.IgnoreAnyFunction("github.com/stretchr/testify/assert.Eventually")) == nil
 		}, time.Second*2, time.Second/10)
 		cancel()
 	})
-	var nsServer = memory.NewNetworkServiceRegistryServer()
-	var nseServer = memory.NewNetworkServiceEndpointRegistryServer()
+	nsServer := memory.NewNetworkServiceRegistryServer()
+	nseServer := memory.NewNetworkServiceEndpointRegistryServer()
 	var counter count.Server
 
 	_, _ = nsServer.Register(context.Background(), &registry.NetworkService{
@@ -119,7 +119,7 @@ func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
 		NetworkServiceNames: []string{"service-1"},
 	})
 
-	var server = chain.NewNetworkServiceServer(
+	server := chain.NewNetworkServiceServer(
 		metadata.NewServer(),
 		begin.NewServer(),
 		netsvcmonitor.NewServer(
@@ -130,7 +130,7 @@ func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
 		&counter,
 	)
 
-	var request = &networkservice.NetworkServiceRequest{
+	request := &networkservice.NetworkServiceRequest{
 		Connection: &networkservice.Connection{
 			Id:                         "1",
 			NetworkService:             "service-1",
@@ -145,6 +145,6 @@ func Test_NetsvcMonitor_ShouldNotLeakWithoutClose(t *testing.T) {
 		},
 	}
 
-	var _, err = server.Request(testCtx, request)
+	_, err := server.Request(testCtx, request)
 	require.NoError(t, err)
 }

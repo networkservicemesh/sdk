@@ -23,7 +23,7 @@ import (
 )
 
 // GenerateLinuxInterfaceName - returns a random interface name with "nsm" prefix
-// to achieve a 1% chance of name collision, you need to generate approximately 68 billon names
+// to achieve a 1% chance of name collision, you need to generate approximately 68 billon names.
 func GenerateLinuxInterfaceName(ns string) (string, error) {
 	maxServiceName := kernelmech.LinuxIfMaxLength - 5
 	if len(ns) > maxServiceName {

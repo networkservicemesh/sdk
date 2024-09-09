@@ -31,7 +31,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
-// ListenAndServe gathers the certificate and initiates the server to begin handling incoming requests
+// ListenAndServe gathers the certificate and initiates the server to begin handling incoming requests.
 func ListenAndServe(ctx context.Context, listenOn string, headerTimeout time.Duration, cancel context.CancelFunc) {
 	metricsServer := server{
 		ListenOn:      listenOn,

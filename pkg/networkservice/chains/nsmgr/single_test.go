@@ -91,10 +91,10 @@ func Test_AwareNSEs(t *testing.T) {
 	ns1 := defaultRegistryService("my-ns-1")
 	ns2 := defaultRegistryService("my-ns-2")
 
-	nsurl1, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns1.Name, "color", "red"))
+	nsurl1, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns1.GetName(), "color", "red"))
 	require.NoError(t, err)
 
-	nsurl2, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns2.Name, "color", "red"))
+	nsurl2, err := url.Parse(fmt.Sprintf("kernel://%s?%s=%s", ns2.GetName(), "color", "red"))
 	require.NoError(t, err)
 
 	nsInfo := [nseCount]struct {
@@ -122,9 +122,9 @@ func Test_AwareNSEs(t *testing.T) {
 	for i := 0; i < nseCount; i++ {
 		nseRegs[i] = &registryapi.NetworkServiceEndpoint{
 			Name:                fmt.Sprintf("nse-%s", uuid.New().String()),
-			NetworkServiceNames: []string{nsInfo[i].ns.Name},
+			NetworkServiceNames: []string{nsInfo[i].ns.GetName()},
 			NetworkServiceLabels: map[string]*registryapi.NetworkServiceLabels{
-				nsInfo[i].ns.Name: {
+				nsInfo[i].ns.GetName(): {
 					Labels: map[string]string{
 						nsInfo[i].labelKey: nsInfo[i].labelValue,
 					},
@@ -137,7 +137,7 @@ func Test_AwareNSEs(t *testing.T) {
 		requests[i] = &networkservice.NetworkServiceRequest{
 			Connection: &networkservice.Connection{
 				Id:             fmt.Sprint(i),
-				NetworkService: nsInfo[i].ns.Name,
+				NetworkService: nsInfo[i].ns.GetName(),
 				Context:        &networkservice.ConnectionContext{},
 				Mechanism:      &networkservice.Mechanism{Cls: cls.LOCAL, Type: kernelmech.MECHANISM},
 				Labels: map[string]string{
@@ -174,7 +174,7 @@ func Test_AwareNSEs(t *testing.T) {
 	for i := 0; i < nseCount; i++ {
 		conns[i], err = nsc.Request(ctx, requests[i])
 		require.NoError(t, err)
-		require.Equal(t, conns[0].NetworkServiceEndpointName, nses[0].Name)
+		require.Equal(t, conns[0].GetNetworkServiceEndpointName(), nses[0].Name)
 	}
 
 	srcIP1 := conns[0].GetContext().GetIpContext().GetSrcIpAddrs()
@@ -239,23 +239,23 @@ func Test_ShouldParseNetworkServiceLabelsTemplate(t *testing.T) {
 	nsReg, err = nsRegistryClient.Register(ctx, nsReg)
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
-	nseReg.NetworkServiceLabels = map[string]*registryapi.NetworkServiceLabels{nsReg.Name: {}}
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
+	nseReg.NetworkServiceLabels = map[string]*registryapi.NetworkServiceLabels{nsReg.GetName(): {}}
 
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
 	require.NoError(t, err)
 
-	req := defaultRequest(nsReg.Name)
+	req := defaultRequest(nsReg.GetName())
 
 	conn, err := nsc.Request(ctx, req)
 	require.NoError(t, err)
 
 	// Test for connection labels setting
-	require.Equal(t, want, conn.Labels)
+	require.Equal(t, want, conn.GetLabels())
 	// Test for endpoint labels setting
-	require.Equal(t, want, nseReg.NetworkServiceLabels[nsReg.Name].Labels)
+	require.Equal(t, want, nseReg.GetNetworkServiceLabels()[nsReg.GetName()].GetLabels())
 
 	_, err = nse.Unregister(ctx, nseReg)
 	require.NoError(t, err)
@@ -347,8 +347,8 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 4, len(conn.Path.PathSegments))
-	require.Equal(t, "p2mp forwarder", conn.GetPath().GetPathSegments()[2].Name)
+	require.Equal(t, 4, len(conn.GetPath().GetPathSegments()))
+	require.Equal(t, "p2mp forwarder", conn.GetPath().GetPathSegments()[2].GetName())
 
 	_, err = nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
@@ -376,8 +376,8 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 4, len(conn.Path.PathSegments))
-	require.Equal(t, "p2p forwarder", conn.GetPath().GetPathSegments()[2].Name)
+	require.Equal(t, 4, len(conn.GetPath().GetPathSegments()))
+	require.Equal(t, "p2p forwarder", conn.GetPath().GetPathSegments()[2].GetName())
 }
 
 func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
@@ -463,9 +463,9 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	conn, err := nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 6, len(conn.Path.PathSegments))
-	require.Equal(t, "p2mp forwarder-0", conn.GetPath().GetPathSegments()[2].Name)
-	require.Equal(t, "p2mp forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
+	require.Equal(t, "p2mp forwarder-0", conn.GetPath().GetPathSegments()[2].GetName())
+	require.Equal(t, "p2mp forwarder-1", conn.GetPath().GetPathSegments()[4].GetName())
 
 	_, err = nsRegistryClient.Register(ctx, &registryapi.NetworkService{
 		Name: "my-ns",
@@ -487,12 +487,12 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
-	require.Equal(t, 6, len(conn.Path.PathSegments))
-	require.Equal(t, "p2p forwarder-0", conn.GetPath().GetPathSegments()[2].Name)
-	require.Equal(t, "p2p forwarder-1", conn.GetPath().GetPathSegments()[4].Name)
+	require.Equal(t, 6, len(conn.GetPath().GetPathSegments()))
+	require.Equal(t, "p2p forwarder-0", conn.GetPath().GetPathSegments()[2].GetName())
+	require.Equal(t, "p2p forwarder-1", conn.GetPath().GetPathSegments()[4].GetName())
 }
 
-// TokenGeneratorFunc - creates a token.TokenGeneratorFunc that creates spiffe JWT tokens from the cert returned by getCert()
+// TokenGeneratorFunc - creates a token.TokenGeneratorFunc that creates spiffe JWT tokens from the cert returned by getCert().
 func tokenGeneratorFunc(spiffeID string) token.GeneratorFunc {
 	return func(authInfo credentials.AuthInfo) (string, time.Time, error) {
 		expireTime := time.Now().Add(time.Hour)
@@ -530,7 +530,8 @@ func Test_FailedRegistryAuthorization(t *testing.T) {
 		tokenGenerator token.GeneratorFunc,
 		expiryDuration time.Duration,
 		proxyRegistryURL *url.URL,
-		options ...grpc.DialOption) registry.Registry {
+		options ...grpc.DialOption,
+	) registry.Registry {
 		registryName := sandbox.UniqueName("registry-memory")
 
 		return memory.NewServer(
@@ -615,9 +616,9 @@ func createAuthorizedEndpoint(ctx context.Context, t *testing.T, ns string, nsmg
 
 func Test_RestartDuringRefresh(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
-	var ctx, cancel = context.WithTimeout(context.Background(), time.Second*15)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
-	var domain = sandbox.NewBuilder(ctx, t).SetNodesCount(1).Build()
+	domain := sandbox.NewBuilder(ctx, t).SetNodesCount(1).Build()
 
 	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 	_, err := nsRegistryClient.Register(ctx, defaultRegistryService("ns"))
@@ -648,7 +649,7 @@ func Test_RestartDuringRefresh(t *testing.T) {
 		}
 	}))
 
-	var nsc = domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(
 		&countClient,
 		checkcontext.NewClient(t, func(t *testing.T, ctx context.Context) {
 			m.Do(func() {
@@ -680,7 +681,7 @@ func Test_RestartDuringRefresh(t *testing.T) {
 		destroyFwd.Store(true)
 		err = <-clientFactory.Request()
 		require.Error(t, err)
-		var cc = countClient.BackwardRequests()
+		cc := countClient.BackwardRequests()
 		destroyFwd.Store(false)
 		// Heal must be successful eventually
 		require.Eventually(t, func() bool { return cc < countClient.BackwardRequests() }, time.Second*2, time.Second/20)
@@ -688,7 +689,7 @@ func Test_RestartDuringRefresh(t *testing.T) {
 }
 
 // This test checks timeout on sandbox
-// We run nsmgr and NSE with networkservice authorize chain element (tokens_expired.rego)
+// We run nsmgr and NSE with networkservice authorize chain element (tokens_expired.rego).
 func Test_Timeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -721,7 +722,7 @@ func Test_Timeout(t *testing.T) {
 
 	counter := new(count.Server)
 
-	createAuthorizedEndpoint(chainCtx, t, ns.Name, domain.Nodes[0].NSMgr.URL, counter)
+	createAuthorizedEndpoint(chainCtx, t, ns.GetName(), domain.Nodes[0].NSMgr.URL, counter)
 
 	// Set an expiring token.
 	// Add injecterror to allow only the first Request. All subsequent ones will fall.
@@ -733,7 +734,7 @@ func Test_Timeout(t *testing.T) {
 		),
 	)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 	requestCtx, requestCtxCancel := context.WithTimeout(context.Background(), requestTimeout)
 	defer requestCtxCancel()
 
@@ -749,7 +750,7 @@ func Test_Timeout(t *testing.T) {
 }
 
 // This test checks registry expire on sandbox
-// We run nsmgr and registry with registry authorize chain element (tokens_expired.rego)
+// We run nsmgr and registry with registry authorize chain element (tokens_expired.rego).
 func Test_Expire(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -775,7 +776,8 @@ func Test_Expire(t *testing.T) {
 		tokenGenerator token.GeneratorFunc,
 		expiryDuration time.Duration,
 		proxyRegistryURL *url.URL,
-		options ...grpc.DialOption) registry.Registry {
+		options ...grpc.DialOption,
+	) registry.Registry {
 		return memory.NewServer(
 			ctx,
 			tokenGenerator,
@@ -816,7 +818,7 @@ func Test_Expire(t *testing.T) {
 	_, err = nseRegistryClient.Register(registerCtx, &registryapi.NetworkServiceEndpoint{
 		Name:                "final-endpoint",
 		Url:                 "nseURL",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 	})
 	require.NoError(t, err)
 

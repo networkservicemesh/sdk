@@ -23,7 +23,7 @@ import (
 	"strings"
 )
 
-// GetFuncName - returns the function name from the passed value (interface) and method name
+// GetFuncName - returns the function name from the passed value (interface) and method name.
 func GetFuncName(value interface{}, methodName string) string {
 	v := reflect.ValueOf(value)
 	if v.Kind() == reflect.Ptr {

@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	// DefaultAlphabet is the default alphabet for the generator which can be used to generate kernel interface names
+	// DefaultAlphabet is the default alphabet for the generator which can be used to generate kernel interface names.
 	DefaultAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 )
 
@@ -34,17 +34,17 @@ type generatorOpts struct {
 	randomByteGenerator io.Reader
 }
 
-// Option represents options for the string generator
+// Option represents options for the string generator.
 type Option func(o *generatorOpts)
 
-// WithAlphabet sets a custom alphabet for the generator
+// WithAlphabet sets a custom alphabet for the generator.
 func WithAlphabet(alphabet string) Option {
 	return func(o *generatorOpts) {
 		o.alphabet = alphabet
 	}
 }
 
-// WithRandomByteGenerator sets a generator for random bytes generation
+// WithRandomByteGenerator sets a generator for random bytes generation.
 func WithRandomByteGenerator(generator io.Reader) Option {
 	return func(o *generatorOpts) {
 		o.randomByteGenerator = generator

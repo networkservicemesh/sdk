@@ -18,24 +18,24 @@ package count
 
 import "sync/atomic"
 
-// CallCounter - stores Register / Unregister / Find calls count
+// CallCounter - stores Register / Unregister / Find calls count.
 type CallCounter struct {
 	totalRegisterCalls   int32
 	totalUnregisterCalls int32
 	totalFindCalls       int32
 }
 
-// Registers returns Register call count
+// Registers returns Register call count.
 func (c *CallCounter) Registers() int {
 	return int(atomic.LoadInt32(&c.totalRegisterCalls))
 }
 
-// Unregisters returns Unregister count
+// Unregisters returns Unregister count.
 func (c *CallCounter) Unregisters() int {
 	return int(atomic.LoadInt32(&c.totalUnregisterCalls))
 }
 
-// Finds returns Find count
+// Finds returns Find count.
 func (c *CallCounter) Finds() int {
 	return int(atomic.LoadInt32(&c.totalFindCalls))
 }

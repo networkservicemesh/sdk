@@ -90,7 +90,7 @@ func (b *ipRange) Clone() *ipRange {
 	}
 }
 
-// Compare - compares with ip address. Returns 0 if crossing, -1 if ipR less than this, 1 otherwise
+// Compare - compares with ip address. Returns 0 if crossing, -1 if ipR less than this, 1 otherwise.
 func (b *ipRange) Compare(ip *ipAddress) int {
 	switch {
 	case ip.high > b.end.high:
@@ -128,7 +128,7 @@ func (b *ipRange) CompareRange(ipR *ipRange) int {
 	return 0
 }
 
-// Unite - creates a union range from first available address to last one
+// Unite - creates a union range from first available address to last one.
 func (b *ipRange) Unite(ipR *ipRange) *ipRange {
 	r := b.Clone()
 	if r.Compare(ipR.start) < 0 {
@@ -140,7 +140,7 @@ func (b *ipRange) Unite(ipR *ipRange) *ipRange {
 	return r
 }
 
-// Intersect - creates a combine range including IP addresses from both source ranges at the same time
+// Intersect - creates a combine range including IP addresses from both source ranges at the same time.
 func (b *ipRange) Intersect(ipR *ipRange) *ipRange {
 	if b.CompareRange(ipR) != 0 {
 		return nil
@@ -155,7 +155,7 @@ func (b *ipRange) Intersect(ipR *ipRange) *ipRange {
 	return r
 }
 
-// Sub - creates two ranges including all addresses from this range and excluding ipR
+// Sub - creates two ranges including all addresses from this range and excluding ipR.
 func (b *ipRange) Sub(ipR *ipRange) (leftR, rightR *ipRange) {
 	if b.CompareRange(ipR) != 0 {
 		return b.Clone(), nil

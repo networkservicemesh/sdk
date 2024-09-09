@@ -38,14 +38,13 @@ func (creds *perRPCCredentials) GetRequestMetadata(ctx context.Context, _ ...str
 		return nil, errors.New("peer is missed in ctx")
 	}
 
-	var authInfo = credentials.AuthInfo(nil)
+	authInfo := credentials.AuthInfo(nil)
 
 	if p != nil {
 		authInfo = p.AuthInfo
 	}
 
 	tok, expire, err := creds.genTokenFunc(authInfo)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a token")
 	}
@@ -62,7 +61,7 @@ func (creds *perRPCCredentials) RequireTransportSecurity() bool {
 
 var _ credentials.PerRPCCredentials = (*perRPCCredentials)(nil)
 
-// NewPerRPCCredentials creates credentials.PerRPCCredentials based on token generator func
+// NewPerRPCCredentials creates credentials.PerRPCCredentials based on token generator func.
 func NewPerRPCCredentials(genTokenFunc GeneratorFunc) credentials.PerRPCCredentials {
 	if genTokenFunc == nil {
 		panic("genTokenFunc cannot be nil")

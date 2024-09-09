@@ -89,21 +89,21 @@ func WithHealClient(healClient networkservice.NetworkServiceClient) Option {
 	})
 }
 
-// WithDialOptions sets dial options
+// WithDialOptions sets dial options.
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return Option(func(c *clientOptions) {
 		c.dialOptions = dialOptions
 	})
 }
 
-// WithDialTimeout sets dial timeout
+// WithDialTimeout sets dial timeout.
 func WithDialTimeout(dialTimeout time.Duration) Option {
 	return func(c *clientOptions) {
 		c.dialTimeout = dialTimeout
 	}
 }
 
-// WithoutRefresh disables refresh
+// WithoutRefresh disables refresh.
 func WithoutRefresh() Option {
 	return func(c *clientOptions) {
 		c.refreshClient = null.NewClient()

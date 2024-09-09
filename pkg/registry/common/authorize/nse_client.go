@@ -82,13 +82,13 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 	rawMap := getRawMap(c.nsePathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
-		ResourceName:       resp.Name,
+		ResourceName:       resp.GetName(),
 		ResourcePathIdsMap: rawMap,
 		PathSegments:       path.PathSegments,
 		Index:              path.Index,
 	}
 	if err := c.policies.check(ctx, input); err != nil {
-		if _, load := c.nsePathIdsMap.Load(resp.Name); !load {
+		if _, load := c.nsePathIdsMap.Load(resp.GetName()); !load {
 			unregisterCtx, cancelUnregister := postponeCtxFunc()
 			defer cancelUnregister()
 
@@ -100,7 +100,7 @@ func (c *authorizeNSEClient) Register(ctx context.Context, nse *registry.Network
 		return nil, err
 	}
 
-	c.nsePathIdsMap.Store(resp.Name, resp.PathIds)
+	c.nsePathIdsMap.Store(resp.GetName(), resp.GetPathIds())
 	return resp, nil
 }
 
@@ -132,7 +132,7 @@ func (c *authorizeNSEClient) Unregister(ctx context.Context, nse *registry.Netwo
 	rawMap := getRawMap(c.nsePathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
-		ResourceName:       nse.Name,
+		ResourceName:       nse.GetName(),
 		ResourcePathIdsMap: rawMap,
 		PathSegments:       path.PathSegments,
 		Index:              path.Index,
@@ -142,6 +142,6 @@ func (c *authorizeNSEClient) Unregister(ctx context.Context, nse *registry.Netwo
 		return nil, err
 	}
 
-	c.nsePathIdsMap.Delete(nse.Name)
+	c.nsePathIdsMap.Delete(nse.GetName())
 	return resp, nil
 }

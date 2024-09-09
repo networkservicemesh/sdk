@@ -22,8 +22,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-type key struct{}
-type keyEventConsumer struct{}
+type (
+	key              struct{}
+	keyEventConsumer struct{}
+)
 
 // store sets the context.CancelFunc stored in per Connection.Id metadata.
 func store(ctx context.Context, isClient bool, cancel context.CancelFunc) {

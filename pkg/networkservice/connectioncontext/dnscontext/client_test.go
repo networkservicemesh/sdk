@@ -76,10 +76,10 @@ nameserver 127.0.0.1`
 	require.NotNil(t, resp.GetContext().GetDnsContext())
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 0)
 	// Check updated dnsConfigMap
-	loadedDNSConfig, ok := dnsConfigMap.Load(resp.Id)
+	loadedDNSConfig, ok := dnsConfigMap.Load(resp.GetId())
 	require.True(t, ok)
-	require.Contains(t, loadedDNSConfig[0].DnsServerIps, "8.8.4.4")
-	require.Contains(t, loadedDNSConfig[0].SearchDomains, "example.com")
+	require.Contains(t, loadedDNSConfig[0].GetDnsServerIps(), "8.8.4.4")
+	require.Contains(t, loadedDNSConfig[0].GetSearchDomains(), "example.com")
 	_, err = client.Close(ctx, resp)
 	require.NoError(t, err)
 }

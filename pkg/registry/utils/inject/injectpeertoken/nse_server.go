@@ -31,7 +31,7 @@ type injectSpiffeIDNSEServer struct {
 	tokenGenerator token.GeneratorFunc
 }
 
-// NewNetworkServiceEndpointRegistryServer returns a server chain element putting peer token to context on Register and Unregister
+// NewNetworkServiceEndpointRegistryServer returns a server chain element putting peer token to context on Register and Unregister.
 func NewNetworkServiceEndpointRegistryServer(tokenGenerator token.GeneratorFunc) registry.NetworkServiceEndpointRegistryServer {
 	return &injectSpiffeIDNSEServer{
 		tokenGenerator: tokenGenerator,

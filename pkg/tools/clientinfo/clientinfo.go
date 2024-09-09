@@ -34,7 +34,7 @@ const (
 )
 
 // AddClientInfo adds client info (node/pod/cluster names) to provided map, taking this info from corresponding
-// environment variables
+// environment variables.
 func AddClientInfo(ctx context.Context, labels map[string]string) {
 	names := map[string]string{
 		nodeNameEnv:    nodeNameLabel,

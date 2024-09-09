@@ -26,7 +26,7 @@ const (
 	prometheusEnv = "PROMETHEUS"
 )
 
-// IsEnabled returns true if prometheus is enabled
+// IsEnabled returns true if prometheus is enabled.
 func IsEnabled() bool {
 	if v, err := strconv.ParseBool(os.Getenv(prometheusEnv)); err == nil {
 		return v

@@ -49,7 +49,7 @@ func Test_CurrentTokenShouldBeSigned_Server(t *testing.T) {
 	p, err := opa.PolicyFromFile("etc/nsm/opa/client/next_token_signed.rego")
 	require.NoError(t, err)
 
-	var input = &networkservice.Path{
+	input := &networkservice.Path{
 		PathSegments: []*networkservice.PathSegment{
 			{},
 			{

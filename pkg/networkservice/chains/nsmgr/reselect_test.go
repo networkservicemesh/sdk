@@ -32,9 +32,9 @@ import (
 )
 
 // Even if NSMgr has restarted,
-// we expect that all other apps should get a Close call
+// we expect that all other apps should get a Close call.
 func TestReselect_NsmgrRestart(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name          string
 		nodeNum       int
 		restartLocal  bool
@@ -64,7 +64,7 @@ func TestReselect_NsmgrRestart(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testReselectWithNsmgrRestart(t, sample.nodeNum, sample.restartLocal, sample.restartRemote)
 		})
 	}
@@ -101,12 +101,12 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counterNse := new(count.Server)
 	nse := domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counterNse)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	counterClient := new(count.Client)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(counterClient))
@@ -123,7 +123,7 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 
 	nse.Cancel()
 
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 	nseReg2.Name += "-2"
 	domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counterNse)
 
@@ -162,7 +162,7 @@ func testReselectWithNsmgrRestart(t *testing.T, nodeNum int, restartLocal, resta
 // Even if Local forwarder has restarted,
 // we expect that all other apps should get a Close call.
 func TestReselect_LocalForwarderRestart(t *testing.T) {
-	var samples = []struct {
+	samples := []struct {
 		name    string
 		nodeNum int
 	}{
@@ -178,7 +178,7 @@ func TestReselect_LocalForwarderRestart(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
+			//nolint:scopelint
 			testReselectWithLocalForwarderRestart(t, sample.nodeNum)
 		})
 	}
@@ -215,12 +215,12 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counterNse := new(count.Server)
 	nse := domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counterNse)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	counterClient := new(count.Client)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(counterClient))
@@ -235,7 +235,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 	nse.Cancel()
 
 	// Restart NSE and local forwarder
-	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2 := defaultRegistryEndpoint(nsReg.GetName())
 	nseReg2.Name += "-2"
 	domain.Nodes[nodeNum-1].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counterNse)
 
@@ -279,7 +279,7 @@ func testReselectWithLocalForwarderRestart(t *testing.T, nodeNum int) {
 
 // If registry died, NSMgr and Forwarder
 // will not be able to query it to get URLs to next app
-// but we still expect Close call to finish successfully
+// but we still expect Close call to finish successfully.
 func TestReselect_Close_RegistryDied(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
@@ -308,12 +308,12 @@ func TestReselect_Close_RegistryDied(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	counterNse := new(count.Server)
 	domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken, counterNse)
 
-	request := defaultRequest(nsReg.Name)
+	request := defaultRequest(nsReg.GetName())
 
 	counterClient := new(count.Client)
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(counterClient))

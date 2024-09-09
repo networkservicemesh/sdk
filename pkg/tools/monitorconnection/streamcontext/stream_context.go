@@ -34,7 +34,7 @@ func (s *monitorConnectionMonitorConnectionsServer) Context() context.Context {
 	return s.ctx
 }
 
-// MonitorConnectionMonitorConnectionsServer extends context for MonitorConnection_MonitorConnectionsServer
+// MonitorConnectionMonitorConnectionsServer extends context for MonitorConnection_MonitorConnectionsServer.
 func MonitorConnectionMonitorConnectionsServer(ctx context.Context, server networkservice.MonitorConnection_MonitorConnectionsServer) networkservice.MonitorConnection_MonitorConnectionsServer {
 	if server != nil {
 		ctx = extend.WithValuesFromContext(server.Context(), ctx)
@@ -55,7 +55,7 @@ func (s *monitorConnectionMonitorConnectionsClient) Context() context.Context {
 	return s.ctx
 }
 
-// MonitorConnectionMonitorConnectionsClient extends context for MonitorConnection_MonitorConnectionsClient
+// MonitorConnectionMonitorConnectionsClient extends context for MonitorConnection_MonitorConnectionsClient.
 func MonitorConnectionMonitorConnectionsClient(ctx context.Context, client networkservice.MonitorConnection_MonitorConnectionsClient) networkservice.MonitorConnection_MonitorConnectionsClient {
 	if client != nil {
 		ctx = extend.WithValuesFromContext(client.Context(), ctx)

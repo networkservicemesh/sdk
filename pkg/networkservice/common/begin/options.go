@@ -27,24 +27,24 @@ type option struct {
 	contextTimeout time.Duration
 }
 
-// Option - event option
+// Option - event option.
 type Option func(*option)
 
-// CancelContext - optionally provide a context that, when canceled will preclude the event from running
+// CancelContext - optionally provide a context that, when canceled will preclude the event from running.
 func CancelContext(cancelCtx context.Context) Option {
 	return func(o *option) {
 		o.cancelCtx = cancelCtx
 	}
 }
 
-// WithReselect - optionally clear Mechanism and NetworkServiceName to force reselect
+// WithReselect - optionally clear Mechanism and NetworkServiceName to force reselect.
 func WithReselect() Option {
 	return func(o *option) {
 		o.reselect = true
 	}
 }
 
-// WithContextTimeout - set a custom timeout for a context in begin.Close
+// WithContextTimeout - set a custom timeout for a context in begin.Close.
 func WithContextTimeout(timeout time.Duration) Option {
 	return func(o *option) {
 		o.contextTimeout = timeout

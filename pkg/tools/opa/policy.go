@@ -31,13 +31,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// CheckAccessFunc checks rego result. Returns bool flag that means access. Returns error if something was wrong
+// CheckAccessFunc checks rego result. Returns bool flag that means access. Returns error if something was wrong.
 type CheckAccessFunc func(result rego.ResultSet) (bool, error)
 
-// CheckQueryFunc converts query string to CheckAccessFunc function
+// CheckQueryFunc converts query string to CheckAccessFunc function.
 type CheckQueryFunc func(string) CheckAccessFunc
 
-// True is default access checker, returns true if in the result set of rego exist query and it has true value
+// True is default access checker, returns true if in the result set of rego exist query and it has true value.
 func True(query string) CheckAccessFunc {
 	return func(rs rego.ResultSet) (bool, error) {
 		for _, r := range rs {
@@ -55,7 +55,7 @@ func True(query string) CheckAccessFunc {
 	}
 }
 
-// WithPolicyFromSource creates custom policy based on rego source code
+// WithPolicyFromSource creates custom policy based on rego source code.
 func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
 	return &AuthorizationPolicy{
 		name:         "fromSource",
@@ -65,7 +65,7 @@ func WithPolicyFromSource(source, query string, checkQuery CheckQueryFunc) *Auth
 	}
 }
 
-// WithNamedPolicyFromSource creates named custom policy based on rego source code
+// WithNamedPolicyFromSource creates named custom policy based on rego source code.
 func WithNamedPolicyFromSource(name, source, query string, checkQuery CheckQueryFunc) *AuthorizationPolicy {
 	return &AuthorizationPolicy{
 		name:         name,
@@ -75,7 +75,7 @@ func WithNamedPolicyFromSource(name, source, query string, checkQuery CheckQuery
 	}
 }
 
-// AuthorizationPolicy checks that passed tokens are valid
+// AuthorizationPolicy checks that passed tokens are valid.
 type AuthorizationPolicy struct {
 	name           string
 	policyFilePath string
@@ -85,12 +85,12 @@ type AuthorizationPolicy struct {
 	checker        CheckAccessFunc
 }
 
-// Name returns AuthorizationPolicy name
+// Name returns AuthorizationPolicy name.
 func (d *AuthorizationPolicy) Name() string {
 	return d.name
 }
 
-// Check returns nil if passed tokens are valid
+// Check returns nil if passed tokens are valid.
 func (d *AuthorizationPolicy) Check(ctx context.Context, model interface{}) error {
 	input, err := PreparedOpaInput(ctx, model)
 	if err != nil {

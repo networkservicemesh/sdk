@@ -27,7 +27,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
-// NewClient - returns a clientconn chain element
+// NewClient - returns a clientconn chain element.
 func NewClient(cc grpc.ClientConnInterface) networkservice.NetworkServiceClient {
 	return &clientConnClient{
 		cc: cc,

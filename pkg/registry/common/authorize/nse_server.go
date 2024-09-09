@@ -63,7 +63,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 	rawMap := getRawMap(s.nsePathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
-		ResourceName:       nse.Name,
+		ResourceName:       nse.GetName(),
 		ResourcePathIdsMap: rawMap,
 		PathSegments:       leftSide.PathSegments,
 		Index:              leftSide.Index,
@@ -77,7 +77,7 @@ func (s *authorizeNSEServer) Register(ctx context.Context, nse *registry.Network
 	if err != nil {
 		return nil, err
 	}
-	s.nsePathIdsMap.Store(nse.Name, nse.PathIds)
+	s.nsePathIdsMap.Store(nse.GetName(), nse.GetPathIds())
 	return nse, nil
 }
 
@@ -97,7 +97,7 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 	rawMap := getRawMap(s.nsePathIdsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
-		ResourceName:       nse.Name,
+		ResourceName:       nse.GetName(),
 		ResourcePathIdsMap: rawMap,
 		PathSegments:       leftSide.PathSegments,
 		Index:              leftSide.Index,
@@ -107,6 +107,6 @@ func (s *authorizeNSEServer) Unregister(ctx context.Context, nse *registry.Netwo
 		return nil, err
 	}
 
-	s.nsePathIdsMap.Delete(nse.Name)
+	s.nsePathIdsMap.Delete(nse.GetName())
 	return next.NetworkServiceEndpointRegistryServer(ctx).Unregister(ctx, nse)
 }

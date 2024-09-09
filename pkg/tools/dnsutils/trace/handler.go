@@ -33,7 +33,7 @@ type beginTraceHandler struct {
 
 type endTraceHandler struct{}
 
-// NewDNSHandler - wraps tracing around the supplied traced
+// NewDNSHandler - wraps tracing around the supplied traced.
 func NewDNSHandler(traced dnsutils.Handler) dnsutils.Handler {
 	return next.NewDNSHandler(
 		&beginTraceHandler{traced: traced},

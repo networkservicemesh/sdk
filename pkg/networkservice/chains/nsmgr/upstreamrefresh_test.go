@@ -56,7 +56,7 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-service"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	// This NSE will send REFRESH_REQUESTED events if mtu will be changed
 	counter := new(count.Server)
@@ -73,7 +73,7 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 	reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
 	defer reqClose()
 
-	req := defaultRequest(nsReg.Name)
+	req := defaultRequest(nsReg.GetName())
 	req.Connection.Id = uuid.New().String()
 	req.GetConnection().GetContext().MTU = defaultMtu
 
@@ -87,7 +87,7 @@ func Test_UpstreamRefreshClient(t *testing.T) {
 	defer reqClose2()
 
 	// Change MTU for the second client
-	req2 := defaultRequest(nsReg.Name)
+	req2 := defaultRequest(nsReg.GetName())
 	req2.Connection.Id = uuid.New().String()
 	req2.GetConnection().GetContext().MTU = 1000
 
@@ -124,7 +124,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	// Create the first NSE
 	nseReg := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint1",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 	}
 	counter1 := new(count.Server)
 	_ = domain.Nodes[0].NewEndpoint(
@@ -138,7 +138,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	// Create the second NSE
 	nseReg2 := &registry.NetworkServiceEndpoint{
 		Name:                "final-endpoint2",
-		NetworkServiceNames: []string{nsReg.Name},
+		NetworkServiceNames: []string{nsReg.GetName()},
 	}
 	counter2 := new(count.Server)
 	_ = domain.Nodes[0].NewEndpoint(
@@ -156,9 +156,9 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
 	defer reqClose()
 
-	req := defaultRequest(nsReg.Name)
+	req := defaultRequest(nsReg.GetName())
 	req.Connection.Id = "1"
-	req.GetConnection().NetworkServiceEndpointName = nseReg.Name
+	req.GetConnection().NetworkServiceEndpointName = nseReg.GetName()
 	req.GetConnection().GetContext().MTU = defaultMtu
 
 	conn, err := nsc.Request(reqCtx, req)
@@ -169,9 +169,9 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	reqCtx2, reqClose2 := context.WithTimeout(ctx, time.Second)
 	defer reqClose2()
 
-	req2 := defaultRequest(nsReg.Name)
+	req2 := defaultRequest(nsReg.GetName())
 	req2.Connection.Id = "2"
-	req2.GetConnection().NetworkServiceEndpointName = nseReg2.Name
+	req2.GetConnection().NetworkServiceEndpointName = nseReg2.GetName()
 	req2.GetConnection().GetContext().MTU = defaultMtu
 
 	conn2, err := nsc.Request(reqCtx2, req2)
@@ -182,9 +182,9 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	reqCtx3, reqClose3 := context.WithTimeout(ctx, time.Second)
 	defer reqClose3()
 
-	req3 := defaultRequest(nsReg.Name)
+	req3 := defaultRequest(nsReg.GetName())
 	req3.Connection.Id = "3"
-	req3.GetConnection().NetworkServiceEndpointName = nseReg.Name
+	req3.GetConnection().NetworkServiceEndpointName = nseReg.GetName()
 	req3.GetConnection().GetContext().MTU = 1000
 
 	conn3, err := nsc.Request(reqCtx3, req3)
@@ -203,7 +203,7 @@ func Test_UpstreamRefreshClient_LocalNotifications(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// This test shows a case when the event monitor is faster than the backward request
+// This test shows a case when the event monitor is faster than the backward request.
 func Test_UpstreamRefreshClientDelay(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -221,7 +221,7 @@ func Test_UpstreamRefreshClientDelay(t *testing.T) {
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("my-service"))
 	require.NoError(t, err)
 
-	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nseReg := defaultRegistryEndpoint(nsReg.GetName())
 
 	// This NSE will send REFRESH_REQUESTED events
 	// Channels coordinate the test to send the event at the right time
@@ -245,7 +245,7 @@ func Test_UpstreamRefreshClientDelay(t *testing.T) {
 	reqCtx, reqClose := context.WithTimeout(ctx, time.Second)
 	defer reqClose()
 
-	req := defaultRequest(nsReg.Name)
+	req := defaultRequest(nsReg.GetName())
 	req.Connection.Id = uuid.New().String()
 
 	conn, err := nsc.Request(reqCtx, req)
@@ -279,7 +279,7 @@ func (r *refreshMTUSenderServer) Request(ctx context.Context, request *networkse
 		return nil, err
 	}
 	if conn.GetContext().GetMTU() != r.mtu {
-		if _, ok := r.m.Load(conn.Id); ok {
+		if _, ok := r.m.Load(conn.GetId()); ok {
 			return conn, err
 		}
 		ec, _ := monitor.LoadEventConsumer(ctx, false)
@@ -335,7 +335,7 @@ func (r *refreshSenderServer) Request(ctx context.Context, request *networkservi
 			<-r.waitSignalCh
 			_ = ec.Send(&networkservice.ConnectionEvent{
 				Type:        networkservice.ConnectionEventType_UPDATE,
-				Connections: map[string]*networkservice.Connection{c.Id: c},
+				Connections: map[string]*networkservice.Connection{c.GetId(): c},
 			})
 			time.Sleep(time.Millisecond * 100)
 			r.eventWasSent = true
