@@ -118,61 +118,61 @@ linters-settings:
       - weakCond
       - yodaStyleExpr
 linters:
-    enable-all: true
-    disable:
-      - exportloopref # The linter 'exportloopref' is deprecated (since v1.60.2) due to: Since Go1.22 (loopvar) this linter is no longer relevant. Replaced by copyloopvar.
-      - execinquery # The linter 'execinquery' is deprecated (since v1.58.0) due to: The repository of the linter has been archived by the owner.
-      - gomnd # The linter 'gomnd' is deprecated (since v1.58.0) due to: The linter has been renamed. Replaced by mnd.
-      - paralleltest # t.Parallel() adds on test run stage if required
-      - gci # It conflicts with goimports
-      - goheader # broken auto-fix with plenty errors
+  enable-all: true
+  disable:
+    - exportloopref # The linter 'exportloopref' is deprecated (since v1.60.2) due to: Since Go1.22 (loopvar) this linter is no longer relevant. Replaced by copyloopvar.
+    - execinquery # The linter 'execinquery' is deprecated (since v1.58.0) due to: The repository of the linter has been archived by the owner.
+    - gomnd # The linter 'gomnd' is deprecated (since v1.58.0) due to: The linter has been renamed. Replaced by mnd.
+    - paralleltest # t.Parallel() adds on test run stage if required
+    - gci # It conflicts with goimports
+    - goheader # broken auto-fix with plenty errors
 
-      # New linters, that were not enabled or/either were not created on older linter version.
-      - wsl
-      - lll
-      - wrapcheck
-      - thelper
-      - wastedassign
-      - testifylint
-      - nlreturn
-      - nonamedreturns
-      - perfsprint
-      - varnamelen
-      - testpackage
-      - mnd
-      - musttag
-      - tagliatelle
-      - tenv
-      - nosprintfhostport
-      - nilnil
-      - spancheck
-      - nilerr
-      - ireturn
-      - testableexamples
-      - intrange
-      - gosmopolitan
-      - inamedparam
-      - interfacebloat
-      - gochecknoglobals
-      - goprintffuncname
-      - forcetypeassert
-      - exhaustruct
-      - fatcontext
-      - errchkjson
-      - exhaustive
-      - err113
-      - dupword
-      - durationcheck
-      - errorlint
-      - cyclop
-      - contextcheck
-      - containedctx
-      - unused
-      - revive
-      - protogetter
-      - predeclared
-      - prealloc
-      - nestif
+    # New linters, that were not enabled or/either were not created on older linter version.
+    - wsl
+    - lll
+    - wrapcheck
+    - thelper
+    - wastedassign
+    - testifylint
+    - nlreturn
+    - nonamedreturns
+    - perfsprint
+    - varnamelen
+    - testpackage
+    - mnd
+    - musttag
+    - tagliatelle
+    - tenv
+    - nosprintfhostport
+    - nilnil
+    - spancheck
+    - nilerr
+    - ireturn
+    - testableexamples
+    - intrange
+    - gosmopolitan
+    - inamedparam
+    - interfacebloat
+    - gochecknoglobals
+    - goprintffuncname
+    - forcetypeassert
+    - exhaustruct
+    - fatcontext
+    - errchkjson
+    - exhaustive
+    - err113
+    - dupword
+    - durationcheck
+    - errorlint
+    - cyclop
+    - contextcheck
+    - containedctx
+    - unused
+    - revive
+    - protogetter
+    - predeclared
+    - prealloc
+    - nestif
 issues:
   exclude-use-default: false
   max-issues-per-linter: 0
