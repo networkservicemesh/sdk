@@ -22,6 +22,7 @@ type limitConfig struct {
 	dialLimit time.Duration
 }
 
+// Option overrides default values
 type Option func(cfg *limitConfig)
 
 // WithDialLimit sets dial time limit

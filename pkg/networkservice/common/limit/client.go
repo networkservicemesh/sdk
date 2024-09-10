@@ -30,6 +30,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
+// Option overrides default values
 type Option func(c *limitClient)
 
 // WithDialLimit sets dial limit
@@ -43,6 +44,7 @@ type limitClient struct {
 	dialLimit time.Duration
 }
 
+// NewClient returns new NetworkServiceClient that limits rpc
 func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 	ret := &limitClient{
 		dialLimit: time.Minute,
