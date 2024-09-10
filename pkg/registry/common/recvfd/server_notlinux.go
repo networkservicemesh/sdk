@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -17,6 +17,9 @@
 //go:build !linux
 // +build !linux
 
+// Package recvfd provides an NSE registry server chain element that:
+//  1. Receives and fd over a unix file socket if the nse.URL is an inode://${dev}/${inode} url
+//  2. Rewrites the nse.URL to unix:///proc/${pid}/fd/${fd} so it can be used by a normal dialer
 package recvfd
 
 import (
