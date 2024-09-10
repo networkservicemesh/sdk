@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -28,6 +28,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/dial"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/limit"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/trimpath"
@@ -63,6 +64,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 					dial.WithDialOptions(opts.dialOptions...),
 					dial.WithDialTimeout(opts.dialTimeout),
 				),
+				limit.NewClient(),
 			},
 			append(
 				opts.additionalFunctionality,
