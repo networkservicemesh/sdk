@@ -72,18 +72,34 @@ func (n *limitNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEn
 	}
 
 	logger := log.FromContext(ctx).WithField("throttleNSEClient", "Find")
+	doneCh := make(chan struct{})
+	defer close(doneCh)
 
 	go func() {
 		select {
 		case <-time.After(n.cfg.dialLimit):
 			logger.Warn("Reached dial limit, closing conneciton...")
 			_ = closer.Close()
-		case <-ctx.Done():
+		case <-doneCh:
 			return
 		}
 	}()
 
-	return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+	resp, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, in, opts...)
+
+	if err == nil {
+		go func() {
+			select {
+			case <-time.After(n.cfg.dialLimit):
+				logger.Warn("Reached dial limit, closing conneciton...")
+				_ = closer.Close()
+			case <-resp.Context().Done():
+				return
+			}
+		}()
+	}
+
+	return resp, err
 }
 
 func (n *limitNSEClient) Unregister(ctx context.Context, in *registry.NetworkServiceEndpoint, opts ...grpc.CallOption) (*empty.Empty, error) {
