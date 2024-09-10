@@ -17,7 +17,7 @@ jobs:
   golangci-lint:
     uses: networkservicemesh/.github/.github/workflows/golangci-lint.yaml@main
     with:
-      linter-version: v1.53.3
+      linter-version: v1.60.3
 
   exclude-fmt-errorf:
     uses: networkservicemesh/.github/.github/workflows/exclude-fmt-errorf.yaml@main
@@ -45,9 +45,9 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v2
       - name: Setup Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v5
         with:
-          go-version: 1.20.5
+          go-version: 1.23.1
       - run: |
           go test -coverprofile=coverage-${{ matrix.os }}.txt -covermode=atomic -race ./...
       - name: Upload coverage reports to Codecov with GitHub Action

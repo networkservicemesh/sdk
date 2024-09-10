@@ -111,7 +111,6 @@ func TestLabelsServer(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	for _, tc := range testCases {
-		// nolint:scopelint
 		t.Run(tc.name, func(t *testing.T) {
 			testLabelsServer(t, tc.envs, tc.expected, tc.input)
 		})
