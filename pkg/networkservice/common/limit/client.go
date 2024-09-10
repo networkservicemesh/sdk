@@ -23,10 +23,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"google.golang.org/grpc"
 )
 
 type Option func(c *limitClient)
@@ -47,7 +48,7 @@ func NewClient(opts ...Option) networkservice.NetworkServiceClient {
 		dialLimit: time.Minute,
 	}
 
-	for _, opt := range opts[:] {
+	for _, opt := range opts {
 		opt(ret)
 	}
 
@@ -73,7 +74,7 @@ func (n *limitClient) Request(ctx context.Context, request *networkservice.Netwo
 	go func() {
 		select {
 		case <-time.After(n.dialLimit):
-			logger.Warn("Reached dial limit, closing conneciton...")
+			logger.Warn("Reached dial limit, closing connection...")
 			_ = closer.Close()
 		case <-doneCh:
 			return
@@ -101,7 +102,7 @@ func (n *limitClient) Close(ctx context.Context, conn *networkservice.Connection
 	go func() {
 		select {
 		case <-time.After(n.dialLimit):
-			logger.Warn("Reached dial limit, closing conneciton...")
+			logger.Warn("Reached dial limit, closing connection...")
 			_ = closer.Close()
 		case <-doneCh:
 			return

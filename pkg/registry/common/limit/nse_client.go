@@ -22,10 +22,11 @@ import (
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"google.golang.org/grpc"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
-	"google.golang.org/grpc"
 )
 
 type limitNSEClient struct {
@@ -51,7 +52,7 @@ func (n *limitNSEClient) Register(ctx context.Context, in *registry.NetworkServi
 	go func() {
 		select {
 		case <-time.After(n.cfg.dialLimit):
-			logger.Warn("Reached dial limit, closing conneciton...")
+			logger.Warn("Reached dial limit, closing connection...")
 			_ = closer.Close()
 		case <-doneCh:
 			return
@@ -78,7 +79,7 @@ func (n *limitNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEn
 	go func() {
 		select {
 		case <-time.After(n.cfg.dialLimit):
-			logger.Warn("Reached dial limit, closing conneciton...")
+			logger.Warn("Reached dial limit, closing connection...")
 			_ = closer.Close()
 		case <-doneCh:
 			return
@@ -91,7 +92,7 @@ func (n *limitNSEClient) Find(ctx context.Context, in *registry.NetworkServiceEn
 		go func() {
 			select {
 			case <-time.After(n.cfg.dialLimit):
-				logger.Warn("Reached dial limit, closing conneciton...")
+				logger.Warn("Reached dial limit, closing connection...")
 				_ = closer.Close()
 			case <-resp.Context().Done():
 				return
@@ -121,7 +122,7 @@ func (n *limitNSEClient) Unregister(ctx context.Context, in *registry.NetworkSer
 	go func() {
 		select {
 		case <-time.After(n.cfg.dialLimit):
-			logger.Warn("Reached dial limit, closing conneciton...")
+			logger.Warn("Reached dial limit, closing connection...")
 			_ = closer.Close()
 		case <-doneCh:
 			return
@@ -137,7 +138,7 @@ func NewNetworkServiceEndpointRegistryClient(opts ...Option) registry.NetworkSer
 		dialLimit: time.Minute,
 	}
 
-	for _, opt := range opts[:] {
+	for _, opt := range opts {
 		opt(cfg)
 	}
 

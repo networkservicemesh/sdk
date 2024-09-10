@@ -22,14 +22,16 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/limit"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 )
 
 func Test_NSEDialLimitShouldCalled_OnLimitReached(t *testing.T) {
@@ -41,7 +43,6 @@ func Test_NSEDialLimitShouldCalled_OnLimitReached(t *testing.T) {
 		clientconn.NewNetworkServiceEndpointRegistryClient(),
 		checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 			clientconn.Store(ctx, cc)
-
 		}),
 		limit.NewNetworkServiceEndpointRegistryClient(limit.WithDialLimit(time.Second/5)),
 		checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
@@ -81,7 +82,6 @@ func Test_NSEDialLimitShouldNotBeCalled_OnSuccess(t *testing.T) {
 		clientconn.NewNetworkServiceEndpointRegistryClient(),
 		checkcontext.NewNSEClient(t, func(t *testing.T, ctx context.Context) {
 			clientconn.Store(ctx, cc)
-
 		}),
 		limit.NewNetworkServiceEndpointRegistryClient(limit.WithDialLimit(time.Second/5)),
 	)

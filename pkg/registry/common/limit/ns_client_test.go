@@ -23,15 +23,17 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/limit"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/checks/checkcontext"
 
-	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
-	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
+
+	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
 )
 
 type myConnection struct {
@@ -53,7 +55,6 @@ func Test_DialLimitShouldCalled_OnLimitReached(t *testing.T) {
 		clientconn.NewNetworkServiceRegistryClient(),
 		checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 			clientconn.Store(ctx, cc)
-
 		}),
 		limit.NewNetworkServiceRegistryClient(limit.WithDialLimit(time.Second/5)),
 		checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
@@ -93,7 +94,6 @@ func Test_DialLimitShouldNotBeCalled_OnSuccess(t *testing.T) {
 		clientconn.NewNetworkServiceRegistryClient(),
 		checkcontext.NewNSClient(t, func(t *testing.T, ctx context.Context) {
 			clientconn.Store(ctx, cc)
-
 		}),
 		limit.NewNetworkServiceRegistryClient(limit.WithDialLimit(time.Second/5)),
 	)
