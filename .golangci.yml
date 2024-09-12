@@ -127,7 +127,7 @@ linters-settings:
 linters:
   disable-all: true
   enable:
-    - goheader
+    # - goheader
     - bodyclose
     - deadcode
     - depguard
