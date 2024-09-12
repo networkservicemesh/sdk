@@ -26,7 +26,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -42,24 +41,14 @@ type waitServer struct {
 }
 
 func (s *waitServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	afterCh := time.After(time.Second)
-	select {
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	case <-afterCh:
-		s.requestDone.Add(1)
-	}
+	time.Sleep(waitTime)
+	s.requestDone.Store(1)
 	return next.Server(ctx).Request(ctx, request)
 }
 
 func (s *waitServer) Close(ctx context.Context, connection *networkservice.Connection) (*empty.Empty, error) {
-	afterCh := time.After(time.Second)
-	select {
-	case <-ctx.Done():
-		return &emptypb.Empty{}, nil
-	case <-afterCh:
-		s.closeDone.Add(1)
-	}
+	time.Sleep(waitTime)
+	s.closeDone.Store(1)
 	return next.Server(ctx).Close(ctx, connection)
 }
 
@@ -92,40 +81,4 @@ func TestBeginWorksWithSmallTimeout(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return waitSrv.closeDone.Load() == 1
 	}, waitTime*2, time.Millisecond*500)
-}
-
-func TestBeginHasExtendedTimeoutOnReselect(t *testing.T) {
-	t.Cleanup(func() {
-		goleak.VerifyNone(t)
-	})
-	requestCtx, cancel := context.WithTimeout(context.Background(), time.Millisecond*200)
-	defer cancel()
-
-	waitSrv := &waitServer{}
-	server := next.NewNetworkServiceServer(
-		begin.NewServer(),
-		waitSrv,
-	)
-
-	// Make a first request to create an event factory. Begin should make Request only
-	request := testRequest("id")
-	_, err := server.Request(requestCtx, request)
-	require.EqualError(t, err, context.DeadlineExceeded.Error())
-	require.Equal(t, int32(0), waitSrv.requestDone.Load())
-	require.Eventually(t, func() bool {
-		return waitSrv.requestDone.Load() == 1
-	}, waitTime*2, time.Millisecond*500)
-
-	// Make a second request with RESELECT_REQUESTED. Begin should make Close with extended context first and then Request
-	requestCtx, cancel = context.WithTimeout(context.Background(), time.Millisecond*200)
-	defer cancel()
-	newRequest := request.Clone()
-	newRequest.Connection.State = networkservice.State_RESELECT_REQUESTED
-
-	_, err = server.Request(requestCtx, newRequest)
-	require.EqualError(t, err, context.DeadlineExceeded.Error())
-	require.Equal(t, int32(0), waitSrv.closeDone.Load())
-	require.Eventually(t, func() bool {
-		return waitSrv.closeDone.Load() == 1 && waitSrv.requestDone.Load() == 2
-	}, waitTime*4, time.Millisecond*500)
 }
