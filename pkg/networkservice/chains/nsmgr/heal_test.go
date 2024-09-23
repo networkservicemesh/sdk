@@ -819,7 +819,7 @@ func TestNSMGR_RefreshFailed_DataPlaneBroken(t *testing.T) {
 }
 
 // This test shows that healing successfully restores the connection if one of the components is killed during the Request
-func TestNSMGR_RefreshFailed_ControlPlaneBrokn(t *testing.T) {
+func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)

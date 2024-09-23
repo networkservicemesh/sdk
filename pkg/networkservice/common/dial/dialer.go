@@ -70,7 +70,10 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	}
 
 	// Dial
+	di.mu.Lock()
 	target := grpcutils.URLToTarget(di.clientURL)
+	di.mu.Unlock()
+
 	cc, err := grpc.DialContext(dialCtx, target, di.dialOptions...)
 	if err != nil {
 		if cc != nil {
@@ -78,9 +81,10 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 		}
 		return errors.Wrapf(err, "failed to dial %s", target)
 	}
+	di.mu.Lock()
 	di.ClientConn = cc
-
 	di.cleanupContext, di.cleanupCancel = context.WithCancel(di.ctx)
+	di.mu.Unlock()
 
 	go func(cleanupContext context.Context, cc *grpc.ClientConn) {
 		<-cleanupContext.Done()
