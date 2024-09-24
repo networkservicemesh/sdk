@@ -46,7 +46,7 @@ type discoverForwarderServer struct {
 // Requires not nil nsClient.
 func NewServer(nsClient registry.NetworkServiceRegistryClient, nseClient registry.NetworkServiceEndpointRegistryClient, opts ...Option) networkservice.NetworkServiceServer {
 	if nseClient == nil {
-		panic("mseClient can not be nil")
+		panic("nseClient can not be nil")
 	}
 	if nsClient == nil {
 		panic("nsClient can not be nil")
