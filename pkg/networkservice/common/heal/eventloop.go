@@ -209,7 +209,7 @@ func (cev *eventLoop) monitorDataPlane() <-chan struct{} {
 		for {
 			select {
 			case <-ticker.C:
-				deadlineCtx, deadlineCancel := context.WithDeadline(cev.eventLoopCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
+				deadlineCtx, deadlineCancel := context.WithDeadline(cev.chainCtx, time.Now().Add(cev.heal.livenessCheckTimeout))
 				alive := cev.heal.livenessCheck(deadlineCtx, cev.conn)
 				deadlineCancel()
 				if !alive {
