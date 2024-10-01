@@ -18,10 +18,11 @@
 package chain
 
 import (
+	"github.com/sirupsen/logrus"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/trace"
-	"github.com/sirupsen/logrus"
 )
 
 // NewDNSHandler - chains together a list of dnsutils.Handler with tracing
