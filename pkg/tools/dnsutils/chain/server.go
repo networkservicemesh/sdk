@@ -21,12 +21,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
+	"github.com/sirupsen/logrus"
 )
 
 // NewDNSHandler - chains together a list of dnsutils.Handler with tracing
 func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
-	if opentelemetry.IsEnabled() {
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return next.NewDNSHandler(
 			next.NewWrappedDNSHandler(trace.NewDNSHandler, handlers...),
 		)

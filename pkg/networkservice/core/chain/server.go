@@ -22,15 +22,15 @@ package chain
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
+	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	if opentelemetry.IsEnabled() {
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return next.NewNetworkServiceServer(
 			next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),
 		)

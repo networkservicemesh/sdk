@@ -20,15 +20,15 @@ package chain
 
 import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
+	"github.com/sirupsen/logrus"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // NewNetworkServiceRegistryServer - creates a chain of servers
 func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
-	if opentelemetry.IsEnabled() {
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return next.NewWrappedNetworkServiceRegistryServer(trace.NewNetworkServiceRegistryServer, servers...)
 	}
 	return next.NewNetworkServiceRegistryServer(servers...)
@@ -36,7 +36,7 @@ func NewNetworkServiceRegistryServer(servers ...registry.NetworkServiceRegistryS
 
 // NewNetworkServiceRegistryClient - creates a chain of clients
 func NewNetworkServiceRegistryClient(clients ...registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
-	if opentelemetry.IsEnabled() {
+	if logrus.GetLevel() == logrus.TraceLevel {
 		return next.NewWrappedNetworkServiceRegistryClient(trace.NewNetworkServiceRegistryClient, clients...)
 	}
 	return next.NewNetworkServiceRegistryClient(clients...)
