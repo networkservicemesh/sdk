@@ -28,6 +28,16 @@ import (
 
 // SetupLevelChangeOnSignal sets the loglevel to the one specified in the map when a signal assotiated to it arrives
 func SetupLevelChangeOnSignal(ctx context.Context, signals map[os.Signal]logrus.Level) {
+	var currentLevelCount int
+	for _, v := range signals {
+		if v == logrus.GetLevel() {
+			currentLevelCount++
+		}
+	}
+	if currentLevelCount == len(signals) {
+		log.FromContext(ctx).WithField("logruslogger", "SetupLevelChangeOnSignal").Warn("Detected that log level will never change, disabling loglevel change on signal")
+		return
+	}
 	sigChannel := make(chan os.Signal, len(signals))
 	for sig := range signals {
 		signal.Notify(sigChannel, sig)
@@ -41,7 +51,7 @@ func SetupLevelChangeOnSignal(ctx context.Context, signals map[os.Signal]logrus.
 				return
 			case sig := <-sigChannel:
 				lvl := signals[sig]
-				log.FromContext(ctx).Infof("Setting log level to '%s'", lvl.String())
+				log.FromContext(ctx).WithField("logruslogger", "SetupLevelChangeOnSignal").Infof("Setting log level to '%s'", lvl.String())
 				logrus.SetLevel(lvl)
 			}
 		}
