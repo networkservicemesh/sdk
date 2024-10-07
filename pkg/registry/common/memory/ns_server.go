@@ -166,8 +166,5 @@ func (s *memoryNSServer) Unregister(ctx context.Context, ns *registry.NetworkSer
 		unregisterNS = unregisterNS.Clone()
 		s.sendEvent(&registry.NetworkServiceResponse{NetworkService: unregisterNS, Deleted: true})
 	}
-
-	s.networkServices.Delete(ns.Name)
-
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
