@@ -1,4 +1,4 @@
-// Copyright (c) 2020-2022 Cisco and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -78,5 +78,5 @@ func (m *checkClientSetsMechanismPreferences) Request(ctx context.Context, reque
 	request = request.Clone()
 	// Make sure no MechanismPreferences are set
 	request.MechanismPreferences = nil
-	return m.NetworkServiceClient.Request(ctx, request)
+	return m.NetworkServiceClient.Request(ctx, request, opts...)
 }
