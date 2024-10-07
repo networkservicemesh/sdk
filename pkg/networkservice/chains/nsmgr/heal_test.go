@@ -69,7 +69,6 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			testNSMGRHealEndpoint(t, sample.nodeNum)
 		})
 	}
@@ -309,7 +308,6 @@ func TestNSMGR_HealForwarder(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			testNSMGRHealForwarder(t, sample.nodeNum)
 		})
 	}
@@ -391,7 +389,6 @@ func TestNSMGR_HealNSMgr(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			testNSMGRHealNSMgr(t, sample.nodeNum, sample.restored)
 		})
 	}
@@ -531,7 +528,6 @@ func TestNSMGR_CloseHeal(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			testNSMGRCloseHeal(t, sample.withNSEExpiration)
 		})
 	}
@@ -645,7 +641,6 @@ func Test_ForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			testForwarderShouldBeSelectedCorrectlyOnNSMgrRestart(t, sample.nodeNum, sample.pathSegmentCount)
 		})
 	}

@@ -64,7 +64,6 @@ func TestReselect_NsmgrRestart(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			testReselectWithNsmgrRestart(t, sample.nodeNum, sample.restartLocal, sample.restartRemote)
 		})
 	}
@@ -178,7 +177,6 @@ func TestReselect_LocalForwarderRestart(t *testing.T) {
 
 	for _, sample := range samples {
 		t.Run(sample.name, func(t *testing.T) {
-			// nolint:scopelint
 			testReselectWithLocalForwarderRestart(t, sample.nodeNum)
 		})
 	}

@@ -54,19 +54,19 @@ func TestFlatDistribution(t *testing.T) {
 
 	require.Equal(t, len(chars), len(nanoid.DefaultAlphabet), "Unexpected number of unique characters")
 
-	max := 0.0
-	min := math.MaxFloat64
+	maxValue := 0.0
+	minValue := math.MaxFloat64
 	for _, count := range chars {
 		distribution := float64(count*len(nanoid.DefaultAlphabet)) / float64(count*idLen)
-		if distribution > max {
-			max = distribution
+		if distribution > maxValue {
+			maxValue = distribution
 		}
-		if distribution < min {
-			min = distribution
+		if distribution < minValue {
+			minValue = distribution
 		}
 	}
 
-	require.True(t, max-min <= 0.05, "Distribution is not flat")
+	require.True(t, maxValue-minValue <= 0.05, "Distribution is not flat")
 }
 
 func TestCustomAlphabet(t *testing.T) {
