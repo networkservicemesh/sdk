@@ -27,18 +27,19 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type queryCacheNSEClient struct {
 	ctx   context.Context
-	cache *cache
+	cache *nseCache
 }
 
-// NewClient creates new querycache NSE registry client that caches all resolved NSEs
-func NewClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
+// NewNetworkServiceEndpointClient creates new querycache NSE registry client that caches all resolved NSEs
+func NewNetworkServiceEndpointClient(ctx context.Context, opts ...Option) registry.NetworkServiceEndpointRegistryClient {
 	return &queryCacheNSEClient{
 		ctx:   ctx,
-		cache: newCache(ctx, opts...),
+		cache: newNSECache(ctx, opts...),
 	}
 }
 
@@ -47,13 +48,18 @@ func (q *queryCacheNSEClient) Register(ctx context.Context, nse *registry.Networ
 }
 
 func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkServiceEndpointQuery, opts ...grpc.CallOption) (registry.NetworkServiceEndpointRegistry_FindClient, error) {
+	log.FromContext(ctx).Infof("queryCacheNSEClient forth")
 	if query.Watch {
 		return next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 	}
 
-	if client, ok := q.findInCache(ctx, query.String()); ok {
+	log.FromContext(ctx).Info("queryCacheNSEClient search in cache")
+	if client, ok := q.findInCache(ctx, query); ok {
+		log.FromContext(ctx).Info("queryCacheNSEClient found in cache")
 		return client, nil
 	}
+
+	log.FromContext(ctx).Info("queryCacheNSEClient not found in cache")
 
 	client, err := next.NetworkServiceEndpointRegistryClient(ctx).Find(ctx, query, opts...)
 	if err != nil {
@@ -72,14 +78,26 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkS
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), nil
 }
 
-func (q *queryCacheNSEClient) findInCache(ctx context.Context, key string) (registry.NetworkServiceEndpointRegistry_FindClient, bool) {
-	nse, ok := q.cache.Load(key)
-	if !ok {
+func (q *queryCacheNSEClient) findInCache(ctx context.Context, query *registry.NetworkServiceEndpointQuery) (registry.NetworkServiceEndpointRegistry_FindClient, bool) {
+	log.FromContext(ctx).Infof("queryCacheNSEClient checking key: %v", query.NetworkServiceEndpoint)
+
+	q.cache.entries.Range(func(key string, value *cacheEntry[registry.NetworkServiceEndpoint]) bool {
+		log.FromContext(ctx).Infof("Entries: %v, %v", key, value.value)
+
+		return true
+	})
+
+	nses := q.cache.Load(ctx, query)
+	if len(nses) == 0 {
 		return nil, false
 	}
 
-	resultCh := make(chan *registry.NetworkServiceEndpointResponse, 1)
-	resultCh <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: nse.Clone()}
+	log.FromContext(ctx).Infof("found NSEs in cache: %v", nses)
+
+	resultCh := make(chan *registry.NetworkServiceEndpointResponse, len(nses))
+	for _, nse := range nses {
+		resultCh <- &registry.NetworkServiceEndpointResponse{NetworkServiceEndpoint: nse.Clone()}
+	}
 	close(resultCh)
 
 	return streamchannel.NewNetworkServiceEndpointFindClient(ctx, resultCh), true
@@ -92,11 +110,9 @@ func (q *queryCacheNSEClient) storeInCache(ctx context.Context, nse *registry.Ne
 		},
 	}
 
-	key := nseQuery.String()
-
 	findCtx, cancel := context.WithCancel(q.ctx)
 
-	entry, loaded := q.cache.LoadOrStore(key, nse, cancel)
+	entry, loaded := q.cache.LoadOrStore(nse, cancel)
 	if loaded {
 		cancel()
 		return
