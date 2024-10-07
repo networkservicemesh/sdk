@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco Systems, Inc.
+// Copyright (c) 2023-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -249,6 +249,42 @@ func TestNetworkServiceRegistryServer_ShouldReceiveAllRegisters(t *testing.T) {
 		}()
 	}
 	wgWait(ctx, t, &wg)
+}
+
+func TestNetworkServiceRegistryServer_DeleteEvent(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancel()
+
+	s := memory.NewNetworkServiceRegistryServer()
+
+	ns, err := s.Register(ctx, &registry.NetworkService{Name: "ns"})
+	require.NoError(t, err)
+
+	findCtx, findCancel := context.WithCancel(ctx)
+	defer findCancel()
+
+	ch := make(chan *registry.NetworkServiceResponse, 2)
+	go func() {
+		defer close(ch)
+		findErr := s.Find(&registry.NetworkServiceQuery{
+			NetworkService: &registry.NetworkService{Name: "ns"},
+			Watch:          true,
+		}, streamchannel.NewNetworkServiceFindServer(findCtx, ch))
+		require.NoError(t, findErr)
+	}()
+
+	nsResp := <-ch
+	require.False(t, nsResp.Deleted)
+
+	_, err = s.Unregister(ctx, ns)
+	require.NoError(t, err)
+
+	// Read unregister event
+	nsResp, err = readNSResponse(findCtx, ch)
+	require.NoError(t, err)
+	require.True(t, nsResp.Deleted)
 }
 
 func readNSResponse(ctx context.Context, ch <-chan *registry.NetworkServiceResponse) (*registry.NetworkServiceResponse, error) {
