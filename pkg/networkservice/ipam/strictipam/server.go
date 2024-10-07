@@ -39,7 +39,7 @@ func NewServer(newIPAMServer func(...*net.IPNet) networkservice.NetworkServiceSe
 	}
 	var ipPool = ippool.New(net.IPv6len)
 	for _, p := range prefixes {
-		ipPool.AddNet(p)
+		ipPool.AddNet(ipNetToIpv6Net(p))
 	}
 	return next.NewNetworkServiceServer(
 		&strictIPAMServer{ipPool: ipPool},
@@ -67,4 +67,16 @@ func (n *strictIPAMServer) Request(ctx context.Context, request *networkservice.
 
 func (n *strictIPAMServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	return next.Server(ctx).Close(ctx, conn)
+}
+
+func ipNetToIpv6Net(ipNet *net.IPNet) *net.IPNet {
+	if len(ipNet.IP) == net.IPv6len {
+		return ipNet
+	}
+	ipv6Net := new(net.IPNet)
+	ipv6Net.IP = ipNet.IP.To16()
+	ipv6Net.Mask = make([]byte, 16)
+	copy(ipv6Net.Mask[12:], ipNet.Mask)
+
+	return ipv6Net
 }
