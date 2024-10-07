@@ -259,6 +259,9 @@ func TestNetworkServiceRegistryServer_DeleteEvent(t *testing.T) {
 
 	s := memory.NewNetworkServiceRegistryServer()
 
+	ns, err := s.Register(ctx, &registry.NetworkService{Name: "ns"})
+	require.NoError(t, err)
+
 	findCtx, findCancel := context.WithCancel(ctx)
 	defer findCancel()
 
@@ -272,16 +275,12 @@ func TestNetworkServiceRegistryServer_DeleteEvent(t *testing.T) {
 		require.NoError(t, findErr)
 	}()
 
-	ns, err := s.Register(ctx, &registry.NetworkService{Name: "ns"})
-	require.NoError(t, err)
+	nsResp := <-ch
+	require.False(t, nsResp.Deleted)
 
 	_, err = s.Unregister(ctx, ns)
 	require.NoError(t, err)
 
-	// Read register event
-	nsResp, err := readNSResponse(findCtx, ch)
-	require.NoError(t, err)
-	require.False(t, nsResp.Deleted)
 	// Read unregister event
 	nsResp, err = readNSResponse(findCtx, ch)
 	require.NoError(t, err)
