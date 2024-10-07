@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -18,6 +18,7 @@ package dnsresolve
 
 import (
 	"context"
+	"fmt"
 	"net"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -57,19 +58,21 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 }
 
 func (d *dnsNSResolveClient) Register(ctx context.Context, ns *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	domain := interdomain.Domain(ns.Name)
+	var original = ns.GetName()
+	domain := interdomain.Domain(original)
 	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return nil, err
 	}
 	ctx = clienturlctx.WithClientURL(ctx, url)
-	ns.Name = interdomain.Target(ns.Name)
+	ns.Name = interdomain.Target(original)
 	resp, err := next.NetworkServiceRegistryClient(ctx).Register(ctx, ns, opts...)
 	if err != nil {
+		fmt.Println(err.Error())
 		return nil, err
 	}
 
-	resp.Name = interdomain.Join(resp.Name, domain)
+	resp.Name = original
 
 	return resp, nil
 }

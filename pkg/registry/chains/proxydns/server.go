@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +21,7 @@ package proxydns
 
 import (
 	"context"
+	"net/url"
 
 	"google.golang.org/grpc"
 
@@ -28,13 +31,20 @@ import (
 	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/interdomainbypass"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/replaceurl"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/seturl"
+	"github.com/networkservicemesh/sdk/pkg/registry/switchcase"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
+	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
@@ -43,6 +53,7 @@ type serverOptions struct {
 	authorizeNSERegistryServer registryapi.NetworkServiceEndpointRegistryServer
 	authorizeNSRegistryClient  registryapi.NetworkServiceRegistryClient
 	authorizeNSERegistryClient registryapi.NetworkServiceEndpointRegistryClient
+	registryURL, nsmgrProxyURL *url.URL
 	dialOptions                []grpc.DialOption
 }
 
@@ -89,6 +100,20 @@ func WithAuthorizeNSERegistryClient(authorizeNSERegistryClient registryapi.Netwo
 	}
 }
 
+// WithNSMgrProxyURL sets url to the nsmgr proxys
+func WithNSMgrProxyURL(u *url.URL) Option {
+	return func(o *serverOptions) {
+		o.nsmgrProxyURL = u
+	}
+}
+
+// WithRegistryURL sets url to the registry
+func WithRegistryURL(u *url.URL) Option {
+	return func(o *serverOptions) {
+		o.registryURL = u
+	}
+}
+
 // WithDialOptions sets grpc.DialOptions for the server
 func WithDialOptions(dialOptions ...grpc.DialOption) Option {
 	return func(o *serverOptions) {
@@ -113,7 +138,30 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
 		opts.authorizeNSERegistryServer,
 		begin.NewNetworkServiceEndpointRegistryServer(),
-		dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
+		interdomainbypass.NewNetworkServiceEndpointRegistryServer(),
+		switchcase.NewNetworkServiceEndpointRegistryServer(
+			switchcase.NSEServerCase{
+				Condition: func(ctx context.Context, nse *registryapi.NetworkServiceEndpoint) bool {
+					for _, service := range nse.GetNetworkServiceNames() {
+						if interdomain.Is(service) {
+							return true
+						}
+					}
+					return interdomain.Is(nse.GetName())
+				},
+				Action: next.NewNetworkServiceEndpointRegistryServer(
+					seturl.NewNetworkServiceEndpointRegistryServer(opts.nsmgrProxyURL),
+					dnsresolve.NewNetworkServiceEndpointRegistryServer(dnsresolve.WithResolver(dnsResolver)),
+				),
+			},
+			switchcase.NSEServerCase{
+				Condition: switchcase.Otherwise[*registryapi.NetworkServiceEndpoint],
+				Action: next.NewNetworkServiceEndpointRegistryServer(
+					replaceurl.NewNetworkServiceEndpointRegistryServer(opts.nsmgrProxyURL),
+					clienturl.NewNetworkServiceEndpointRegistryServer(opts.registryURL),
+				),
+			},
+		),
 		connect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
@@ -130,7 +178,18 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResol
 		updatepath.NewNetworkServiceRegistryServer(tokenGenerator),
 		begin.NewNetworkServiceRegistryServer(),
 		opts.authorizeNSRegistryServer,
-		dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
+		switchcase.NewNetworkServiceRegistryServer(
+			switchcase.NSServerCase{
+				Condition: func(ctx context.Context, ns *registryapi.NetworkService) bool {
+					return interdomain.Is(ns.GetName())
+				},
+				Action: dnsresolve.NewNetworkServiceRegistryServer(dnsresolve.WithResolver(dnsResolver)),
+			},
+			switchcase.NSServerCase{
+				Condition: switchcase.Otherwise[*registryapi.NetworkService],
+				Action:    clienturl.NewNetworkServiceRegistryServer(opts.registryURL),
+			},
+		),
 		connect.NewNetworkServiceRegistryServer(
 			chain.NewNetworkServiceRegistryClient(
 				clientconn.NewNetworkServiceRegistryClient(),

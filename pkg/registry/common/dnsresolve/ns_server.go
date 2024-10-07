@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco Systems, Inc.
+// Copyright (c) 2023-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,8 +21,6 @@ package dnsresolve
 import (
 	"context"
 	"net"
-
-	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
 
@@ -88,19 +86,20 @@ func (s *dnsFindNSServer) Send(nseResp *registry.NetworkServiceResponse) error {
 }
 
 func (d *dnsNSResolveServer) Find(q *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	ctx := s.Context()
-	domain := interdomain.Domain(q.NetworkService.Name)
-	if domain == "" {
-		return errors.New("domain cannot be empty")
-	}
-	url, err := resolveDomain(ctx, d.registryService, domain, d.resolver)
+	var ctx = s.Context()
+	var domain = interdomain.Domain(q.GetNetworkService().GetName())
+	var registryProxyURL, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
 	if err != nil {
 		return err
 	}
-	ctx = clienturlctx.WithClientURL(s.Context(), url)
+
+	ctx = clienturlctx.WithClientURL(s.Context(), registryProxyURL)
+
 	s = streamcontext.NetworkServiceRegistryFindServer(ctx, s)
-	q.NetworkService.Name = interdomain.Target(q.NetworkService.Name)
-	return next.NetworkServiceRegistryServer(s.Context()).Find(q, &dnsFindNSServer{domain: domain, NetworkServiceRegistry_FindServer: s})
+
+	q.GetNetworkService().Name = interdomain.Target(q.GetNetworkService().GetName())
+
+	return next.NetworkServiceRegistryServer(s.Context()).Find(q, &dnsFindNSServer{NetworkServiceRegistry_FindServer: s, domain: domain})
 }
 
 func (d *dnsNSResolveServer) Unregister(ctx context.Context, ns *registry.NetworkService) (*empty.Empty, error) {

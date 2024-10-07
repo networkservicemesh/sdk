@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -23,6 +25,7 @@ import (
 	"net/url"
 	"os"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -34,7 +37,9 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/memory"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
-	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
+	dnsmemory "github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
@@ -51,23 +56,25 @@ type Builder struct {
 	supplyNSMgrProxy    SupplyNSMgrProxyFunc
 	supplyRegistry      SupplyRegistryFunc
 	supplyRegistryProxy SupplyRegistryProxyFunc
+	supplyDNSServer     SupplyDNSServerFunc
 	setupNode           SetupNodeFunc
 
 	name                      string
-	dnsResolver               dnsresolve.Resolver
 	generateTokenFunc         token.GeneratorFunc
 	registryDefaultExpiration time.Duration
 
+	dnsServer      *DNSServerEntry
 	useUnixSockets bool
 
 	domain *Domain
 }
 
-func newRegistryMemoryServer(ctx context.Context, tokenGenerator token.GeneratorFunc, defaultExpiration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
+func newRegistryMemoryServer(ctx context.Context, tokenGenerator token.GeneratorFunc, defaultExpiration time.Duration, nsmgrProxyURL, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry {
 	return memory.NewServer(
 		ctx,
 		tokenGenerator,
 		memory.WithDefaultExpiration(defaultExpiration),
+		memory.WithNSMgrProxyURL(nsmgrProxyURL),
 		memory.WithProxyRegistryURL(proxyRegistryURL),
 		memory.WithDialOptions(options...))
 }
@@ -79,11 +86,8 @@ func NewBuilder(ctx context.Context, t *testing.T) *Builder {
 		ctx:                       ctx,
 		nodesCount:                1,
 		supplyNSMgr:               nsmgr.NewServer,
-		supplyNSMgrProxy:          nsmgrproxy.NewServer,
 		supplyRegistry:            newRegistryMemoryServer,
-		supplyRegistryProxy:       proxydns.NewServer,
 		name:                      "cluster.local",
-		dnsResolver:               NewFakeResolver(),
 		generateTokenFunc:         GenerateTestToken,
 		registryDefaultExpiration: time.Minute,
 	}
@@ -104,6 +108,26 @@ func (b *Builder) SetNodesCount(nodesCount int) *Builder {
 // SetNSMgrSupplier replaces default nsmgr supplier to custom function
 func (b *Builder) SetNSMgrSupplier(f SupplyNSMgrFunc) *Builder {
 	b.supplyNSMgr = f
+	return b
+}
+
+// SetupDefaultDNSServer sets default dns handler for the domain
+func (b *Builder) SetupDefaultDNSServer() *Builder {
+	return b.SetDNSServerSupplier(func(ctx context.Context) dnsutils.Handler {
+		return nil
+	})
+}
+
+// EnableInterdomain enables interdomain components for the NSM domain
+func (b *Builder) EnableInterdomain() *Builder {
+	b.supplyNSMgrProxy = nsmgrproxy.NewServer
+	b.supplyRegistryProxy = proxydns.NewServer
+	return b.SetupDefaultDNSServer()
+}
+
+// SetDNSServerSupplier sets handler for the dns server
+func (b *Builder) SetDNSServerSupplier(f SupplyDNSServerFunc) *Builder {
+	b.supplyDNSServer = f
 	return b
 }
 
@@ -133,15 +157,9 @@ func (b *Builder) SetNodeSetup(f SetupNodeFunc) *Builder {
 	return b
 }
 
-// SetDNSDomainName sets DNS domain name for the building NSM domain
-func (b *Builder) SetDNSDomainName(name string) *Builder {
+// SetName sets DNS domain name for the building NSM domain
+func (b *Builder) SetName(name string) *Builder {
 	b.name = name
-	return b
-}
-
-// SetDNSResolver sets DNS resolver for proxy registries
-func (b *Builder) SetDNSResolver(d dnsresolve.Resolver) *Builder {
-	b.dnsResolver = d
 	return b
 }
 
@@ -172,8 +190,7 @@ func (b *Builder) UseUnixSockets() *Builder {
 // Build builds Domain and Supplier
 func (b *Builder) Build() *Domain {
 	b.domain = &Domain{
-		Name:        b.name,
-		DNSResolver: b.dnsResolver,
+		Name: b.name,
 	}
 
 	if b.useUnixSockets {
@@ -196,21 +213,26 @@ func (b *Builder) Build() *Domain {
 		b.domain.supplyURL = b.supplyTCPAddress()
 	}
 
-	if b.supplyRegistryProxy != nil {
-		require.NotNil(b.t, b.supplyNSMgrProxy, "NSMgr proxy supplier should be set if registry proxy supplier is set")
-		b.domain.NSMgrProxy = &NSMgrEntry{
+	if b.supplyRegistry != nil {
+		b.domain.Registry = &RegistryEntry{
+			URL: b.domain.supplyURL("reg"),
+		}
+	}
+	if b.supplyNSMgrProxy != nil {
+		b.domain.NSMgrProxy = &EndpointEntry{
 			URL: b.domain.supplyURL("nsmgr-proxy"),
 		}
 	}
 
+	b.domain.DNSServer = b.newDNSServer()
 	b.domain.RegistryProxy = b.newRegistryProxy()
-	b.domain.Registry = b.newRegistry()
 	b.domain.NSMgrProxy = b.newNSMgrProxy()
+	b.domain.Registry = b.newRegistry()
 	for i := 0; i < b.nodesCount; i++ {
 		b.domain.Nodes = append(b.domain.Nodes, b.newNode(i))
 	}
 
-	b.buildDNSServer()
+	b.addDNSRecords()
 
 	return b.domain
 }
@@ -235,20 +257,71 @@ func (b *Builder) supplyTCPAddress() func(prefix string) *url.URL {
 	}
 }
 
+func (b *Builder) newDNSServer() *DNSServerEntry {
+	if b.supplyDNSServer == nil {
+		return nil
+	}
+	if b.dnsServer != nil {
+		return b.dnsServer
+	}
+	entry := &DNSServerEntry{
+		URL: b.domain.supplyURL("dns-server"),
+	}
+
+	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
+		var handlers = []dnsutils.Handler{
+			dnsmemory.NewDNSHandlerWithOptions(
+				dnsmemory.WithIPRecords(&entry.IPRecords),
+				dnsmemory.WithSRVRecords(&entry.SRVRecords),
+			),
+		}
+		if additionalFunctionality := b.supplyDNSServer(ctx); additionalFunctionality != nil {
+			handlers = append(handlers, additionalFunctionality)
+		}
+
+		entry.Handler = next.NewDNSHandler(
+			handlers...,
+		)
+
+		dnsutils.ListenAndServe(ctx, entry.Handler, entry.URL.Host)
+
+		log.FromContext(ctx).Infof("%s: dns-seever serving on: %v", b.name, entry.URL)
+	})
+
+	return entry
+}
+
 func (b *Builder) newRegistryProxy() *RegistryEntry {
-	if b.supplyRegistryProxy == nil {
+	if b.supplyRegistryProxy == nil || b.domain.DNSServer == nil {
 		return nil
 	}
 
-	entry := &RegistryEntry{
+	var entry = &RegistryEntry{
 		URL: b.domain.supplyURL("reg-proxy"),
 	}
+
+	var nsmgrProxyURL *url.URL
+
+	if b.domain.NSMgrProxy != nil {
+		nsmgrProxyURL = b.domain.NSMgrProxy.URL
+	}
+
+	var dialer net.Dialer
+	var resolver = &net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			return dialer.DialContext(ctx, network, b.domain.DNSServer.URL.Host)
+		},
+	}
+
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		entry.Registry = b.supplyRegistryProxy(
 			ctx,
 			b.generateTokenFunc,
-			b.dnsResolver,
+			resolver,
 			proxydns.WithDialOptions(DialOptions(WithTokenGenerator(b.generateTokenFunc))...),
+			proxydns.WithRegistryURL(CloneURL(b.domain.Registry.URL)),
+			proxydns.WithNSMgrProxyURL(CloneURL(nsmgrProxyURL)),
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
 
@@ -263,13 +336,16 @@ func (b *Builder) newRegistry() *RegistryEntry {
 		return nil
 	}
 
-	var nsmgrProxyURL *url.URL
+	var nsmgrProxyURL, registryProxyURL *url.URL
 	if b.domain.NSMgrProxy != nil {
 		nsmgrProxyURL = CloneURL(b.domain.NSMgrProxy.URL)
 	}
+	if b.domain.RegistryProxy != nil {
+		registryProxyURL = CloneURL(b.domain.RegistryProxy.URL)
+	}
 
 	entry := &RegistryEntry{
-		URL: b.domain.supplyURL("reg"),
+		URL: b.domain.Registry.URL,
 	}
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		entry.Registry = b.supplyRegistry(
@@ -277,6 +353,7 @@ func (b *Builder) newRegistry() *RegistryEntry {
 			b.generateTokenFunc,
 			b.registryDefaultExpiration,
 			nsmgrProxyURL,
+			registryProxyURL,
 			DialOptions(WithTokenGenerator(b.generateTokenFunc))...,
 		)
 		serve(ctx, b.t, entry.URL, entry.Register)
@@ -287,26 +364,27 @@ func (b *Builder) newRegistry() *RegistryEntry {
 	return entry
 }
 
-func (b *Builder) newNSMgrProxy() *NSMgrEntry {
-	if b.supplyRegistryProxy == nil {
+func (b *Builder) newNSMgrProxy() *EndpointEntry {
+	if b.supplyNSMgrProxy == nil {
 		return nil
 	}
 
-	entry := &NSMgrEntry{
+	entry := &EndpointEntry{
 		Name: UniqueName("nsmgr-proxy"),
 		URL:  b.domain.NSMgrProxy.URL,
 	}
+
 	entry.restartableServer = newRestartableServer(b.ctx, b.t, entry.URL, func(ctx context.Context) {
 		dialOptions := DialOptions(WithTokenGenerator(b.generateTokenFunc))
-		entry.Nsmgr = b.supplyNSMgrProxy(ctx,
-			CloneURL(b.domain.Registry.URL),
+		entry.Endpoint = b.supplyNSMgrProxy(ctx,
 			CloneURL(b.domain.RegistryProxy.URL),
 			b.generateTokenFunc,
 			nsmgrproxy.WithListenOn(entry.URL),
 			nsmgrproxy.WithName(entry.Name),
+			nsmgrproxy.WithRegistryURL(b.domain.Registry.URL),
 			nsmgrproxy.WithDialOptions(dialOptions...),
 		)
-		serve(ctx, b.t, entry.URL, entry.Register)
+		serve(ctx, b.t, entry.URL, entry.Endpoint.Register)
 
 		log.FromContext(ctx).Infof("%s: NSMgr proxy %s serve on: %v", b.name, entry.Name, entry.URL)
 	})
@@ -328,11 +406,41 @@ func (b *Builder) newNode(nodeNum int) *Node {
 	return node
 }
 
-func (b *Builder) buildDNSServer() {
-	if b.domain.Registry != nil {
-		require.NoError(b.t, AddSRVEntry(b.dnsResolver, b.name, dnsresolve.DefaultRegistryService, CloneURL(b.domain.Registry.URL)))
+func (b *Builder) addDNSRecords() {
+	if b.domain.DNSServer == nil {
+		return
 	}
-	if b.domain.NSMgrProxy != nil {
-		require.NoError(b.t, AddSRVEntry(b.dnsResolver, b.name, dnsresolve.DefaultNsmgrProxyService, CloneURL(b.domain.NSMgrProxy.URL)))
+	var domain = b.domain
+	b.addRecord("external-dns", domain.DNSServer.URL)
+	if domain.Registry != nil {
+		b.addRecord("registry", domain.Registry.URL)
 	}
+	if domain.NSMgrProxy != nil {
+		b.addRecord("nsmgr-proxy", domain.NSMgrProxy.URL)
+	}
+	if domain.RegistryProxy != nil {
+		b.addRecord("registry-proxy", domain.RegistryProxy.URL)
+	}
+	for i, node := range b.domain.Nodes {
+		if node.NSMgr != nil {
+			b.addRecord(fmt.Sprintf("nsmgr-%v", i), node.NSMgr.URL)
+		}
+		for name, fwd := range node.Forwarders {
+			b.addRecord(fmt.Sprintf("fwd-%v-%v", name, i), fwd.URL)
+		}
+	}
+}
+
+func (b *Builder) addRecord(name string, u *url.URL) {
+	name = fmt.Sprintf("%v.%v.", name, b.domain.Name)
+	log.FromContext(b.ctx).Infof("Adding srv, aaaa, records for name %v, dns server: %v", name, b.domain.DNSServer.URL.String())
+	var ip = net.ParseIP(u.Hostname())
+	var port, _ = strconv.Atoi(u.Port())
+	b.domain.DNSServer.IPRecords.Store(name, []net.IP{ip})
+	b.domain.DNSServer.SRVRecords.Store(name, []*net.TCPAddr{
+		{
+			IP:   ip,
+			Port: port,
+		},
+	})
 }

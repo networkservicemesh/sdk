@@ -312,20 +312,17 @@ func Test_Interdomain_vl3_dns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
-
-	cluster1 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		SetDNSResolver(dnsServer).
-		SetDNSDomainName("cluster1").
+	var domains = sandbox.NewInterdomainBuilder(ctx, t).
+		BuildDomain(func(b *sandbox.Builder) *sandbox.Builder {
+			return b.SetNodesCount(1).SetName("cluster1")
+		}).
+		BuildDomain(func(b *sandbox.Builder) *sandbox.Builder {
+			return b.SetNodesCount(1).SetName("cluster2")
+		}).
 		Build()
 
-	cluster2 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		SetDNSDomainName("cluster2").
-		SetDNSResolver(dnsServer).
-		Build()
-
+	cluster1 := domains[0]
+	cluster2 := domains[1]
 	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
 	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
@@ -403,27 +400,21 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
 
-	var dnsServer = sandbox.NewFakeResolver()
-
-	cluster1 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		SetDNSResolver(dnsServer).
-		SetDNSDomainName("cluster1").
+	var domains = sandbox.NewInterdomainBuilder(ctx, t).
+		BuildDomain(func(b *sandbox.Builder) *sandbox.Builder {
+			return b.SetNodesCount(1).SetName("cluster1")
+		}).
+		BuildDomain(func(b *sandbox.Builder) *sandbox.Builder {
+			return b.SetNodesCount(1).SetName("cluster2")
+		}).
+		BuildDomain(func(b *sandbox.Builder) *sandbox.Builder {
+			return b.SetNodesCount(0).SetNSMgrProxySupplier(nil).SetRegistryProxySupplier(nil).SetName("floating")
+		}).
 		Build()
 
-	cluster2 := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(1).
-		SetDNSDomainName("cluster2").
-		SetDNSResolver(dnsServer).
-		Build()
-
-	floating := sandbox.NewBuilder(ctx, t).
-		SetNodesCount(0).
-		SetDNSDomainName("floating.domain").
-		SetDNSResolver(dnsServer).
-		SetNSMgrProxySupplier(nil).
-		SetRegistryProxySupplier(nil).
-		Build()
+	cluster1 := domains[0]
+	cluster2 := domains[1]
+	floating := domains[2]
 
 	nsRegistryClient := cluster2.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
 
@@ -475,7 +466,7 @@ func Test_FloatingInterdomain_vl3_dns(t *testing.T) {
 	req.Connection = resp.Clone()
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 1)
 	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
-	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains, 3)
+	require.Len(t, resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains, 2)
 
 	searchDomain := resp.GetContext().GetDnsContext().GetConfigs()[0].SearchDomains[0]
 

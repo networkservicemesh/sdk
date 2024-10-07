@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,9 +20,11 @@ package sandbox
 
 import (
 	"context"
+	"net"
 	"net/url"
 	"time"
 
+	"github.com/edwarnicke/genericsync"
 	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 	"google.golang.org/grpc"
 
@@ -31,17 +35,18 @@ import (
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/chains/proxydns"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dnsresolve"
+	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
 
 // SupplyNSMgrProxyFunc nsmgr proxy
-type SupplyNSMgrProxyFunc func(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...nsmgrproxy.Option) nsmgr.Nsmgr
+type SupplyNSMgrProxyFunc func(ctx context.Context, regURL *url.URL, tokenGenerator token.GeneratorFunc, options ...nsmgrproxy.Option) endpoint.Endpoint
 
 // SupplyNSMgrFunc supplies NSMGR
 type SupplyNSMgrFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, options ...nsmgr.Option) nsmgr.Nsmgr
 
 // SupplyRegistryFunc supplies Registry
-type SupplyRegistryFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, defaultExpiration time.Duration, proxyRegistryURL *url.URL, options ...grpc.DialOption) registry.Registry
+type SupplyRegistryFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, defaultExpiration time.Duration, proxyRegistryURL, nsmgrProxyURL *url.URL, options ...grpc.DialOption) registry.Registry
 
 // SupplyRegistryProxyFunc supplies registry proxy
 type SupplyRegistryProxyFunc func(ctx context.Context, tokenGenerator token.GeneratorFunc, dnsResolver dnsresolve.Resolver, options ...proxydns.Option) registry.Registry
@@ -49,12 +54,24 @@ type SupplyRegistryProxyFunc func(ctx context.Context, tokenGenerator token.Gene
 // SetupNodeFunc setups each node on Builder.Build() stage
 type SetupNodeFunc func(ctx context.Context, node *Node, nodeNum int)
 
+// SupplyDNSServerFunc creates dns handler for dns server
+type SupplyDNSServerFunc func(context.Context) dnsutils.Handler
+
 // RegistryEntry is pair of registry.Registry and url.URL
 type RegistryEntry struct {
 	URL *url.URL
 
 	*restartableServer
 	registry.Registry
+}
+
+// DNSServerEntry represents DNS server record
+type DNSServerEntry struct {
+	URL        *url.URL
+	IPRecords  genericsync.Map[string, []net.IP]
+	SRVRecords genericsync.Map[string, []*net.TCPAddr]
+	*restartableServer
+	dnsutils.Handler
 }
 
 // NSMgrEntry is pair of nsmgr.Nsmgr and url.URL
@@ -79,9 +96,10 @@ type EndpointEntry struct {
 // Domain contains attached to domain nodes, registry
 type Domain struct {
 	Nodes         []*Node
-	NSMgrProxy    *NSMgrEntry
+	NSMgrProxy    *EndpointEntry
 	Registry      *RegistryEntry
 	RegistryProxy *RegistryEntry
+	DNSServer     *DNSServerEntry
 
 	DNSResolver dnsresolve.Resolver
 	Name        string

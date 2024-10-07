@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022-2023 Cisco Systems, Inc.
+// Copyright (c) 2022-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -20,11 +20,11 @@ package dnsresolve
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"net/url"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clienturlctx"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 
@@ -36,17 +36,17 @@ import (
 )
 
 type dnsNSEResolveServer struct {
-	resolver          Resolver
-	nsmgrProxyService string
-	registryService   string
+	resolver                                                 Resolver
+	registryService, registryProxyService, nsmgrProxyService string
 }
 
 // NewNetworkServiceEndpointRegistryServer creates new NetworkServiceRegistryServer that can resolve passed domain to clienturl
 func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkServiceEndpointRegistryServer {
 	var serverOptions = &options{
-		resolver:          net.DefaultResolver,
-		registryService:   DefaultRegistryService,
-		nsmgrProxyService: DefaultNsmgrProxyService,
+		resolver:             net.DefaultResolver,
+		registryService:      DefaultRegistryService,
+		registryProxyService: DefaultRegistryProxyService,
+		nsmgrProxyService:    DefaultNSMgrProxyService,
 	}
 
 	for _, opt := range opts {
@@ -54,9 +54,10 @@ func NewNetworkServiceEndpointRegistryServer(opts ...Option) registry.NetworkSer
 	}
 
 	r := &dnsNSEResolveServer{
-		resolver:          serverOptions.resolver,
-		nsmgrProxyService: serverOptions.nsmgrProxyService,
-		registryService:   serverOptions.registryService,
+		resolver:             serverOptions.resolver,
+		registryService:      serverOptions.registryService,
+		registryProxyService: serverOptions.registryProxyService,
+		nsmgrProxyService:    serverOptions.nsmgrProxyService,
 	}
 
 	return r
@@ -88,7 +89,7 @@ func translateNSE(nse *registry.NetworkServiceEndpoint, translator func(string) 
 }
 
 // TODO: consider to return error if NSE is not consistent and have multi domains target.
-func resolveNSE(nse *registry.NetworkServiceEndpoint) string {
+func findDomainFromNSE(nse *registry.NetworkServiceEndpoint) string {
 	var domain string
 
 	for _, name := range append([]string{nse.Name}, nse.GetNetworkServiceNames()...) {
@@ -102,7 +103,7 @@ func resolveNSE(nse *registry.NetworkServiceEndpoint) string {
 }
 
 func (d *dnsNSEResolveServer) Register(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
-	var domain = resolveNSE(nse)
+	var domain = findDomainFromNSE(nse)
 	var u, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
 
 	if err != nil {
@@ -127,8 +128,8 @@ func (d *dnsNSEResolveServer) Register(ctx context.Context, nse *registry.Networ
 }
 
 type dnsFindNSEServer struct {
-	domain string
-	nseURL *url.URL
+	domain                        string
+	externalDNSURL, nsmgrProxyURL *url.URL
 	registry.NetworkServiceEndpointRegistry_FindServer
 }
 
@@ -137,8 +138,18 @@ func (s *dnsFindNSEServer) Send(nseResp *registry.NetworkServiceEndpointResponse
 		return interdomain.Join(str, s.domain)
 	})
 
-	if s.nseURL != nil {
-		nseResp.NetworkServiceEndpoint.Url = s.nseURL.String()
+	if s.nsmgrProxyURL != nil {
+		var u *url.URL
+		var err error
+		if s.externalDNSURL != nil {
+			u, err = url.Parse(fmt.Sprintf("dns://%v/%v.%v:%v", s.externalDNSURL.Host, DefaultNSMgrProxyService, s.domain, s.nsmgrProxyURL.Port()))
+		} else {
+			u, err = url.Parse(fmt.Sprintf("dns://%v.%v:%v", DefaultNSMgrProxyService, s.domain, s.nsmgrProxyURL.Port()))
+		}
+		if err != nil {
+			return err
+		}
+		nseResp.GetNetworkServiceEndpoint().Url = u.String()
 	}
 
 	return s.NetworkServiceEndpointRegistry_FindServer.Send(nseResp)
@@ -146,29 +157,28 @@ func (s *dnsFindNSEServer) Send(nseResp *registry.NetworkServiceEndpointResponse
 
 func (d *dnsNSEResolveServer) Find(q *registry.NetworkServiceEndpointQuery, s registry.NetworkServiceEndpointRegistry_FindServer) error {
 	var ctx = s.Context()
-	var domain = resolveNSE(q.NetworkServiceEndpoint)
-	var nsmgrProxyURL, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
-
+	var domain = findDomainFromNSE(q.NetworkServiceEndpoint)
+	var registryProxyURL, err = resolveDomain(ctx, d.registryProxyService, domain, d.resolver)
+	if err != nil {
+		registryProxyURL, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
+	}
 	if err != nil {
 		return err
 	}
+	var nsmgrProxyURL, _ = resolveDomain(ctx, d.nsmgrProxyService, domain, d.resolver)
+	var externalDNSURL, _ = resolveDomain(ctx, DefaultExternalDNSService, domain, d.resolver)
 
-	ctx = clienturlctx.WithClientURL(s.Context(), nsmgrProxyURL)
-	nsmgrProxyURL, err = resolveDomain(ctx, d.nsmgrProxyService, domain, d.resolver)
-
-	if err != nil {
-		log.FromContext(ctx).Errorf("nsmgrProxyService is not reachable by domain: %v", domain)
-	}
+	ctx = clienturlctx.WithClientURL(s.Context(), registryProxyURL)
 
 	s = streamcontext.NetworkServiceEndpointRegistryFindServer(ctx, s)
 
 	translateNSE(q.NetworkServiceEndpoint, interdomain.Target)
 
-	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, &dnsFindNSEServer{NetworkServiceEndpointRegistry_FindServer: s, domain: domain, nseURL: nsmgrProxyURL})
+	return next.NetworkServiceEndpointRegistryServer(s.Context()).Find(q, &dnsFindNSEServer{NetworkServiceEndpointRegistry_FindServer: s, domain: domain, nsmgrProxyURL: nsmgrProxyURL, externalDNSURL: externalDNSURL})
 }
 
 func (d *dnsNSEResolveServer) Unregister(ctx context.Context, nse *registry.NetworkServiceEndpoint) (*empty.Empty, error) {
-	var domain = resolveNSE(nse)
+	var domain = findDomainFromNSE(nse)
 	var u, err = resolveDomain(ctx, d.registryService, domain, d.resolver)
 
 	if err != nil {
@@ -184,10 +194,6 @@ func (d *dnsNSEResolveServer) Unregister(ctx context.Context, nse *registry.Netw
 
 func (d *dnsNSEResolveServer) setResolver(r Resolver) {
 	d.resolver = r
-}
-
-func (d *dnsNSEResolveServer) setNSMgrProxyService(service string) {
-	d.nsmgrProxyService = service
 }
 
 func (d *dnsNSEResolveServer) setRegistryService(service string) {
