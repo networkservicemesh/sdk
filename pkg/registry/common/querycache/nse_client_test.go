@@ -64,7 +64,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewNetworkServiceEndpointClient(ctx, querycache.WithExpireTimeout(expireTimeout)),
+		querycache.NewNetworkServiceEndpointClient(ctx, querycache.WithNSEExpireTimeout(expireTimeout)),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
@@ -86,26 +86,21 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 
 	nseResp, err := stream.Recv()
 	require.NoError(t, err)
-
 	require.Equal(t, name, nseResp.NetworkServiceEndpoint.Name)
 	require.Equal(t, url1, nseResp.NetworkServiceEndpoint.Url)
 
 	// 2. Find from cache
 	atomic.StoreInt32(&failureClient.shouldFail, 1)
 
-	require.Eventually(t, func() bool {
-		if stream, err = c.Find(ctx, testNSEQuery(name)); err != nil {
-			return false
-		}
-		if nseResp, err = stream.Recv(); err != nil {
-			return false
-		}
-		return name == nseResp.NetworkServiceEndpoint.Name && url1 == nseResp.NetworkServiceEndpoint.Url
-	}, testWait, testTick)
+	stream, err = c.Find(ctx, testNSEQuery(name))
+	require.NoError(t, err)
+	nseResp, err = stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, name, nseResp.NetworkServiceEndpoint.Name)
+	require.Equal(t, url1, nseResp.NetworkServiceEndpoint.Url)
 
 	// 3. Update NSE in memory
 	reg.Url = url2
-
 	reg, err = mem.Register(ctx, reg)
 	require.NoError(t, err)
 
@@ -129,7 +124,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	}, testWait, testTick)
 }
 
-func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
+func Test_QueryCacheClient_ShouldCleanUpNSEOnTimeout(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -142,7 +137,7 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewNetworkServiceEndpointClient(ctx, querycache.WithExpireTimeout(expireTimeout)),
+		querycache.NewNetworkServiceEndpointClient(ctx, querycache.WithNSEExpireTimeout(expireTimeout)),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)

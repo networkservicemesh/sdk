@@ -27,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type nseCache struct {
@@ -36,15 +35,15 @@ type nseCache struct {
 	clockTime     clock.Clock
 }
 
-func newNSECache(ctx context.Context, opts ...Option) *nseCache {
+func newNSECache(ctx context.Context, opts ...NSECacheOption) *nseCache {
 	c := &nseCache{
 		expireTimeout: time.Minute,
 		clockTime:     clock.FromContext(ctx),
 	}
 
-	// for _, opt := range opts {
-	// 	opt(c)
-	// }
+	for _, opt := range opts {
+		opt(c)
+	}
 
 	ticker := c.clockTime.Ticker(c.expireTimeout)
 	go func() {
@@ -118,8 +117,6 @@ func subset(a, b []string) bool {
 func (c *nseCache) Load(ctx context.Context, query *registry.NetworkServiceEndpointQuery) []*registry.NetworkServiceEndpoint {
 	values := make([]*registry.NetworkServiceEndpoint, 0)
 
-	log.FromContext(ctx).WithField("time", time.Now()).Infof("query: %v\n", query)
-
 	if query.NetworkServiceEndpoint.Name != "" {
 		entry, ok := c.entries.Load(query.NetworkServiceEndpoint.Name)
 		if ok {
@@ -128,18 +125,12 @@ func (c *nseCache) Load(ctx context.Context, query *registry.NetworkServiceEndpo
 		return values
 	}
 
-	log.FromContext(ctx).WithField("time", time.Now()).Infof("Range")
 	c.entries.Range(func(key string, entry *cacheEntry[registry.NetworkServiceEndpoint]) bool {
-		log.FromContext(ctx).WithField("time", time.Now()).Infof("key: %v\n", key)
-		log.FromContext(ctx).WithField("time", time.Now()).Infof("entry.value: %v\n", entry.value)
 		if subset(query.NetworkServiceEndpoint.NetworkServiceNames, entry.value.NetworkServiceNames) {
-			log.FromContext(ctx).WithField("time", time.Now()).Infof("adding entry to nses\n")
 			values = c.add(entry, values)
 		}
 		return true
 	})
-
-	log.FromContext(ctx).WithField("time", time.Now()).Infof("values: %v\n", values)
 
 	return values
 }

@@ -33,7 +33,7 @@ type nsCache struct {
 	clockTime     clock.Clock
 }
 
-func newNSCache(ctx context.Context, opts ...Option) *nsCache {
+func newNSCache(ctx context.Context, opts ...NSCacheOption) *nsCache {
 	c := &nsCache{
 		expireTimeout: time.Minute,
 		clockTime:     clock.FromContext(ctx),

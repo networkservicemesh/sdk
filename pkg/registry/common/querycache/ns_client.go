@@ -19,7 +19,6 @@ package querycache
 
 import (
 	"context"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
@@ -28,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/streamchannel"
-	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type queryCacheNSClient struct {
@@ -37,7 +35,7 @@ type queryCacheNSClient struct {
 }
 
 // NewNetworkServiceClient creates new querycache NS registry client that caches all resolved NSs
-func NewNetworkServiceClient(ctx context.Context, opts ...Option) registry.NetworkServiceRegistryClient {
+func NewNetworkServiceClient(ctx context.Context, opts ...NSCacheOption) registry.NetworkServiceRegistryClient {
 	return &queryCacheNSClient{
 		ctx:   ctx,
 		cache: newNSCache(ctx, opts...),
@@ -49,18 +47,13 @@ func (q *queryCacheNSClient) Register(ctx context.Context, nse *registry.Network
 }
 
 func (q *queryCacheNSClient) Find(ctx context.Context, query *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	log.FromContext(ctx).WithField("time", time.Now()).Infof("queryCacheNSClient forth")
 	if query.Watch {
 		return next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 	}
 
-	log.FromContext(ctx).WithField("time", time.Now()).Info("queryCacheNSClient search in cache")
 	if client, ok := q.findInCache(ctx, query); ok {
-		log.FromContext(ctx).Info("queryCacheNSClient found in cache")
 		return client, nil
 	}
-
-	log.FromContext(ctx).WithField("time", time.Now()).Info("queryCacheNSClient not found in cache")
 
 	client, err := next.NetworkServiceRegistryClient(ctx).Find(ctx, query, opts...)
 	if err != nil {
@@ -80,13 +73,10 @@ func (q *queryCacheNSClient) Find(ctx context.Context, query *registry.NetworkSe
 }
 
 func (q *queryCacheNSClient) findInCache(ctx context.Context, query *registry.NetworkServiceQuery) (registry.NetworkServiceRegistry_FindClient, bool) {
-	log.FromContext(ctx).WithField("time", time.Now()).Infof("queryCacheNSClient checking key: %v", query.NetworkService)
 	ns := q.cache.Load(ctx, query.NetworkService)
 	if ns == nil {
 		return nil, false
 	}
-
-	log.FromContext(ctx).WithField("time", time.Now()).Infof("found NS in cache: %v", ns)
 
 	resultCh := make(chan *registry.NetworkServiceResponse, 1)
 	resultCh <- &registry.NetworkServiceResponse{NetworkService: ns.Clone()}
@@ -103,7 +93,6 @@ func (q *queryCacheNSClient) storeInCache(ctx context.Context, ns *registry.Netw
 	}
 
 	findCtx, cancel := context.WithCancel(q.ctx)
-
 	entry, loaded := q.cache.LoadOrStore(ns, cancel)
 	if loaded {
 		cancel()
@@ -114,7 +103,6 @@ func (q *queryCacheNSClient) storeInCache(ctx context.Context, ns *registry.Netw
 		defer entry.Cleanup()
 
 		nsQuery.Watch = true
-
 		stream, err := next.NetworkServiceRegistryClient(ctx).Find(findCtx, nsQuery, opts...)
 		if err != nil {
 			return
