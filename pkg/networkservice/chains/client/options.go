@@ -34,12 +34,19 @@ type clientOptions struct {
 	authorizeClient         networkservice.NetworkServiceClient
 	refreshClient           networkservice.NetworkServiceClient
 	healClient              networkservice.NetworkServiceClient
+	retryClient             networkservice.NetworkServiceClient
 	dialOptions             []grpc.DialOption
 	dialTimeout             time.Duration
 }
 
 // Option modifies default client chain values.
 type Option func(c *clientOptions)
+
+func WithRetry(client networkservice.NetworkServiceClient) Option {
+	return func(c *clientOptions) {
+		c.retryClient = client
+	}
+}
 
 // WithName sets name for the client.
 func WithName(name string) Option {
