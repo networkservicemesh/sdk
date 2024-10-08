@@ -14,7 +14,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package filteripam_test
+package strictipam_test
 
 import (
 	"context"
@@ -24,9 +24,11 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/stretchr/testify/require"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/filteripam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/strictipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 )
 
 func newRequest(connID string) *networkservice.NetworkServiceRequest {
@@ -55,7 +57,7 @@ func TestOverlappingAddresses(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("172.16.0.0/24")
 	require.NoError(t, err)
 
-	srv := next.NewNetworkServiceServer(filteripam.NewServer(point2pointipam.NewServer, ipNet))
+	srv := next.NewNetworkServiceServer(strictipam.NewServer(point2pointipam.NewServer, ipNet))
 
 	emptyRequest := newRequest("empty")
 
@@ -86,7 +88,7 @@ func TestOverlappingAddressesIPv6(t *testing.T) {
 	_, ipNet, err := net.ParseCIDR("fe80::/64")
 	require.NoError(t, err)
 
-	srv := next.NewNetworkServiceServer(filteripam.NewServer(point2pointipam.NewServer, ipNet))
+	srv := next.NewNetworkServiceServer(strictipam.NewServer(point2pointipam.NewServer, ipNet))
 
 	emptyRequest := newRequest("empty")
 
@@ -111,4 +113,28 @@ func TestOverlappingAddressesIPv6(t *testing.T) {
 	conn2, err = srv.Request(context.Background(), request)
 	require.NoError(t, err)
 	validateConns(t, conn2, []string{"fe80::/128", "fe80::fa00/128"}, []string{"fe80::1/128", "fe80::fa01/128"})
+}
+
+func Test_StrictIPAM_PositiveScenario(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("172.16.1.0/29")
+	require.NoError(t, err)
+
+	var s = strictipam.NewServer(func(i ...*net.IPNet) networkservice.NetworkServiceServer {
+		return chain.NewNetworkServiceServer(
+			checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
+				require.NotEqual(t, networkservice.IPContext{}, *nsr.GetConnection().Context.GetIpContext(), "ip context should not be empty")
+			}),
+			point2pointipam.NewServer(ipNet))
+	}, ipNet)
+
+	_, err = s.Request(context.TODO(), &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Context: &networkservice.ConnectionContext{
+				IpContext: &networkservice.IPContext{
+					SrcIpAddrs: []string{"172.16.1.0/32"},
+				},
+			},
+		},
+	})
+	require.NoError(t, err)
 }
