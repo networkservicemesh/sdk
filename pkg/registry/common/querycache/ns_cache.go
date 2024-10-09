@@ -24,6 +24,7 @@ import (
 	"github.com/edwarnicke/genericsync"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
+
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
