@@ -67,8 +67,7 @@ func (p *IPPool) ContainsIP(ip net.IP) bool {
 
 // ContainsIPString parses ip string and checks that pool contains ip
 func (p *IPPool) ContainsIPString(in string) bool {
-	ip, _, _ := net.ParseCIDR(in) // TODO: test
-	return p.ContainsIP(ip)
+	return p.ContainsIP(net.ParseIP(in))
 }
 
 // ContainsIPNet checks that pool contains ip net
