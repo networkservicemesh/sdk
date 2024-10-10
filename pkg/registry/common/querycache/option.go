@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,12 +20,22 @@ package querycache
 
 import "time"
 
-// Option is an option for cache
-type Option func(c *cache)
+// NSCacheOption is an option for NS cache
+type NSCacheOption func(c *nsCache)
 
-// WithExpireTimeout sets cache expire timeout
-func WithExpireTimeout(expireTimeout time.Duration) Option {
-	return func(c *cache) {
+// NSECacheOption is an option for NSE cache
+type NSECacheOption func(c *nseCache)
+
+// WithNSExpireTimeout sets NS cache expire timeout
+func WithNSExpireTimeout(expireTimeout time.Duration) NSCacheOption {
+	return func(c *nsCache) {
+		c.expireTimeout = expireTimeout
+	}
+}
+
+// WithNSEExpireTimeout sets NSE cache expire timeout
+func WithNSEExpireTimeout(expireTimeout time.Duration) NSECacheOption {
+	return func(c *nseCache) {
 		c.expireTimeout = expireTimeout
 	}
 }
