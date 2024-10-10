@@ -31,9 +31,10 @@ type beginOption struct {
 	reselectFunc ReselectFunc
 }
 
-// Option - event option
+// Option - event factory option
 type Option func(*option)
 
+// Option - begin chain element option
 type BeginOption func(*beginOption)
 
 // CancelContext - optionally provide a context that, when canceled will preclude the event from running
