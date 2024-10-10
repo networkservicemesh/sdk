@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/point2pointipam"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/ipam/strictipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkconnection"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
@@ -73,6 +74,55 @@ func TestExcludedPrefixesClient_Request_SanityCheck(t *testing.T) {
 	require.Contains(t, possibleIPs, destIPs[0])
 
 	require.NotEqual(t, srcIPs[0], destIPs[0])
+}
+
+func TestExcludedPrefixesClient_Request_ResponseExcludedPrefixesCheck(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	_, ipNet, err := net.ParseCIDR("172.16.1.100/29")
+	require.NoError(t, err)
+
+	client := excludedprefixes.NewClient()
+	client2 := excludedprefixes.NewClient()
+
+	server := chain.NewNetworkServiceClient(
+		adapters.NewServerToClient(strictipam.NewServer(point2pointipam.NewServer, ipNet)),
+	)
+
+	request1 := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "2",
+			Context: &networkservice.ConnectionContext{
+				IpContext: &networkservice.IPContext{
+					SrcIpAddrs: []string{"172.16.1.97/32"},
+					DstIpAddrs: []string{"172.16.1.96/32"},
+				},
+			},
+		},
+	}
+
+	// Client had this src and dst IPs before endpoint restart, client contains "172.16.1.99/32", "172.16.1.98/32" as other's client exluded IPs
+	request2 := &networkservice.NetworkServiceRequest{
+		Connection: &networkservice.Connection{
+			Id: "1",
+			Context: &networkservice.ConnectionContext{
+				IpContext: &networkservice.IPContext{
+					SrcIpAddrs:       []string{"172.16.1.97/32"},
+					DstIpAddrs:       []string{"172.16.1.96/32"},
+					ExcludedPrefixes: []string{"172.16.1.99/32", "172.16.1.98/32"},
+				},
+			},
+		},
+	}
+
+	_, err = chain.NewNetworkServiceClient(client2, server).Request(context.Background(), request1.Clone())
+	require.NoError(t, err)
+
+	resp, err := chain.NewNetworkServiceClient(client, server).Request(context.Background(), request2.Clone())
+	require.NoError(t, err)
+	// Ensure strict IMAP doesn't delete excluded prefixes from response
+	respExcludedPrefixes := resp.GetContext().GetIpContext().GetExcludedPrefixes()
+	require.NotEmpty(t, respExcludedPrefixes)
 }
 
 func TestExcludedPrefixesClient_Request_SrcAndDestPrefixesAreDifferent(t *testing.T) {

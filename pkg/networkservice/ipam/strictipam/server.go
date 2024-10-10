@@ -27,21 +27,21 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/dualstack"
 )
 
 type strictIPAMServer struct {
-	ipPool *ippool.IPPool
+	ipPool *dualstack.IPPool
 }
 
-// NewServer - creates a new filter IPAM server
+// NewServer - creates a new strict IPAM server
 func NewServer(newIPAMServer func(...*net.IPNet) networkservice.NetworkServiceServer, prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 	if newIPAMServer == nil {
 		panic("newIPAMServer should not be nil")
 	}
-	ipPool := ippool.New(net.IPv6len)
+	var ipPool = dualstack.New()
 	for _, p := range prefixes {
-		ipPool.AddNet(ipNetToIpv6Net(p))
+		ipPool.AddIPNet(p)
 	}
 	return next.NewNetworkServiceServer(
 		&strictIPAMServer{ipPool: ipPool},
@@ -65,18 +65,6 @@ func (s *strictIPAMServer) Close(ctx context.Context, conn *networkservice.Conne
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func ipNetToIpv6Net(ipNet *net.IPNet) *net.IPNet {
-	if len(ipNet.IP) == net.IPv6len {
-		return ipNet
-	}
-	ipv6Net := new(net.IPNet)
-	ipv6Net.IP = ipNet.IP.To16()
-	ipv6Net.Mask = make([]byte, 16)
-	copy(ipv6Net.Mask[12:], ipNet.Mask)
-
-	return ipv6Net
-}
-
 func (s *strictIPAMServer) getInvalidAddrs(addrs []string) []string {
 	invalidAddrs := make([]string, 0)
 	for _, prefixString := range addrs {
@@ -86,7 +74,7 @@ func (s *strictIPAMServer) getInvalidAddrs(addrs []string) []string {
 			continue
 		}
 
-		if !s.ipPool.ContainsString(prefix.Addr().String()) {
+		if !s.ipPool.ContainsIPString(prefix.Addr().String()) {
 			invalidAddrs = append(invalidAddrs, prefixString)
 		}
 	}
@@ -140,7 +128,7 @@ func (s *strictIPAMServer) free(ipContext *networkservice.IPContext) {
 		if err != nil {
 			return
 		}
-		s.ipPool.AddNet(ipNetToIpv6Net(ipNet))
+		s.ipPool.AddIPNet(ipNet)
 	}
 
 	for _, addr := range ipContext.DstIpAddrs {
@@ -148,6 +136,6 @@ func (s *strictIPAMServer) free(ipContext *networkservice.IPContext) {
 		if err != nil {
 			return
 		}
-		s.ipPool.AddNet(ipNetToIpv6Net(ipNet))
+		s.ipPool.AddIPNet(ipNet)
 	}
 }

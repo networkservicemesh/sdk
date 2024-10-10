@@ -138,3 +138,20 @@ func Test_StrictIPAM_PositiveScenario(t *testing.T) {
 	})
 	require.NoError(t, err)
 }
+
+func TestNSEReplace(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("172.16.2.0/29")
+	require.NoError(t, err)
+
+	srv := next.NewNetworkServiceServer(strictipam.NewServer(point2pointipam.NewServer, ipNet))
+
+	request := newRequest("id1")
+	request.Connection.Context.IpContext.SrcIpAddrs = []string{"172.16.1.1/32"}
+	request.Connection.Context.IpContext.DstIpAddrs = []string{"172.16.1.0/32"}
+	request.Connection.Context.IpContext.SrcRoutes = []*networkservice.Route{{Prefix: "172.16.1.0/32"}}
+	request.Connection.Context.IpContext.DstRoutes = []*networkservice.Route{{Prefix: "172.16.1.1/32"}}
+
+	conn, err := srv.Request(context.Background(), request.Clone())
+	require.NoError(t, err)
+	validateConns(t, conn, []string{"172.16.2.0/32"}, []string{"172.16.2.1/32"})
+}
