@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,8 +36,8 @@ type beginClient struct {
 }
 
 // NewClient - creates a new begin chain element
-func NewClient(opts ...BeginOption) networkservice.NetworkServiceClient {
-	o := &beginOption{
+func NewClient(opts ...ClientOption) networkservice.NetworkServiceClient {
+	o := &clientOption{
 		reselectFunc: DefaultReselectFunc,
 	}
 	for _, opt := range opts {
