@@ -45,11 +45,9 @@ type ReselectFunc func(request *networkservice.NetworkServiceRequest)
 
 // DefaultReselectFunc - default ReselectFunc
 var DefaultReselectFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
-	if request.GetConnection() != nil {
-		request.GetConnection().Mechanism = nil
-		request.GetConnection().NetworkServiceEndpointName = ""
-		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
-	}
+	request.GetConnection().Mechanism = nil
+	request.GetConnection().NetworkServiceEndpointName = ""
+	request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
 }
 
 // EventFactory - allows firing off a Request or Close event from midchain
@@ -68,12 +66,14 @@ type eventFactoryClient struct {
 	opts               []grpc.CallOption
 	client             networkservice.NetworkServiceClient
 	afterCloseFunc     func()
+	reselectFunc       ReselectFunc
 }
 
-func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
+func newEventFactoryClient(ctx context.Context, afterClose func(), reselectFunc func(*networkservice.NetworkServiceRequest), opts ...grpc.CallOption) *eventFactoryClient {
 	f := &eventFactoryClient{
 		client:         next.Client(ctx),
 		initialCtxFunc: postpone.Context(ctx),
+		reselectFunc:   reselectFunc,
 		opts:           opts,
 	}
 	f.updateContext(ctx)
@@ -97,8 +97,7 @@ func (f *eventFactoryClient) updateContext(valueCtx context.Context) {
 
 func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 	o := &option{
-		cancelCtx:    context.Background(),
-		reselectFunc: DefaultReselectFunc,
+		cancelCtx: context.Background(),
 	}
 	for _, opt := range opts {
 		opt(o)
@@ -116,7 +115,9 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			if o.reselect {
 				ctx, cancel := f.ctxFunc()
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
-				o.reselectFunc(request)
+				if request.GetConnection() != nil {
+					f.reselectFunc(request)
+				}
 				cancel()
 			}
 			ctx, cancel := f.ctxFunc()

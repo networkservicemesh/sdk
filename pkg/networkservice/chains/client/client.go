@@ -53,7 +53,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 		append(
 			[]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
-				begin.NewClient(),
+				begin.NewClient(begin.WithReselectFunc(opts.reselectFunc)),
 				metadata.NewClient(),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),

@@ -185,7 +185,7 @@ func (cev *eventLoop) eventLoop() {
 			var options []begin.Option
 			if reselect {
 				cev.logger.Debugf("Reconnect with reselect")
-				options = append(options, begin.WithReselect(), begin.WithReselectFunc(cev.heal.reselectFunc))
+				options = append(options, begin.WithReselect())
 			}
 			err := <-cev.eventFactory.Request(options...)
 			if err == nil {

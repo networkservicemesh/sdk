@@ -929,12 +929,13 @@ func TestNSMGRHealEndpoint_CustomReselectFunc(t *testing.T) {
 
 	request := defaultRequest(nsReg.Name)
 
-	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken,
-		nsclient.WithHealClient(heal.NewClient(ctx, heal.WithReselectFunc(func(request *networkservice.NetworkServiceRequest) {
-			request.Connection.Labels = make(map[string]string)
-			request.Connection.Labels["key"] = "value"
-			request.Connection.NetworkServiceEndpointName = ""
-		}))))
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(heal.NewClient(ctx)),
+		nsclient.WithoutReselectFunc(
+			func(request *networkservice.NetworkServiceRequest) {
+				request.Connection.Labels = make(map[string]string)
+				request.Connection.Labels["key"] = "value"
+				request.Connection.NetworkServiceEndpointName = ""
+			}))
 
 	_, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)

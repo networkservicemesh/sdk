@@ -23,6 +23,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 )
 
@@ -36,6 +37,7 @@ type clientOptions struct {
 	healClient              networkservice.NetworkServiceClient
 	dialOptions             []grpc.DialOption
 	dialTimeout             time.Duration
+	reselectFunc            begin.ReselectFunc
 }
 
 // Option modifies default client chain values.
@@ -107,5 +109,12 @@ func WithDialTimeout(dialTimeout time.Duration) Option {
 func WithoutRefresh() Option {
 	return func(c *clientOptions) {
 		c.refreshClient = null.NewClient()
+	}
+}
+
+// WithoutReselectFunc sets a function for changing request parameters on reselect
+func WithoutReselectFunc(f func(*networkservice.NetworkServiceRequest)) Option {
+	return func(c *clientOptions) {
+		c.reselectFunc = f
 	}
 }

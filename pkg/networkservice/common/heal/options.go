@@ -21,8 +21,6 @@ import (
 	"time"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-
-	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 )
 
 const (
@@ -37,7 +35,6 @@ type options struct {
 	livenessCheck         LivenessCheck
 	livenessCheckInterval time.Duration
 	livenessCheckTimeout  time.Duration
-	reselectFunc          begin.ReselectFunc
 }
 
 // Option - option for heal.NewClient() chain element
@@ -61,12 +58,5 @@ func WithLivenessCheckInterval(livenessCheckInterval time.Duration) Option {
 func WithLivenessCheckTimeout(livenessCheckTimeout time.Duration) Option {
 	return func(o *options) {
 		o.livenessCheckTimeout = livenessCheckTimeout
-	}
-}
-
-// WithReselectFunc - sets a function for changing request parameters on reselect
-func WithReselectFunc(f begin.ReselectFunc) Option {
-	return func(o *options) {
-		o.reselectFunc = f
 	}
 }

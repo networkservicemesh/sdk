@@ -25,11 +25,16 @@ type option struct {
 	cancelCtx      context.Context
 	reselect       bool
 	contextTimeout time.Duration
-	reselectFunc   ReselectFunc
+}
+
+type beginOption struct {
+	reselectFunc ReselectFunc
 }
 
 // Option - event option
 type Option func(*option)
+
+type BeginOption func(*beginOption)
 
 // CancelContext - optionally provide a context that, when canceled will preclude the event from running
 func CancelContext(cancelCtx context.Context) Option {
@@ -53,8 +58,8 @@ func WithContextTimeout(timeout time.Duration) Option {
 }
 
 // WithReselectFunc - sets a function for changing request parameters on reselect
-func WithReselectFunc(reselectFunc ReselectFunc) Option {
-	return func(o *option) {
+func WithReselectFunc(reselectFunc ReselectFunc) BeginOption {
+	return func(o *beginOption) {
 		o.reselectFunc = reselectFunc
 	}
 }

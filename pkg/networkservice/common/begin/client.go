@@ -32,11 +32,21 @@ import (
 
 type beginClient struct {
 	genericsync.Map[string, *eventFactoryClient]
+	reselectFunc ReselectFunc
 }
 
 // NewClient - creates a new begin chain element
-func NewClient() networkservice.NetworkServiceClient {
-	return &beginClient{}
+func NewClient(opts ...BeginOption) networkservice.NetworkServiceClient {
+	o := &beginOption{
+		reselectFunc: DefaultReselectFunc,
+	}
+	for _, opt := range opts {
+		opt(o)
+	}
+
+	return &beginClient{
+		reselectFunc: o.reselectFunc,
+	}
 }
 
 func (b *beginClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (conn *networkservice.Connection, err error) {
@@ -54,6 +64,7 @@ func (b *beginClient) Request(ctx context.Context, request *networkservice.Netwo
 			func() {
 				b.Delete(request.GetRequestConnection().GetId())
 			},
+			b.reselectFunc,
 			opts...,
 		),
 	)
