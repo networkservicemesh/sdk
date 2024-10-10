@@ -32,7 +32,7 @@ import (
 
 type nseCache struct {
 	expireTimeout time.Duration
-	entries       genericsync.Map[string, *cacheEntry[registry.NetworkServiceEndpoint]]
+	entries       genericsync.Map[string, *cacheEntry]
 	clockTime     clock.Clock
 }
 
@@ -54,7 +54,7 @@ func newNSECache(ctx context.Context, opts ...NSECacheOption) *nseCache {
 				ticker.Stop()
 				return
 			case <-ticker.C():
-				c.entries.Range(func(_ string, e *cacheEntry[registry.NetworkServiceEndpoint]) bool {
+				c.entries.Range(func(_ string, e *cacheEntry) bool {
 					e.lock.Lock()
 					defer e.lock.Unlock()
 
@@ -70,10 +70,10 @@ func newNSECache(ctx context.Context, opts ...NSECacheOption) *nseCache {
 	return c
 }
 
-func (c *nseCache) LoadOrStore(value *registry.NetworkServiceEndpoint, cancel context.CancelFunc) (*cacheEntry[registry.NetworkServiceEndpoint], bool) {
+func (c *nseCache) LoadOrStore(value *registry.NetworkServiceEndpoint, cancel context.CancelFunc) (*cacheEntry, bool) {
 	var once sync.Once
 
-	entry, ok := c.entries.LoadOrStore(value.GetName(), &cacheEntry[registry.NetworkServiceEndpoint]{
+	entry, ok := c.entries.LoadOrStore(value.GetName(), &cacheEntry{
 		value:          value,
 		expirationTime: c.clockTime.Now().Add(c.expireTimeout),
 		cleanup: func() {
@@ -86,14 +86,17 @@ func (c *nseCache) LoadOrStore(value *registry.NetworkServiceEndpoint, cancel co
 	return entry, ok
 }
 
-func (c *nseCache) add(entry *cacheEntry[registry.NetworkServiceEndpoint], values []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
+func (c *nseCache) add(entry *cacheEntry, values []*registry.NetworkServiceEndpoint) []*registry.NetworkServiceEndpoint {
 	entry.lock.Lock()
 	defer entry.lock.Unlock()
 	if c.clockTime.Until(entry.expirationTime) < 0 {
 		entry.cleanup()
 	} else {
 		entry.expirationTime = c.clockTime.Now().Add(c.expireTimeout)
-		values = append(values, entry.value)
+		nse, ok := entry.value.(*registry.NetworkServiceEndpoint)
+		if ok {
+			values = append(values, nse)
+		}
 	}
 
 	return values
@@ -126,8 +129,9 @@ func (c *nseCache) Load(ctx context.Context, query *registry.NetworkServiceEndpo
 		return values
 	}
 
-	c.entries.Range(func(key string, entry *cacheEntry[registry.NetworkServiceEndpoint]) bool {
-		if subset(query.NetworkServiceEndpoint.NetworkServiceNames, entry.value.NetworkServiceNames) {
+	c.entries.Range(func(key string, entry *cacheEntry) bool {
+		nse, ok := entry.value.(*registry.NetworkServiceEndpoint)
+		if ok && subset(query.NetworkServiceEndpoint.NetworkServiceNames, nse.NetworkServiceNames) {
 			values = c.add(entry, values)
 		}
 		return true

@@ -30,7 +30,7 @@ import (
 
 type nsCache struct {
 	expireTimeout time.Duration
-	entries       genericsync.Map[string, *cacheEntry[registry.NetworkService]]
+	entries       genericsync.Map[string, *cacheEntry]
 	clockTime     clock.Clock
 }
 
@@ -52,7 +52,7 @@ func newNSCache(ctx context.Context, opts ...NSCacheOption) *nsCache {
 				ticker.Stop()
 				return
 			case <-ticker.C():
-				c.entries.Range(func(_ string, e *cacheEntry[registry.NetworkService]) bool {
+				c.entries.Range(func(_ string, e *cacheEntry) bool {
 					e.lock.Lock()
 					defer e.lock.Unlock()
 
@@ -68,10 +68,10 @@ func newNSCache(ctx context.Context, opts ...NSCacheOption) *nsCache {
 	return c
 }
 
-func (c *nsCache) LoadOrStore(value *registry.NetworkService, cancel context.CancelFunc) (*cacheEntry[registry.NetworkService], bool) {
+func (c *nsCache) LoadOrStore(value *registry.NetworkService, cancel context.CancelFunc) (*cacheEntry, bool) {
 	var once sync.Once
 
-	entry, ok := c.entries.LoadOrStore(value.GetName(), &cacheEntry[registry.NetworkService]{
+	entry, ok := c.entries.LoadOrStore(value.GetName(), &cacheEntry{
 		value:          value,
 		expirationTime: c.clockTime.Now().Add(c.expireTimeout),
 		cleanup: func() {
@@ -93,28 +93,31 @@ func (c *nsCache) Load(ctx context.Context, query *registry.NetworkService) *reg
 			entry.cleanup()
 		} else {
 			entry.expirationTime = c.clockTime.Now().Add(c.expireTimeout)
-			return entry.value
+			ns, ok := entry.value.(*registry.NetworkService)
+			if ok {
+				return ns
+			}
 		}
 	}
 
 	return nil
 }
 
-type cacheEntry[T registry.NetworkService | registry.NetworkServiceEndpoint] struct {
-	value          *T
+type cacheEntry struct {
+	value          interface{}
 	expirationTime time.Time
 	lock           sync.Mutex
 	cleanup        func()
 }
 
-func (e *cacheEntry[T]) Update(value *T) {
+func (e *cacheEntry) Update(value interface{}) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
 	e.value = value
 }
 
-func (e *cacheEntry[_]) Cleanup() {
+func (e *cacheEntry) Cleanup() {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
