@@ -71,11 +71,11 @@ func (p *IPPool) ContainsIPString(in string) bool {
 }
 
 // ContainsIPNet checks that pool contains ip net
-func (tree *IPPool) ContainsIPNet(ipNet *net.IPNet) bool {
+func (p *IPPool) ContainsIPNet(ipNet *net.IPNet) bool {
 	if ipNet.IP.To4() != nil {
-		return tree.IPv4IPPool.ContainsNet(ipNet)
+		return p.IPv4IPPool.ContainsNet(ipNet)
 	}
-	return tree.IPv6IPPool.ContainsNet(ipNet)
+	return p.IPv6IPPool.ContainsNet(ipNet)
 }
 
 // ContainsIPNetString parses ip net and checks that pool contains ip net
