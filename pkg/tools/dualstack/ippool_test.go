@@ -26,10 +26,10 @@ func TestContains(t *testing.T) {
 	ipPool := New()
 	ipPool.AddIPNetString("192.168.0.0/16")
 	ipPool.AddIPNetString("ff80::/64")
-	require.True(t, ipPool.ContainsIPString("192.168.0.1/32"))
-	require.False(t, ipPool.ContainsIPString("193.169.0.1/32"))
-	require.True(t, ipPool.ContainsIPString("ff80::ff10/128"))
-	require.False(t, ipPool.ContainsIPString("ff90::ff10/128"))
+	require.True(t, ipPool.ContainsIPString("192.168.0.1"))
+	require.False(t, ipPool.ContainsIPString("193.169.0.1"))
+	require.True(t, ipPool.ContainsIPString("ff80::ff10"))
+	require.False(t, ipPool.ContainsIPString("ff90::ff10"))
 }
 
 //nolint:dupl
