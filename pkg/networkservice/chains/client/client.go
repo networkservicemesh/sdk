@@ -44,6 +44,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 		authorizeClient: null.NewClient(),
 		healClient:      null.NewClient(),
 		refreshClient:   refresh.NewClient(ctx),
+		reselectFunc:    begin.DefaultReselectFunc,
 	}
 	for _, opt := range clientOpts {
 		opt(opts)
