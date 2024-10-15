@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2024 Cisco and/or its affiliates.
+// Copyright (c) 2022 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -142,15 +142,14 @@ func TestContextTimeout_Server(t *testing.T) {
 	clockMock := clockmock.New(ctx)
 	ctx = clock.WithClock(ctx, clockMock)
 
-	ctx, cancel = clockMock.WithDeadline(ctx, clockMock.Now().Add(time.Second*3))
+	ctx, cancel = context.WithDeadline(ctx, clockMock.Now().Add(time.Second*3))
 	defer cancel()
 
-	closeTimeout := time.Minute
 	eventFactoryServ := &eventFactoryServer{}
 	server := chain.NewNetworkServiceServer(
-		begin.NewServer(begin.WithCloseTimeout(closeTimeout)),
+		begin.NewServer(),
 		eventFactoryServ,
-		&delayedNSEServer{t: t, closeTimeout: closeTimeout, clock: clockMock},
+		&delayedNSEServer{t: t, clock: clockMock},
 	)
 
 	// Do Request
@@ -231,7 +230,6 @@ type delayedNSEServer struct {
 	t              *testing.T
 	clock          *clockmock.Mock
 	initialTimeout time.Duration
-	closeTimeout   time.Duration
 }
 
 func (d *delayedNSEServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -260,7 +258,7 @@ func (d *delayedNSEServer) Close(ctx context.Context, conn *networkservice.Conne
 	deadline, _ := ctx.Deadline()
 	clockTime := clock.FromContext(ctx)
 
-	require.Equal(d.t, d.closeTimeout, clockTime.Until(deadline))
+	require.Equal(d.t, d.initialTimeout, clockTime.Until(deadline))
 
 	return next.Server(ctx).Close(ctx, conn)
 }
