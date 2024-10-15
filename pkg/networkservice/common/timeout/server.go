@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2023 Cisco Systems, Inc.
+// Copyright (c) 2020-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -77,10 +77,11 @@ func (s *timeoutServer) Request(ctx context.Context, request *networkservice.Net
 	afterCh := timeClock.After(timeClock.Until(expirationTime) - requestTimeout)
 
 	go func(cancelCtx context.Context, afterCh <-chan time.Time) {
+		defer cancel()
 		select {
 		case <-cancelCtx.Done():
 		case <-afterCh:
-			eventFactory.Close(begin.CancelContext(cancelCtx))
+			<-eventFactory.Close(begin.CancelContext(cancelCtx))
 		}
 	}(cancelCtx, afterCh)
 
