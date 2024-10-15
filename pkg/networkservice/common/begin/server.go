@@ -18,14 +18,12 @@ package begin
 
 import (
 	"context"
-	"time"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/types/known/emptypb"
 
-	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
@@ -33,30 +31,14 @@ import (
 
 type beginServer struct {
 	genericsync.Map[string, *eventFactoryServer]
-	contextTimeout time.Duration
 }
 
 // NewServer - creates a new begin chain element
-func NewServer(opts ...Option) networkservice.NetworkServiceServer {
-	o := &option{
-		cancelCtx:      context.Background(),
-		reselect:       false,
-		contextTimeout: time.Minute,
-	}
-
-	for _, opt := range opts {
-		opt(o)
-	}
-
-	return &beginServer{
-		contextTimeout: o.contextTimeout,
-	}
+func NewServer() networkservice.NetworkServiceServer {
+	return &beginServer{}
 }
 
-func (b *beginServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	var conn *networkservice.Connection
-	var err error
-
+func (b *beginServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (conn *networkservice.Connection, err error) {
 	// No connection.ID, no service
 	if request.GetConnection().GetId() == "" {
 		return nil, errors.New("request.EventFactory.Id must not be zero valued")
@@ -68,14 +50,12 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 	eventFactoryServer, _ := b.LoadOrStore(request.GetConnection().GetId(),
 		newEventFactoryServer(
 			ctx,
-			b.contextTimeout,
 			func() {
 				b.Delete(request.GetRequestConnection().GetId())
 			},
 		),
 	)
-	select {
-	case <-eventFactoryServer.executor.AsyncExec(func() {
+	<-eventFactoryServer.executor.AsyncExec(func() {
 		currentEventFactoryServer, _ := b.Load(request.GetConnection().GetId())
 		if currentEventFactoryServer != eventFactoryServer {
 			log.FromContext(ctx).Debug("recalling begin.Request because currentEventFactoryServer != eventFactoryServer")
@@ -88,12 +68,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryServer.request != nil && eventFactoryServer.request.Connection != nil {
 			log.FromContext(ctx).Info("Closing connection due to RESELECT_REQUESTED state")
 
-			closeCtx, cancel := context.WithTimeout(context.Background(), b.contextTimeout)
-			defer cancel()
-
 			eventFactoryCtx, eventFactoryCtxCancel := eventFactoryServer.ctxFunc()
-			closeCtx = extend.WithValuesFromContext(closeCtx, eventFactoryCtx)
-			_, closeErr := next.Server(closeCtx).Close(closeCtx, eventFactoryServer.request.Connection)
+			_, closeErr := next.Server(eventFactoryCtx).Close(eventFactoryCtx, eventFactoryServer.request.Connection)
 			if closeErr != nil {
 				log.FromContext(ctx).Errorf("Can't close old connection: %v", closeErr)
 			}
@@ -101,11 +77,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryCtxCancel()
 		}
 
-		extendedCtx, cancel := context.WithTimeout(context.Background(), b.contextTimeout)
-		extendedCtx = extend.WithValuesFromContext(extendedCtx, withEventFactory(ctx, eventFactoryServer))
-		defer cancel()
-
-		conn, err = next.Server(extendedCtx).Request(extendedCtx, request)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed
@@ -120,48 +93,33 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 
 		eventFactoryServer.returnedConnection = conn.Clone()
 		eventFactoryServer.updateContext(ctx)
-	}):
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-
+	})
 	return conn, err
 }
 
-func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection) (*emptypb.Empty, error) {
-	var err error
-	connID := conn.GetId()
+func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection) (emp *emptypb.Empty, err error) {
 	// If some other EventFactory is already in the ctx... we are already running in an executor, and can just execute normally
 	if fromContext(ctx) != nil {
 		return next.Server(ctx).Close(ctx, conn)
 	}
-	eventFactoryServer, ok := b.Load(connID)
+	eventFactoryServer, ok := b.Load(conn.GetId())
 	if !ok {
 		// If we don't have a connection to Close, just let it be
 		return &emptypb.Empty{}, nil
 	}
-
-	select {
-	case <-eventFactoryServer.executor.AsyncExec(func() {
+	<-eventFactoryServer.executor.AsyncExec(func() {
 		if eventFactoryServer.state != established || eventFactoryServer.request == nil {
 			return
 		}
-		currentServerClient, _ := b.Load(connID)
+		currentServerClient, _ := b.Load(conn.GetId())
 		if currentServerClient != eventFactoryServer {
 			return
 		}
-		extendedCtx, cancel := context.WithTimeout(context.Background(), b.contextTimeout)
-		extendedCtx = extend.WithValuesFromContext(extendedCtx, withEventFactory(ctx, eventFactoryServer))
-		defer cancel()
-
 		// Always close with the last valid EventFactory we got
 		conn = eventFactoryServer.request.Connection
-		_, err = next.Server(extendedCtx).Close(extendedCtx, conn)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		emp, err = next.Server(withEventFactoryCtx).Close(withEventFactoryCtx, conn)
 		eventFactoryServer.afterCloseFunc()
-	}):
-		return &emptypb.Empty{}, err
-	case <-ctx.Done():
-		b.Delete(connID)
-		return nil, ctx.Err()
-	}
+	})
+	return &emptypb.Empty{}, err
 }

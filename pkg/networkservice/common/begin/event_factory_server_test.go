@@ -33,6 +33,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
+	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
 )
 
 // This test reproduces the situation when refresh changes the eventFactory context
@@ -137,12 +138,18 @@ func TestContextTimeout_Server(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	contextTimeout := time.Second * 2
+	// Add clockMock to the context
+	clockMock := clockmock.New(ctx)
+	ctx = clock.WithClock(ctx, clockMock)
+
+	ctx, cancel = context.WithDeadline(ctx, clockMock.Now().Add(time.Second*3))
+	defer cancel()
+
 	eventFactoryServ := &eventFactoryServer{}
 	server := chain.NewNetworkServiceServer(
-		begin.NewServer(begin.WithContextTimeout(contextTimeout)),
+		begin.NewServer(),
 		eventFactoryServ,
-		&delayedNSEServer{t: t, contextTimeout: contextTimeout},
+		&delayedNSEServer{t: t, clock: clockMock},
 	)
 
 	// Do Request
@@ -221,8 +228,8 @@ func (f *failedNSEServer) Close(ctx context.Context, conn *networkservice.Connec
 
 type delayedNSEServer struct {
 	t              *testing.T
+	clock          *clockmock.Mock
 	initialTimeout time.Duration
-	contextTimeout time.Duration
 }
 
 func (d *delayedNSEServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
@@ -238,10 +245,10 @@ func (d *delayedNSEServer) Request(ctx context.Context, request *networkservice.
 		d.initialTimeout = timeout
 	}
 	// All requests timeout must be equal the first
-	require.Less(d.t, (d.initialTimeout - timeout).Abs(), time.Second)
+	require.Equal(d.t, d.initialTimeout, timeout)
 
 	// Add delay
-	time.Sleep(timeout / 2)
+	d.clock.Add(timeout / 2)
 	return next.Server(ctx).Request(ctx, request)
 }
 
@@ -249,9 +256,9 @@ func (d *delayedNSEServer) Close(ctx context.Context, conn *networkservice.Conne
 	require.Greater(d.t, d.initialTimeout, time.Duration(0))
 
 	deadline, _ := ctx.Deadline()
-	timeout := time.Until(deadline)
+	clockTime := clock.FromContext(ctx)
 
-	require.Less(d.t, (d.contextTimeout - timeout).Abs(), time.Second)
+	require.Equal(d.t, d.initialTimeout, clockTime.Until(deadline))
 
 	return next.Server(ctx).Close(ctx, conn)
 }

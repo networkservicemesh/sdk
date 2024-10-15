@@ -18,7 +18,6 @@ package begin
 
 import (
 	"context"
-	"time"
 
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
@@ -159,16 +158,14 @@ type eventFactoryServer struct {
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
-	contextTimeout     time.Duration
 	afterCloseFunc     func()
 	server             networkservice.NetworkServiceServer
 }
 
-func newEventFactoryServer(ctx context.Context, contextTimeout time.Duration, afterClose func()) *eventFactoryServer {
+func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
 	f := &eventFactoryServer{
 		server:         next.Server(ctx),
 		initialCtxFunc: postpone.Context(ctx),
-		contextTimeout: contextTimeout,
 	}
 	f.updateContext(ctx)
 
@@ -206,12 +203,7 @@ func (f *eventFactoryServer) Request(opts ...Option) <-chan error {
 		default:
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-
-			extendedCtx, cancel := context.WithTimeout(context.Background(), f.contextTimeout)
-			defer cancel()
-
-			extendedCtx = extend.WithValuesFromContext(extendedCtx, ctx)
-			conn, err := f.server.Request(extendedCtx, f.request)
+			conn, err := f.server.Request(ctx, f.request)
 			if err == nil && f.request != nil {
 				f.request.Connection = conn
 			}
@@ -239,12 +231,7 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 		default:
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-
-			extendedCtx, cancel := context.WithTimeout(context.Background(), f.contextTimeout)
-			defer cancel()
-
-			extendedCtx = extend.WithValuesFromContext(extendedCtx, ctx)
-			_, err := f.server.Close(extendedCtx, f.request.GetConnection())
+			_, err := f.server.Close(ctx, f.request.GetConnection())
 			f.afterCloseFunc()
 			ch <- err
 		}

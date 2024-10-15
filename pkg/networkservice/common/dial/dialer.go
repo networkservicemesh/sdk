@@ -20,7 +20,6 @@ import (
 	"context"
 	"net/url"
 	"runtime"
-	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -31,13 +30,13 @@ import (
 )
 
 type dialer struct {
-	ctx           context.Context
-	clientURL     *url.URL
-	cleanupCancel context.CancelFunc
+	ctx            context.Context
+	cleanupContext context.Context
+	clientURL      *url.URL
+	cleanupCancel  context.CancelFunc
 	*grpc.ClientConn
 	dialOptions []grpc.DialOption
 	dialTimeout time.Duration
-	mu          sync.Mutex
 }
 
 func newDialer(ctx context.Context, dialTimeout time.Duration, dialOptions ...grpc.DialOption) *dialer {
@@ -57,10 +56,8 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 		di.cleanupCancel()
 	}
 
-	di.mu.Lock()
 	// Set the clientURL
 	di.clientURL = clientURL
-	di.mu.Unlock()
 
 	// Setup dialTimeout if needed
 	dialCtx := ctx
@@ -69,10 +66,7 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 	}
 
 	// Dial
-	di.mu.Lock()
 	target := grpcutils.URLToTarget(di.clientURL)
-	di.mu.Unlock()
-
 	cc, err := grpc.DialContext(dialCtx, target, di.dialOptions...)
 	if err != nil {
 		if cc != nil {
@@ -80,32 +74,26 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 		}
 		return errors.Wrapf(err, "failed to dial %s", target)
 	}
-	di.mu.Lock()
 	di.ClientConn = cc
-	var cleanupContext context.Context
-	cleanupContext, di.cleanupCancel = context.WithCancel(di.ctx)
-	di.mu.Unlock()
+
+	di.cleanupContext, di.cleanupCancel = context.WithCancel(di.ctx)
 
 	go func(cleanupContext context.Context, cc *grpc.ClientConn) {
 		<-cleanupContext.Done()
 		_ = cc.Close()
-	}(cleanupContext, cc)
+	}(di.cleanupContext, cc)
 	return nil
 }
 
 func (di *dialer) Close() error {
 	if di != nil && di.cleanupCancel != nil {
-		di.mu.Lock()
 		di.cleanupCancel()
-		di.mu.Unlock()
 		runtime.Gosched()
 	}
 	return nil
 }
 
 func (di *dialer) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
-	di.mu.Lock()
-	defer di.mu.Unlock()
 	if di.ClientConn == nil {
 		return errors.New("no dialer.ClientConn found")
 	}
@@ -113,9 +101,6 @@ func (di *dialer) Invoke(ctx context.Context, method string, args, reply interfa
 }
 
 func (di *dialer) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
-	di.mu.Lock()
-	defer di.mu.Unlock()
-
 	if di.ClientConn == nil {
 		return nil, errors.New("no dialer.ClientConn found")
 	}
