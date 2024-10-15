@@ -33,15 +33,15 @@ import (
 
 type beginServer struct {
 	genericsync.Map[string, *eventFactoryServer]
-	contextTimeout time.Duration
+	closeTimeout time.Duration
 }
 
 // NewServer - creates a new begin chain element
 func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	o := &option{
-		cancelCtx:      context.Background(),
-		reselect:       false,
-		contextTimeout: time.Minute,
+		cancelCtx:    context.Background(),
+		reselect:     false,
+		closeTimeout: time.Minute,
 	}
 
 	for _, opt := range opts {
@@ -49,7 +49,7 @@ func NewServer(opts ...Option) networkservice.NetworkServiceServer {
 	}
 
 	return &beginServer{
-		contextTimeout: o.contextTimeout,
+		closeTimeout: o.closeTimeout,
 	}
 }
 
@@ -68,7 +68,7 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 	eventFactoryServer, _ := b.LoadOrStore(request.GetConnection().GetId(),
 		newEventFactoryServer(
 			ctx,
-			b.contextTimeout,
+			b.closeTimeout,
 			func() {
 				b.Delete(request.GetRequestConnection().GetId())
 			},
@@ -88,12 +88,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryServer.request != nil && eventFactoryServer.request.Connection != nil {
 			log.FromContext(ctx).Info("Closing connection due to RESELECT_REQUESTED state")
 
-			closeCtx, cancel := context.WithTimeout(context.Background(), b.contextTimeout)
-			defer cancel()
-
 			eventFactoryCtx, eventFactoryCtxCancel := eventFactoryServer.ctxFunc()
-			closeCtx = extend.WithValuesFromContext(closeCtx, eventFactoryCtx)
-			_, closeErr := next.Server(closeCtx).Close(closeCtx, eventFactoryServer.request.Connection)
+			_, closeErr := next.Server(eventFactoryCtx).Close(eventFactoryCtx, eventFactoryServer.request.Connection)
 			if closeErr != nil {
 				log.FromContext(ctx).Errorf("Can't close old connection: %v", closeErr)
 			}
@@ -101,11 +97,8 @@ func (b *beginServer) Request(ctx context.Context, request *networkservice.Netwo
 			eventFactoryCtxCancel()
 		}
 
-		extendedCtx, cancel := context.WithTimeout(context.Background(), b.contextTimeout)
-		extendedCtx = extend.WithValuesFromContext(extendedCtx, withEventFactory(ctx, eventFactoryServer))
-		defer cancel()
-
-		conn, err = next.Server(extendedCtx).Request(extendedCtx, request)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		conn, err = next.Server(withEventFactoryCtx).Request(withEventFactoryCtx, request)
 		if err != nil {
 			if eventFactoryServer.state != established {
 				eventFactoryServer.state = closed
@@ -150,13 +143,14 @@ func (b *beginServer) Close(ctx context.Context, conn *networkservice.Connection
 		if currentServerClient != eventFactoryServer {
 			return
 		}
-		extendedCtx, cancel := context.WithTimeout(context.Background(), b.contextTimeout)
-		extendedCtx = extend.WithValuesFromContext(extendedCtx, withEventFactory(ctx, eventFactoryServer))
+		closeCtx, cancel := context.WithTimeout(context.Background(), b.closeTimeout)
 		defer cancel()
 
 		// Always close with the last valid EventFactory we got
 		conn = eventFactoryServer.request.Connection
-		_, err = next.Server(extendedCtx).Close(extendedCtx, conn)
+		withEventFactoryCtx := withEventFactory(ctx, eventFactoryServer)
+		closeCtx = extend.WithValuesFromContext(closeCtx, withEventFactoryCtx)
+		_, err = next.Server(closeCtx).Close(closeCtx, conn)
 		eventFactoryServer.afterCloseFunc()
 	}):
 		return &emptypb.Empty{}, err
