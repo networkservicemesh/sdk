@@ -14,32 +14,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package strictipam provides a networkservice.NetworkService Server chain element for building an IPAM server that prevents IP context configuration out of the settings scope
+// Package strictipam provides a networkservice.NetworkService Server chain element for building an IPAM server that
+// filters some invalid addresses and routes in IP context
 package strictipam
 
 import (
 	"context"
 	"net"
+	"net/netip"
 
 	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
-	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/dualstack"
 )
 
 type strictIPAMServer struct {
-	ipPool *ippool.IPPool
+	ipPool *dualstack.IPPool
 }
 
-// NewServer - returns a new ipam networkservice.NetworkServiceServer that validates the incoming IP context parameters and resets them based on the validation result.
+// NewServer - creates a new strict IPAM server
 func NewServer(newIPAMServer func(...*net.IPNet) networkservice.NetworkServiceServer, prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
 	if newIPAMServer == nil {
 		panic("newIPAMServer should not be nil")
 	}
-	var ipPool = ippool.New(net.IPv6len)
+	var ipPool = dualstack.New()
 	for _, p := range prefixes {
-		ipPool.AddNet(p)
+		ipPool.AddIPNet(p)
 	}
 	return next.NewNetworkServiceServer(
 		&strictIPAMServer{ipPool: ipPool},
@@ -47,24 +49,93 @@ func NewServer(newIPAMServer func(...*net.IPNet) networkservice.NetworkServiceSe
 	)
 }
 
-func (n *strictIPAMServer) areAddressesValid(addresses []string) bool {
-	for _, srcIP := range addresses {
-		if !n.ipPool.ContainsString(srcIP) {
-			return false
+func (s *strictIPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
+	s.validateIPContext(request.Connection.Context.IpContext)
+	conn, err := next.Server(ctx).Request(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	s.pullAddrs(conn.Context.IpContext)
+	return conn, nil
+}
+
+func (s *strictIPAMServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
+	s.free(conn.Context.IpContext)
+	return next.Server(ctx).Close(ctx, conn)
+}
+
+func (s *strictIPAMServer) getInvalidAddrs(addrs []string) []string {
+	invalidAddrs := make([]string, 0)
+	for _, prefixString := range addrs {
+		prefix, parseErr := netip.ParsePrefix(prefixString)
+		if parseErr != nil {
+			invalidAddrs = append(invalidAddrs, prefixString)
+			continue
+		}
+
+		if !s.ipPool.ContainsIPString(prefix.Addr().String()) {
+			invalidAddrs = append(invalidAddrs, prefixString)
 		}
 	}
-	return true
+
+	return invalidAddrs
 }
 
-func (n *strictIPAMServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if !n.areAddressesValid(request.GetConnection().GetContext().GetIpContext().GetSrcIpAddrs()) ||
-		!n.areAddressesValid(request.GetConnection().GetContext().GetIpContext().GetDstIpAddrs()) {
-		request.GetConnection().GetContext().IpContext = &networkservice.IPContext{}
+func (s *strictIPAMServer) validateIPContext(ipContext *networkservice.IPContext) {
+	for _, addr := range s.getInvalidAddrs(ipContext.SrcIpAddrs) {
+		deleteAddr(&ipContext.SrcIpAddrs, addr)
+		deleteRoute(&ipContext.DstRoutes, addr)
 	}
 
-	return next.Server(ctx).Request(ctx, request)
+	for _, addr := range s.getInvalidAddrs(ipContext.DstIpAddrs) {
+		deleteAddr(&ipContext.DstIpAddrs, addr)
+		deleteRoute(&ipContext.SrcRoutes, addr)
+	}
 }
 
-func (n *strictIPAMServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	return next.Server(ctx).Close(ctx, conn)
+func deleteRoute(routes *[]*networkservice.Route, prefix string) {
+	for i, route := range *routes {
+		if route.Prefix == prefix {
+			*routes = append((*routes)[:i], (*routes)[i+1:]...)
+			return
+		}
+	}
+}
+
+func deleteAddr(addrs *[]string, addr string) {
+	for i, a := range *addrs {
+		if a == addr {
+			*addrs = append((*addrs)[:i], (*addrs)[i+1:]...)
+			return
+		}
+	}
+}
+
+func (s *strictIPAMServer) pullAddrs(ipContext *networkservice.IPContext) {
+	for _, addr := range ipContext.SrcIpAddrs {
+		_, _ = s.ipPool.PullIPString(addr)
+	}
+
+	for _, addr := range ipContext.DstIpAddrs {
+		_, _ = s.ipPool.PullIPString(addr)
+	}
+}
+
+func (s *strictIPAMServer) free(ipContext *networkservice.IPContext) {
+	for _, addr := range ipContext.SrcIpAddrs {
+		_, ipNet, err := net.ParseCIDR(addr)
+		if err != nil {
+			return
+		}
+		s.ipPool.AddIPNet(ipNet)
+	}
+
+	for _, addr := range ipContext.DstIpAddrs {
+		_, ipNet, err := net.ParseCIDR(addr)
+		if err != nil {
+			return
+		}
+		s.ipPool.AddIPNet(ipNet)
+	}
 }
