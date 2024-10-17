@@ -40,7 +40,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.20.0
 	go.uber.org/atomic v1.7.0
 	go.uber.org/goleak v1.3.0
-	golang.org/x/net v0.21.0
+	golang.org/x/net v0.23.0
 	gonum.org/v1/gonum v0.6.2
 	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.33.0
