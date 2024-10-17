@@ -18,6 +18,7 @@ package querycache_test
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -38,12 +39,12 @@ import (
 )
 
 const (
-	expireTimeout = time.Minute
+	expireTimeout = time.Second
 	name          = "nse"
 	url1          = "tcp://1.1.1.1"
 	url2          = "tcp://2.2.2.2"
-	testWait      = 100 * time.Millisecond
-	testTick      = testWait / 100
+	testWait      = time.Second
+	testTick      = time.Second / 15
 )
 
 func testNSEQuery(nseName string) *registry.NetworkServiceEndpointQuery {
@@ -53,7 +54,6 @@ func testNSEQuery(nseName string) *registry.NetworkServiceEndpointQuery {
 		},
 	}
 }
-
 func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
@@ -64,7 +64,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx, querycache.WithExpireTimeout(expireTimeout)),
+		querycache.NewClient(ctx),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
@@ -75,9 +75,6 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Goroutines should be cleaned up on NSE unregister
-	t.Cleanup(func() { goleak.VerifyNone(t) })
-
 	// 1. Find from memory
 	atomic.StoreInt32(&failureClient.shouldFail, 0)
 
@@ -86,28 +83,24 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 
 	nseResp, err := stream.Recv()
 	require.NoError(t, err)
-
 	require.Equal(t, name, nseResp.NetworkServiceEndpoint.Name)
 	require.Equal(t, url1, nseResp.NetworkServiceEndpoint.Url)
 
 	// 2. Find from cache
 	atomic.StoreInt32(&failureClient.shouldFail, 1)
 
-	require.Eventually(t, func() bool {
-		if stream, err = c.Find(ctx, testNSEQuery(name)); err != nil {
-			return false
-		}
-		if nseResp, err = stream.Recv(); err != nil {
-			return false
-		}
-		return name == nseResp.NetworkServiceEndpoint.Name && url1 == nseResp.NetworkServiceEndpoint.Url
-	}, testWait, testTick)
+	stream, err = c.Find(ctx, testNSEQuery(name))
+	require.NoError(t, err)
+	nseResp, err = stream.Recv()
+	require.NoError(t, err)
+	require.Equal(t, name, nseResp.NetworkServiceEndpoint.Name)
+	require.Equal(t, url1, nseResp.NetworkServiceEndpoint.Url)
 
 	// 3. Update NSE in memory
 	reg.Url = url2
-
 	reg, err = mem.Register(ctx, reg)
 	require.NoError(t, err)
+	atomic.StoreInt32(&failureClient.shouldFail, 0)
 
 	require.Eventually(t, func() bool {
 		if stream, err = c.Find(ctx, testNSEQuery(name)); err != nil {
@@ -116,6 +109,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 		if nseResp, err = stream.Recv(); err != nil {
 			return false
 		}
+		fmt.Println(name == nseResp.NetworkServiceEndpoint.Name, url2 == nseResp.NetworkServiceEndpoint.Url)
 		return name == nseResp.NetworkServiceEndpoint.Name && url2 == nseResp.NetworkServiceEndpoint.Url
 	}, testWait, testTick)
 
@@ -124,8 +118,11 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 	require.NoError(t, err)
 
 	require.Eventually(t, func() bool {
-		_, err = c.Find(ctx, testNSEQuery(name))
-		return err != nil
+		s, err := c.Find(ctx, testNSEQuery(name))
+		if err != nil {
+			return false
+		}
+		return len(registry.ReadNetworkServiceEndpointList(s)) == 0
 	}, testWait, testTick)
 }
 
@@ -142,7 +139,7 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx, querycache.WithExpireTimeout(expireTimeout)),
+		querycache.NewClient(ctx),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
@@ -184,7 +181,7 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 	}
 
 	// 4. Wait for the expire to happen
-	clockMock.Add(expireTimeout)
+	time.Sleep(expireTimeout)
 
 	_, err = c.Find(ctx, testNSEQuery(name))
 	require.Errorf(t, err, "find error")

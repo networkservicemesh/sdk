@@ -55,6 +55,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
@@ -267,6 +268,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				opts.authorizeNSERegistryClient,
 				grpcmetadata.NewNetworkServiceEndpointRegistryClient(),
+				querycache.NewClient(ctx),
 				dial.NewNetworkServiceEndpointRegistryClient(ctx,
 					dial.WithDialTimeout(opts.dialTimeout),
 					dial.WithDialOptions(opts.dialOptions...),
