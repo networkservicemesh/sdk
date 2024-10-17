@@ -18,7 +18,6 @@ package querycache_test
 
 import (
 	"context"
-	"fmt"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -64,7 +63,7 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx),
+		querycache.NewNetworkServiceEndpointRegistryClient(ctx),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)
@@ -109,7 +108,6 @@ func Test_QueryCacheClient_ShouldCacheNSEs(t *testing.T) {
 		if nseResp, err = stream.Recv(); err != nil {
 			return false
 		}
-		fmt.Println(name == nseResp.NetworkServiceEndpoint.Name, url2 == nseResp.NetworkServiceEndpoint.Url)
 		return name == nseResp.NetworkServiceEndpoint.Name && url2 == nseResp.NetworkServiceEndpoint.Url
 	}, testWait, testTick)
 
@@ -139,7 +137,7 @@ func Test_QueryCacheClient_ShouldCleanUpOnTimeout(t *testing.T) {
 
 	failureClient := new(failureNSEClient)
 	c := next.NewNetworkServiceEndpointRegistryClient(
-		querycache.NewClient(ctx),
+		querycache.NewNetworkServiceEndpointRegistryClient(ctx),
 		failureClient,
 		adapters.NetworkServiceEndpointServerToClient(mem),
 	)

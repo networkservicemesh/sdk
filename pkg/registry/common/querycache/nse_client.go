@@ -32,15 +32,15 @@ import (
 )
 
 type queryCacheNSEClient struct {
-	ctx   context.Context
-	cache cache.Cache[string, []*registry.NetworkServiceEndpoint]
+	chainContext context.Context
+	cache        cache.Cache[string, []*registry.NetworkServiceEndpoint]
 }
 
 // NewClient creates new querycache NSE registry client that caches all resolved NSEs
-func NewClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
+func NewNetworkServiceEndpointRegistryClient(ctx context.Context) registry.NetworkServiceEndpointRegistryClient {
 	var res = &queryCacheNSEClient{
-		ctx:   ctx,
-		cache: cache.NewCache[string, []*registry.NetworkServiceEndpoint]().WithLRU().WithMaxKeys(32).WithTTL(time.Millisecond * 300),
+		chainContext: ctx,
+		cache:        cache.NewCache[string, []*registry.NetworkServiceEndpoint]().WithLRU().WithMaxKeys(32).WithTTL(time.Millisecond * 300),
 	}
 	return res
 }
@@ -67,8 +67,9 @@ func (q *queryCacheNSEClient) Find(ctx context.Context, query *registry.NetworkS
 			return streamClient, err
 		}
 		list = registry.ReadNetworkServiceEndpointList(streamClient)
-		q.cache.Add(query.GetNetworkServiceEndpoint().GetName(), list)
-
+		for _, item := range list {
+			q.cache.Add(item.GetName(), []*registry.NetworkServiceEndpoint{item.Clone()})
+		}
 	}
 	var resultStreamChannel = make(chan *registry.NetworkServiceEndpointResponse, len(list))
 	for _, item := range list {
