@@ -1,6 +1,4 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
-//
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,19 +22,20 @@ import (
 	"time"
 
 	"github.com/edwarnicke/genericsync"
+
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 )
 
-type cache struct {
+type nsCache struct {
 	expireTimeout time.Duration
 	entries       genericsync.Map[string, *cacheEntry]
 	clockTime     clock.Clock
 }
 
-func newCache(ctx context.Context, opts ...Option) *cache {
-	c := &cache{
+func newNSCache(ctx context.Context, opts ...NSCacheOption) *nsCache {
+	c := &nsCache{
 		expireTimeout: time.Minute,
 		clockTime:     clock.FromContext(ctx),
 	}
@@ -60,7 +59,6 @@ func newCache(ctx context.Context, opts ...Option) *cache {
 					if c.clockTime.Until(e.expirationTime) < 0 {
 						e.cleanup()
 					}
-
 					return true
 				})
 			}
@@ -70,51 +68,53 @@ func newCache(ctx context.Context, opts ...Option) *cache {
 	return c
 }
 
-func (c *cache) LoadOrStore(key string, nse *registry.NetworkServiceEndpoint, cancel context.CancelFunc) (*cacheEntry, bool) {
+func (c *nsCache) LoadOrStore(value *registry.NetworkService, cancel context.CancelFunc) (*cacheEntry, bool) {
 	var once sync.Once
-	return c.entries.LoadOrStore(key, &cacheEntry{
-		nse:            nse,
+
+	entry, ok := c.entries.LoadOrStore(value.GetName(), &cacheEntry{
+		value:          value,
 		expirationTime: c.clockTime.Now().Add(c.expireTimeout),
 		cleanup: func() {
 			once.Do(func() {
-				c.entries.Delete(key)
+				c.entries.Delete(value.GetName())
 				cancel()
 			})
-		},
-	})
+		}})
+
+	return entry, ok
 }
 
-func (c *cache) Load(key string) (*registry.NetworkServiceEndpoint, bool) {
-	e, ok := c.entries.Load(key)
-	if !ok {
-		return nil, false
+func (c *nsCache) Load(ctx context.Context, query *registry.NetworkService) *registry.NetworkService {
+	entry, ok := c.entries.Load(query.Name)
+	if ok {
+		entry.lock.Lock()
+		defer entry.lock.Unlock()
+		if c.clockTime.Until(entry.expirationTime) < 0 {
+			entry.cleanup()
+		} else {
+			entry.expirationTime = c.clockTime.Now().Add(c.expireTimeout)
+			ns, ok := entry.value.(*registry.NetworkService)
+			if ok {
+				return ns
+			}
+		}
 	}
 
-	e.lock.Lock()
-	defer e.lock.Unlock()
-
-	if c.clockTime.Until(e.expirationTime) < 0 {
-		e.cleanup()
-		return nil, false
-	}
-
-	e.expirationTime = c.clockTime.Now().Add(c.expireTimeout)
-
-	return e.nse, true
+	return nil
 }
 
 type cacheEntry struct {
-	nse            *registry.NetworkServiceEndpoint
+	value          interface{}
 	expirationTime time.Time
 	lock           sync.Mutex
 	cleanup        func()
 }
 
-func (e *cacheEntry) Update(nse *registry.NetworkServiceEndpoint) {
+func (e *cacheEntry) Update(value interface{}) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 
-	e.nse = nse
+	e.value = value
 }
 
 func (e *cacheEntry) Cleanup() {
