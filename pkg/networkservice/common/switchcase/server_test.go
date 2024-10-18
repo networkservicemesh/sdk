@@ -33,7 +33,6 @@ import (
 func TestSwitchServer(t *testing.T) {
 	for _, s := range testSamples() {
 		t.Run(s.name, func(t *testing.T) {
-			// nolint:scopelint
 			testSwitchServer(t, s.conditions, s.result)
 		})
 	}

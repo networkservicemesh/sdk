@@ -70,6 +70,6 @@ func condition(n int) switchcase.Condition {
 }
 
 func withN(ctx context.Context, n int) context.Context {
-	// nolint:golint,staticcheck
+	// nolint:staticcheck
 	return context.WithValue(ctx, "key", n)
 }
