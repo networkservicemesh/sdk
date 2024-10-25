@@ -161,7 +161,7 @@ func TestTraceOutput(t *testing.T) {
 }
 
 func TestErrorOutput(t *testing.T) {
-	t.Skip()
+	_ = os.Setenv("TELEMETRY", "true")
 	// Configure logging
 	// Set output to buffer
 	var buff bytes.Buffer

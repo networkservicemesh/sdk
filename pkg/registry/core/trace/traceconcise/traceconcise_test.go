@@ -22,6 +22,7 @@ package traceconcise_test
 import (
 	"bytes"
 	"context"
+	"os"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -41,7 +42,7 @@ import (
 )
 
 func TestOutput(t *testing.T) {
-	t.Skip()
+	_ = os.Setenv("TELEMETRY", "true")
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	var buff bytes.Buffer
@@ -90,7 +91,7 @@ func TestOutput(t *testing.T) {
 }
 
 func TestErrorOutput(t *testing.T) {
-	t.Skip()
+	_ = os.Setenv("TELEMETRY", "true")
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
 	var buff bytes.Buffer
