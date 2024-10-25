@@ -27,7 +27,7 @@ import (
 
 // NewDNSHandler - chains together a list of dnsutils.Handler with tracing
 func NewDNSHandler(handlers ...dnsutils.Handler) dnsutils.Handler {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if opentelemetry.IsEnabled() {
 		return next.NewDNSHandler(
 			next.NewWrappedDNSHandler(trace.NewDNSHandler, handlers...),
 		)
