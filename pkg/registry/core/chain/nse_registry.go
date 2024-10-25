@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
+// Copyright (c) 2020-2023 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2024 Cisco Systems, Inc.
+// Copyright (c) 2020-2023 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,21 +24,14 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // NewNetworkServiceEndpointRegistryServer - creates a chain of servers
 func NewNetworkServiceEndpointRegistryServer(servers ...registry.NetworkServiceEndpointRegistryServer) registry.NetworkServiceEndpointRegistryServer {
-	if opentelemetry.IsEnabled() {
-		return next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...)
-	}
-	return next.NewNetworkServiceEndpointRegistryServer(servers...)
+	return next.NewWrappedNetworkServiceEndpointRegistryServer(trace.NewNetworkServiceEndpointRegistryServer, servers...)
 }
 
 // NewNetworkServiceEndpointRegistryClient - creates a chain of clients
 func NewNetworkServiceEndpointRegistryClient(clients ...registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
-	if opentelemetry.IsEnabled() {
-		return next.NewWrappedNetworkServiceEndpointRegistryClient(trace.NewNetworkServiceEndpointRegistryClient, clients...)
-	}
-	return next.NewNetworkServiceEndpointRegistryClient(clients...)
+	return next.NewWrappedNetworkServiceEndpointRegistryClient(trace.NewNetworkServiceEndpointRegistryClient, clients...)
 }

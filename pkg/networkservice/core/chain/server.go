@@ -1,6 +1,6 @@
-// Copyright (c) 2021 Doc.ai and/or its affiliates.
+// Copyright (c) 2020 Cisco Systems, Inc.
 //
-// Copyright (c) 2020-2024 Cisco Systems, Inc.
+// Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -25,15 +25,11 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace"
-	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
 )
 
 // NewNetworkServiceServer - chains together a list of networkservice.Servers with tracing
 func NewNetworkServiceServer(servers ...networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
-	if opentelemetry.IsEnabled() {
-		return next.NewNetworkServiceServer(
-			next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),
-		)
-	}
-	return next.NewNetworkServiceServer(servers...)
+	return next.NewNetworkServiceServer(
+		next.NewWrappedNetworkServiceServer(trace.NewNetworkServiceServer, servers...),
+	)
 }

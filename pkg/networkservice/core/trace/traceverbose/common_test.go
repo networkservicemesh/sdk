@@ -25,7 +25,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"os"
 
 	"testing"
 
@@ -105,7 +104,6 @@ func TestDiffPathAdd(t *testing.T) {
 }
 
 func TestTraceOutput(t *testing.T) {
-	_ = os.Setenv("TELEMETRY", "true")
 	// Configure logging
 	// Set output to buffer
 	var buff bytes.Buffer
@@ -161,7 +159,6 @@ func TestTraceOutput(t *testing.T) {
 }
 
 func TestErrorOutput(t *testing.T) {
-	_ = os.Setenv("TELEMETRY", "true")
 	// Configure logging
 	// Set output to buffer
 	var buff bytes.Buffer
