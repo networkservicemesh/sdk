@@ -39,7 +39,7 @@ type traceNetworkServiceRegistryClient struct {
 func NewNetworkServiceRegistryClient(traced registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	return &traceNetworkServiceRegistryClient{
 		verbose: traceverbose.NewNetworkServiceRegistryClient(traced),
-		concise: traceconcise.NewNetworkServiceRegistryClient(traced),
+		concise: traced,
 	}
 }
 

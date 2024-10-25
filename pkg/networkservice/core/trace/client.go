@@ -27,7 +27,6 @@ import (
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
 )
 
@@ -40,7 +39,7 @@ type traceClient struct {
 func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) networkservice.NetworkServiceClient {
 	return &traceClient{
 		verbose: traceverbose.NewNetworkServiceClient(traced),
-		concise: traceconcise.NewNetworkServiceClient(traced),
+		concise: traced,
 	}
 }
 

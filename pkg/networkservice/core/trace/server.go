@@ -21,7 +21,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
 
 	"github.com/golang/protobuf/ptypes/empty"
@@ -38,7 +37,7 @@ type traceServer struct {
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return &traceServer{
 		verbose: traceverbose.NewNetworkServiceServer(traced),
-		concise: traceconcise.NewNetworkServiceServer(traced),
+		concise: traced,
 	}
 }
 

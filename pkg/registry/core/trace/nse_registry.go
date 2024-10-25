@@ -38,7 +38,7 @@ type traceNetworkServiceEndpointRegistryClient struct {
 func NewNetworkServiceEndpointRegistryClient(traced registry.NetworkServiceEndpointRegistryClient) registry.NetworkServiceEndpointRegistryClient {
 	return &traceNetworkServiceEndpointRegistryClient{
 		verbose: traceverbose.NewNetworkServiceEndpointRegistryClient(traced),
-		concise: traceconcise.NewNetworkServiceEndpointRegistryClient(traced),
+		concise: traced,
 	}
 }
 
