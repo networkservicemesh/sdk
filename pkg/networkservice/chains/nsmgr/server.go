@@ -240,7 +240,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			chain.NewNetworkServiceRegistryClient(
 				clienturl.NewNetworkServiceRegistryClient(opts.regURL),
 				begin.NewNetworkServiceRegistryClient(),
-				//querycache.NewNetworkServiceRegistryClient(ctx),
+				querycache.NewNetworkServiceRegistryClient(ctx),
 				clientconn.NewNetworkServiceRegistryClient(),
 				opts.authorizeNSRegistryClient,
 				grpcmetadata.NewNetworkServiceRegistryClient(),
