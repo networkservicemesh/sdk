@@ -131,7 +131,7 @@ func (d *discoverForwarderServer) Request(ctx context.Context, request *networks
 			return resp, nil
 		}
 		logger.Errorf("forwarder=%v url=%v returned error=%v", candidate.Name, candidate.Url, err.Error())
-		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select forwawrder %v --> %v", i, candidate.Name, err.Error())
+		candidatesErr = errors.Wrapf(candidatesErr, "%v. An error during select forwarder %v --> %v", i, candidate.Name, err.Error())
 	}
 
 	return nil, candidatesErr
