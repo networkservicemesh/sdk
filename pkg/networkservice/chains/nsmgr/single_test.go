@@ -391,11 +391,8 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Hour*5)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancel()
-
-	// log.EnableTracing(true)
-	// logrus.SetLevel(logrus.TraceLevel)
 
 	const nodeCount = 2
 
