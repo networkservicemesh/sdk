@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -39,6 +39,7 @@ type localBypassNSEFindServer struct {
 }
 
 func (s *localBypassNSEFindServer) Send(nseResp *registry.NetworkServiceEndpointResponse) error {
+	nseResp = nseResp.Clone()
 	if u, ok := s.nseURLs.Load(nseResp.NetworkServiceEndpoint.Name); ok {
 		nseResp.NetworkServiceEndpoint.Url = u.String()
 	}

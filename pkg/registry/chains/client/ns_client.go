@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/registry/utils/metadata"
@@ -53,6 +54,7 @@ func NewNetworkServiceRegistryClient(ctx context.Context, opts ...Option) regist
 			[]registry.NetworkServiceRegistryClient{
 				begin.NewNetworkServiceRegistryClient(),
 				metadata.NewNetworkServiceClient(),
+				querycache.NewNetworkServiceRegistryClient(ctx),
 				retry.NewNetworkServiceRegistryClient(ctx),
 				clientOpts.authorizeNSRegistryClient,
 				heal.NewNetworkServiceRegistryClient(ctx),

@@ -373,6 +373,14 @@ func Test_UsecasePoint2MultiPoint(t *testing.T) {
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
 
+	require.Eventually(t, func() bool {
+		conn, err = nsc.Request(ctx, request.Clone())
+		if err != nil {
+			return false
+		}
+		return len(conn.Path.PathSegments) == 4 && conn.GetPath().GetPathSegments()[2].Name == "p2p forwarder"
+	}, time.Second, time.Second/10)
+
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 	require.NotNil(t, conn)
@@ -483,6 +491,14 @@ func Test_RemoteUsecase_Point2MultiPoint(t *testing.T) {
 
 	_, err = nsc.Close(ctx, conn)
 	require.NoError(t, err)
+
+	require.Eventually(t, func() bool {
+		conn, err = nsc.Request(ctx, request.Clone())
+		if err != nil {
+			return false
+		}
+		return len(conn.Path.PathSegments) == 6 && conn.GetPath().GetPathSegments()[2].Name == "p2p forwarder-0" && conn.GetPath().GetPathSegments()[4].Name == "p2p forwarder-1"
+	}, time.Second, time.Second/10)
 
 	conn, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)

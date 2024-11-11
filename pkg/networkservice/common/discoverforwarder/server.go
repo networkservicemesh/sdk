@@ -197,9 +197,10 @@ func (d *discoverForwarderServer) matchForwarders(nsLabels map[string]string, ns
 
 		var matchLabels = match.GetMetadata().GetLabels()
 		if matchLabels == nil {
-			matchLabels = map[string]string{
-				"p2p": "true",
-			}
+			matchLabels = make(map[string]string)
+		}
+		if len(matchLabels) == 0 {
+			matchLabels["p2p"] = "true"
 		}
 		for _, nse := range nses {
 			var forwarderLabels = nse.GetNetworkServiceLabels()[d.forwarderServiceName]
@@ -217,7 +218,6 @@ func (d *discoverForwarderServer) matchForwarders(nsLabels map[string]string, ns
 
 		break
 	}
-
 	return result
 }
 

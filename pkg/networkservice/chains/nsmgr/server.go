@@ -55,6 +55,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/querycache"
 	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
 	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
@@ -239,6 +240,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 			chain.NewNetworkServiceRegistryClient(
 				clienturl.NewNetworkServiceRegistryClient(opts.regURL),
 				begin.NewNetworkServiceRegistryClient(),
+				querycache.NewNetworkServiceRegistryClient(ctx),
 				clientconn.NewNetworkServiceRegistryClient(),
 				opts.authorizeNSRegistryClient,
 				grpcmetadata.NewNetworkServiceRegistryClient(),
@@ -263,6 +265,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
 				begin.NewNetworkServiceEndpointRegistryClient(),
+				querycache.NewNetworkServiceEndpointRegistryClient(ctx),
 				clienturl.NewNetworkServiceEndpointRegistryClient(opts.regURL),
 				clientconn.NewNetworkServiceEndpointRegistryClient(),
 				opts.authorizeNSERegistryClient,
