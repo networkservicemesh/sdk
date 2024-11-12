@@ -920,35 +920,32 @@ func TestNSMGRHealEndpoint_CustomReselectFunc(t *testing.T) {
 		SetRegistryProxySupplier(nil).
 		Build()
 
-	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
-	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService(t.Name()))
+	nsReg, err := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken).Register(ctx, defaultRegistryService(t.Name()))
 	require.NoError(t, err)
 
 	nseReg := defaultRegistryEndpoint(nsReg.Name)
 	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
 
-	request := defaultRequest(nsReg.Name)
-
 	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(heal.NewClient(ctx)),
-		nsclient.WithoutReselectFunc(
+		nsclient.WithReselectFunc(
 			func(request *networkservice.NetworkServiceRequest) {
 				request.Connection.Labels = make(map[string]string)
 				request.Connection.Labels["key"] = "value"
 				request.Connection.NetworkServiceEndpointName = ""
 			}))
 
+	request := defaultRequest(nsReg.Name)
 	_, err = nsc.Request(ctx, request.Clone())
 	require.NoError(t, err)
 
 	nse.Cancel()
 
-	checker := checkrequest.NewServer(t, func(t *testing.T, nsr *networkservice.NetworkServiceRequest) {
-		require.Contains(t, nsr.Connection.Labels, "key")
-	})
-	counter := new(count.Server)
 	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
 	nseReg2.Name += "-2"
-	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken, counter, checker)
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
 
-	require.Eventually(t, func() bool { return counter.UniqueRequests() > 0 }, timeout, tick)
+	require.Eventually(t, func() bool {
+		resp, err := nsc.Request(ctx, request.Clone())
+		return err == nil && resp.Labels["key"] == "value"
+	}, timeout, tick)
 }

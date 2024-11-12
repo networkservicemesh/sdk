@@ -112,8 +112,8 @@ func WithoutRefresh() Option {
 	}
 }
 
-// WithoutReselectFunc sets a function for changing request parameters on reselect
-func WithoutReselectFunc(f func(*networkservice.NetworkServiceRequest)) Option {
+// WithReselectFunc sets a function for changing request parameters on reselect
+func WithReselectFunc(f func(*networkservice.NetworkServiceRequest)) Option {
 	return func(c *clientOptions) {
 		c.reselectFunc = f
 	}
