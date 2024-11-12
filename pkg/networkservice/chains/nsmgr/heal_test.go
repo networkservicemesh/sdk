@@ -48,8 +48,10 @@ import (
 )
 
 const (
-	tick    = 10 * time.Millisecond
-	timeout = 10 * time.Second
+	tick       = 10 * time.Millisecond
+	timeout    = 10 * time.Second
+	labelKey   = "key"
+	labelValue = "value"
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
@@ -930,7 +932,7 @@ func TestNSMGRHealEndpoint_CustomReselectFunc(t *testing.T) {
 		nsclient.WithReselectFunc(
 			func(request *networkservice.NetworkServiceRequest) {
 				request.Connection.Labels = make(map[string]string)
-				request.Connection.Labels["key"] = "value"
+				request.Connection.Labels[labelKey] = labelValue
 				request.Connection.NetworkServiceEndpointName = ""
 			}))
 
@@ -946,6 +948,6 @@ func TestNSMGRHealEndpoint_CustomReselectFunc(t *testing.T) {
 
 	require.Eventually(t, func() bool {
 		resp, err := nsc.Request(ctx, request.Clone())
-		return err == nil && resp.Labels["key"] == "value"
+		return err == nil && resp.Labels[labelKey] == labelValue
 	}, timeout, tick)
 }
