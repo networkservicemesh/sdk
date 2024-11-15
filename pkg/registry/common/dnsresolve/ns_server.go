@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco Systems, Inc.
+// Copyright (c) 2023-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -116,13 +116,3 @@ func (d *dnsNSResolveServer) Unregister(ctx context.Context, ns *registry.Networ
 	}()
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }
-
-func (d *dnsNSResolveServer) setResolver(r Resolver) {
-	d.resolver = r
-}
-
-func (d *dnsNSResolveServer) setRegistryService(service string) {
-	d.registryService = service
-}
-
-func (d *dnsNSResolveServer) setNSMgrProxyService(_ string) {}

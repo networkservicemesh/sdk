@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -32,7 +32,7 @@ import (
 type RegistryOpaInput struct {
 	ResourceID         string                      `json:"resource_id"`
 	ResourceName       string                      `json:"resource_name"`
-	ResourcePathIdsMap map[string][]string         `json:"resource_path_ids_map"`
+	ResourcePathIDsMap map[string][]string         `json:"resource_path_ids_map"`
 	PathSegments       []*grpcmetadata.PathSegment `json:"path_segments"`
 	Index              uint32                      `json:"index"`
 }

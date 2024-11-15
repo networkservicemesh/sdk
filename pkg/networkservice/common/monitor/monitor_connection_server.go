@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2023 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -82,7 +82,6 @@ func (m *monitorConnectionServer) Send(event *networkservice.ConnectionEvent) (_
 			return
 		}
 		for id, filter := range m.filters {
-			id, filter := id, filter
 			e := event.Clone()
 			filter.executor.AsyncExec(func() {
 				var err error

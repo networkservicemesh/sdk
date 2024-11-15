@@ -26,6 +26,29 @@ linters-settings:
           - (github.com/sirupsen/logrus.FieldLogger).Warnf
           - (github.com/sirupsen/logrus.FieldLogger).Errorf
           - (github.com/sirupsen/logrus.FieldLogger).Fatalf
+  revive:
+    confidence: 0.8
+    rules:
+      - name: exported
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: superfluous-else
+      - name: unreachable-code
   goimports:
     local-prefixes: github.com/networkservicemesh/sdk
   gocyclo:
@@ -57,81 +80,51 @@ linters-settings:
   gosec:
     excludes:
       - G115
-      - G301 # Fixable
-      - G302 # Fixable
-      - G306 # Fixable
+      - G204
+      - G301
+      - G302
+      - G306
   gocritic:
     enabled-checks:
-      - appendAssign
-      - assignOp
       - appendCombine
-      - argOrder
-      - badCall
-      - badCond
       - boolExprSimplify
       - builtinShadow
-      - captLocal
-      - caseOrder
-      - codegenComment
-      - commentFormatting
       - commentedOutCode
       - commentedOutImport
-      - defaultCaseOrder
-      - deprecatedComment
       - docStub
-      - dupArg
-      - dupBranchBody
-      - dupCase
       - dupImport
-      - dupSubExpr
-      - elseif
       - emptyFallthrough
       - emptyStringTest
       - equalFold
       - evalOrder
-      - exitAfterDefer
-      - flagDeref
-      - flagName
       - hexLiteral
       - hugeParam
-      - ifElseChain
       - importShadow
       - indexAlloc
       - initClause
       - methodExprCall
       - nestingReduce
-      - newDeref
       - nilValReturn
       - octalLiteral
-      - offBy1
       - paramTypeCombine
       - rangeExprCopy
       - rangeValCopy
-      - regexpMust
       - regexpPattern
-      - singleCaseSwitch
-      - sloppyLen
       - sloppyReassign
       - stringXbytes
-      - switchTrue
       - typeAssertChain
-      - typeSwitchVar
       - typeUnparen
       - unlabelStmt
       - unnamedResult
       - unnecessaryBlock
-      - underef
-      - unlambda
-      - unslice
-      - valSwap
       - weakCond
-      - wrapperFunc
       - yodaStyleExpr
 linters:
   disable-all: true
   enable:
     - goheader
     - bodyclose
+    - unused
     - depguard
     - dogsled
     - dupl
@@ -143,12 +136,14 @@ linters:
     - gocyclo
     - gofmt
     - goimports
+    - revive
     - gosec
     - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
+    - copyloopvar
     - staticcheck
     - stylecheck
     - typecheck
@@ -162,9 +157,6 @@ issues:
   exclude-rules:
     # We really *do* want to pass a pointer to an interface in these cases.  See comments in file for New{Server,Client}
     # function for why
-    - path: .*\.gen\.go
-      linters:
-        - dupl
     - path: .*registry.*.go
       linters:
         - dupl
@@ -216,30 +208,10 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
-    - path: pkg/tools/spiffeutils/tls_peer.go
-      linters:
-        - gosec
-      text: "G402: TLS InsecureSkipVerify set true"
     - path: pkg/networkservice/common/updatepath/server_test.go
       linters:
         - gochecknoinits
       text: "don't use `init` function"
-    - path: pkg/tools/debug/self.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
-    - path: pkg/tools/executils/start.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
-    - path: pkg/tools/executils/run.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
-    - path: pkg/tools/executils/output.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
     - path: pkg/tools/spire/start.go
       linters:
         - funlen
@@ -274,7 +246,16 @@ issues:
     - path: pkg/networkservice/common/switchcase/.*_test.go
       linters:
         - dupl
+    - path: pkg/tools/ippool/ippool.go
+      linters:
+        - unused
+    - path: pkg/networkservice/common/switchcase/common_test.go
+      linters:
+        - revive
+    - path: pkg/tools/opa/policies.go
+      linters:
+        - revive
+    # TODO - remove deprecated opentelemetry functions
     - path: pkg/tools/tracing/grpcoptions.go
       linters:
         - staticcheck
-      text: "SA1019: otelgrpc.*"

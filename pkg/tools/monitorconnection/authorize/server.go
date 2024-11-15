@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -50,7 +50,7 @@ func NewMonitorConnectionServer(opts ...Option) networkservice.MonitorConnection
 // MonitorOpaInput - used to pass complex structure to monitor policies
 type MonitorOpaInput struct {
 	SpiffeIDConnectionMap map[string][]string `json:"spiffe_id_connection_map"`
-	SelectorConnectionIds []string            `json:"selector_connection_ids"`
+	SelectorConnectionIDs []string            `json:"selector_connection_ids"`
 	ServiceSpiffeID       string              `json:"service_spiffe_id"`
 }
 
@@ -80,7 +80,7 @@ func (a *authorizeMonitorConnectionsServer) MonitorConnections(in *networkservic
 	err := a.policies.check(ctx, MonitorOpaInput{
 		ServiceSpiffeID:       spiffeID.String(),
 		SpiffeIDConnectionMap: simpleMap,
-		SelectorConnectionIds: connIDs,
+		SelectorConnectionIDs: connIDs,
 	})
 	if err != nil {
 		return err

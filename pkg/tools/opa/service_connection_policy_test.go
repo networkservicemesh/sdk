@@ -1,5 +1,7 @@
 // Copyright (c) 2022 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -31,14 +33,14 @@ func TestWithServiceConnectionPolicy(t *testing.T) {
 	require.NoError(t, err)
 
 	var input = authorize.MonitorOpaInput{
-		SelectorConnectionIds: []string{"conn1"},
+		SelectorConnectionIDs: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn1"},
 		},
 		ServiceSpiffeID: spiffeID,
 	}
 	var invalidInput = authorize.MonitorOpaInput{
-		SelectorConnectionIds: []string{"conn1"},
+		SelectorConnectionIDs: []string{"conn1"},
 		SpiffeIDConnectionMap: map[string][]string{
 			spiffeID: {"conn2"},
 		},
