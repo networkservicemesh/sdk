@@ -77,6 +77,7 @@ linters-settings:
     simple: true
     range-loops: true
     for-loops: false
+  # TODO -  Fix gosec linter errors - https://github.com/networkservicemesh/sdk/issues/1690
   gosec:
     excludes:
       - G115
@@ -255,7 +256,8 @@ issues:
     - path: pkg/tools/opa/policies.go
       linters:
         - revive
-    # TODO - remove deprecated opentelemetry functions
+    # TODO - remove deprecated opentelemetry functions - https://github.com/networkservicemesh/sdk/issues/1691
     - path: pkg/tools/tracing/grpcoptions.go
       linters:
         - staticcheck
+      text: "SA1019: otelgrpc.*"
