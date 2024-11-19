@@ -1,6 +1,4 @@
-// Copyright (c) 2020 Cisco and/or its affiliates.
-//
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2020-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -69,7 +67,7 @@ func Self(envVariableParts ...string) error {
 	// Do we have that env variable?
 	listen, exists := os.LookupEnv(dlvPortEnvVariable)
 	if !exists {
-		return errors.Errorf("Setting env variable %s to a valid dlv '--listen' value will cause the dlv debugger to execute this binary and listen as directed.", dlvPortEnvVariable)
+		return errors.Errorf("Setting env variable %s to a valid dlv '--listen' value will cause the dlv debugger to execute this binary and listen as directed", dlvPortEnvVariable)
 	}
 
 	// Is it a valid listen?

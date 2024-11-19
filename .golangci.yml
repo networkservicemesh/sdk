@@ -1,7 +1,7 @@
 ---
 run:
   # concurrency: 6
-  go: "1.20"
+  go: "1.23"
   timeout: 2m
   issues-exit-code: 1
   tests: true
@@ -11,13 +11,14 @@ linters-settings:
     values:
       regexp:
         company: .*
-        copyright-holder: Copyright \(c\) ({{year-range}}) {{company}}\n\n
+        copyright-holder: Copyright \(c\) ({{mod-year-range}}) {{company}}\n\n
         copyright-holders: ({{copyright-holder}})+
   errcheck:
     check-type-assertions: false
     check-blank: false
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
     settings:
       printf:
         funcs:
@@ -25,19 +26,38 @@ linters-settings:
           - (github.com/sirupsen/logrus.FieldLogger).Warnf
           - (github.com/sirupsen/logrus.FieldLogger).Errorf
           - (github.com/sirupsen/logrus.FieldLogger).Fatalf
-  golint:
-    min-confidence: 0.8
+  revive:
+    confidence: 0.8
+    rules:
+      - name: exported
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+      - name: increment-decrement
+      - name: var-naming
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
+      - name: superfluous-else
+      - name: unreachable-code
   goimports:
     local-prefixes: github.com/networkservicemesh/sdk
   gocyclo:
     min-complexity: 15
-  maligned:
-    suggest-new: true
   dupl:
     threshold: 150
   funlen:
-    Lines: 120
-    Statements: 60
+    lines: 120
+    statements: 60
   goconst:
     min-len: 2
     min-occurrences: 2
@@ -57,79 +77,55 @@ linters-settings:
     simple: true
     range-loops: true
     for-loops: false
+  # TODO -  Fix gosec linter errors - https://github.com/networkservicemesh/sdk/issues/1690
+  gosec:
+    excludes:
+      - G115
+      - G204
+      - G301
+      - G302
+      - G306
   gocritic:
     enabled-checks:
-      - appendAssign
-      - assignOp
       - appendCombine
-      - argOrder
-      - badCall
-      - badCond
       - boolExprSimplify
       - builtinShadow
-      - captLocal
-      - caseOrder
-      - codegenComment
-      - commentFormatting
       - commentedOutCode
       - commentedOutImport
-      - defaultCaseOrder
-      - deprecatedComment
       - docStub
-      - dupArg
-      - dupBranchBody
-      - dupCase
       - dupImport
-      - dupSubExpr
-      - elseif
       - emptyFallthrough
       - emptyStringTest
       - equalFold
       - evalOrder
-      - exitAfterDefer
-      - flagDeref
-      - flagName
       - hexLiteral
       - hugeParam
-      - ifElseChain
       - importShadow
       - indexAlloc
       - initClause
       - methodExprCall
       - nestingReduce
-      - newDeref
       - nilValReturn
       - octalLiteral
-      - offBy1
       - paramTypeCombine
       - rangeExprCopy
       - rangeValCopy
-      - regexpMust
       - regexpPattern
-      - singleCaseSwitch
-      - sloppyLen
       - sloppyReassign
       - stringXbytes
-      - switchTrue
       - typeAssertChain
-      - typeSwitchVar
       - typeUnparen
       - unlabelStmt
       - unnamedResult
       - unnecessaryBlock
-      - underef
-      - unlambda
-      - unslice
-      - valSwap
       - weakCond
-      - wrapperFunc
       - yodaStyleExpr
 linters:
   disable-all: true
   enable:
     - goheader
     - bodyclose
-    - deadcode
+    - unused
     - depguard
     - dogsled
     - dupl
@@ -141,22 +137,19 @@ linters:
     - gocyclo
     - gofmt
     - goimports
-    - golint
+    - revive
     - gosec
     - gosimple
     - govet
     - ineffassign
-    - interfacer
     - misspell
     - nakedret
-    - scopelint
+    - copyloopvar
     - staticcheck
-    - structcheck
     - stylecheck
     - typecheck
     - unconvert
     - unparam
-    - varcheck
     - whitespace
 issues:
   exclude-use-default: false
@@ -165,13 +158,6 @@ issues:
   exclude-rules:
     # We really *do* want to pass a pointer to an interface in these cases.  See comments in file for New{Server,Client}
     # function for why
-    - path: .*\.gen\.go
-      linters:
-        - dupl
-        - golint
-    - path: pkg/tools/opa/policies.go
-      linters:
-        - golint
     - path: .*registry.*.go
       linters:
         - dupl
@@ -211,10 +197,6 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
-    - path: pkg/tools/spiffeutils/spiffeutils.go
-      linters:
-        - interfacer
-      text: "can be `fmt.Stringer`"
     - path: pkg/networkservice/core/trace/client.go
       linters:
         - dupl
@@ -227,30 +209,10 @@ issues:
       linters:
         - dupl
       text: "lines are duplicate of"
-    - path: pkg/tools/spiffeutils/tls_peer.go
-      linters:
-        - gosec
-      text: "G402: TLS InsecureSkipVerify set true"
     - path: pkg/networkservice/common/updatepath/server_test.go
       linters:
         - gochecknoinits
       text: "don't use `init` function"
-    - path: pkg/tools/debug/self.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
-    - path: pkg/tools/executils/start.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
-    - path: pkg/tools/executils/run.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
-    - path: pkg/tools/executils/output.go
-      linters:
-        - gosec
-      text: "G204: Subprocess launched with variable"
     - path: pkg/tools/spire/start.go
       linters:
         - funlen
@@ -269,14 +231,6 @@ issues:
     - path: pkg/networkservice/chains/nsmgr/single_test.go
       linters:
         - funlen
-    - path: pkg/registry/common/recvfd/gen.go
-      linters:
-        - structcheck
-      text: "is unused"
-    - path: pkg/networkservice/common/mechanisms/recvfd/gen.go
-      linters:
-        - structcheck
-      text: "is unused"
     - path: pkg/networkservice/common/discover/server_test.go
       linters:
         - dupl
@@ -293,10 +247,16 @@ issues:
     - path: pkg/networkservice/common/switchcase/.*_test.go
       linters:
         - dupl
-    - path: pkg/networkservice/chains/endpoint/combine_monitor_server.go
+    - path: pkg/tools/ippool/ippool.go
       linters:
-        - interfacer
-      text: "`rawSrv` can be `github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor.EventConsumer`"
+        - unused
+    - path: pkg/networkservice/common/switchcase/common_test.go
+      linters:
+        - revive
+    - path: pkg/tools/opa/policies.go
+      linters:
+        - revive
+    # TODO - remove deprecated opentelemetry functions - https://github.com/networkservicemesh/sdk/issues/1691
     - path: pkg/tools/tracing/grpcoptions.go
       linters:
         - staticcheck

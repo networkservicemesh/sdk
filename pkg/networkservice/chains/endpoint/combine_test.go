@@ -73,7 +73,6 @@ func TestCombine(t *testing.T) {
 
 	for _, s := range samples {
 		t.Run(s.name, func(t *testing.T) {
-			// nolint:scopelint
 			testCombine(t, s.mechanism)
 		})
 	}

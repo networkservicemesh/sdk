@@ -137,14 +137,6 @@ func (p *IPAM) freeIfAllocated(ipNet string) {
 	}
 }
 
-func (p *IPAM) isExcluded(ipNet string) bool {
-	p.Lock()
-	defer p.Unlock()
-
-	_, r := p.excludedPrefixes[ipNet]
-	return r
-}
-
 // Reset resets IPAM's ippol by setting new prefix
 func (p *IPAM) Reset(prefix string, excludePrefixes ...string) error {
 	p.Lock()

@@ -1,4 +1,4 @@
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -29,7 +29,7 @@ import (
 type testInput struct {
 	ResourceID         string                      `json:"resource_id"`
 	ResourceName       string                      `json:"resource_name"`
-	ResourcePathIdsMap map[string][]string         `json:"resource_path_ids_map"`
+	ResourcePathIDsMap map[string][]string         `json:"resource_path_ids_map"`
 	PathSegments       []*grpcmetadata.PathSegment `json:"path_segments"`
 	Index              uint32                      `json:"index"`
 }
@@ -38,7 +38,7 @@ func TestRegistryClientAllowedPolicy(t *testing.T) {
 	p, err := opa.PolicyFromFile("etc/nsm/opa/registry/client_allowed.rego")
 	require.NoError(t, err)
 
-	resourcePathIdsMap := map[string][]string{
+	resourcePathIDsMap := map[string][]string{
 		"nse1": {"id1", "id2"},
 	}
 
@@ -56,7 +56,7 @@ func TestRegistryClientAllowedPolicy(t *testing.T) {
 
 	for _, sample := range samples {
 		var input = testInput{
-			ResourcePathIdsMap: resourcePathIdsMap,
+			ResourcePathIDsMap: resourcePathIDsMap,
 			ResourceName:       sample.name,
 			ResourceID:         sample.id,
 		}

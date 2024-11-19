@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -108,12 +108,12 @@ func getIDFromToken(tokenString string) (spiffeid.ID, error) {
 	return spiffeid.FromString(subString)
 }
 
-func updatePathIds(pathIds []string, index int, id string) []string {
-	if index >= len(pathIds) {
-		pathIds = append(pathIds, id)
+func updatePathIDs(pathIDs []string, index int, id string) []string {
+	if index >= len(pathIDs) {
+		pathIDs = append(pathIDs, id)
 	} else {
-		pathIds[index] = id
+		pathIDs[index] = id
 	}
 
-	return pathIds
+	return pathIDs
 }

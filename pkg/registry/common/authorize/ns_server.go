@@ -31,14 +31,14 @@ import (
 
 type authorizeNSServer struct {
 	policies     policiesList
-	nsPathIdsMap *genericsync.Map[string, []string]
+	nsPathIDsMap *genericsync.Map[string, []string]
 }
 
 // NewNetworkServiceRegistryServer - returns a new authorization registry.NetworkServiceRegistryServer
 // Authorize registry server checks spiffeID of NS.
 func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegistryServer {
 	o := &options{
-		resourcePathIdsMap: new(genericsync.Map[string, []string]),
+		resourcePathIDsMap: new(genericsync.Map[string, []string]),
 	}
 
 	for _, opt := range opts {
@@ -47,7 +47,7 @@ func NewNetworkServiceRegistryServer(opts ...Option) registry.NetworkServiceRegi
 
 	return &authorizeNSServer{
 		policies:     o.policies,
-		nsPathIdsMap: o.resourcePathIdsMap,
+		nsPathIDsMap: o.resourcePathIDsMap,
 	}
 }
 
@@ -60,11 +60,11 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 	spiffeID := getSpiffeIDFromPath(ctx, path)
 	leftSide := getLeftSideOfPath(path)
 
-	rawMap := getRawMap(s.nsPathIdsMap)
+	rawMap := getRawMap(s.nsPathIDsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
 		ResourceName:       ns.Name,
-		ResourcePathIdsMap: rawMap,
+		ResourcePathIDsMap: rawMap,
 		PathSegments:       leftSide.PathSegments,
 		Index:              leftSide.Index,
 	}
@@ -76,7 +76,7 @@ func (s *authorizeNSServer) Register(ctx context.Context, ns *registry.NetworkSe
 	if err != nil {
 		return nil, err
 	}
-	s.nsPathIdsMap.Store(ns.Name, ns.PathIds)
+	s.nsPathIDsMap.Store(ns.Name, ns.PathIds)
 	return ns, nil
 }
 
@@ -93,11 +93,11 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 	spiffeID := getSpiffeIDFromPath(ctx, path)
 	leftSide := getLeftSideOfPath(path)
 
-	rawMap := getRawMap(s.nsPathIdsMap)
+	rawMap := getRawMap(s.nsPathIDsMap)
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
 		ResourceName:       ns.Name,
-		ResourcePathIdsMap: rawMap,
+		ResourcePathIDsMap: rawMap,
 		PathSegments:       leftSide.PathSegments,
 		Index:              leftSide.Index,
 	}
@@ -105,6 +105,6 @@ func (s *authorizeNSServer) Unregister(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 
-	s.nsPathIdsMap.Delete(ns.Name)
+	s.nsPathIDsMap.Delete(ns.Name)
 	return next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 }

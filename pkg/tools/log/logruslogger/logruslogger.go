@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -257,7 +257,7 @@ func fromContext(ctx context.Context) *traceCtxInfo {
 func (s *traceLogger) getSpan() string {
 	if s.span != nil {
 		spanStr := s.span.ToString()
-		if len(spanStr) > 0 && spanStr != "{}" {
+		if spanStr != "" && spanStr != "{}" {
 			return fmt.Sprintf(" span=%v", spanStr)
 		}
 	}

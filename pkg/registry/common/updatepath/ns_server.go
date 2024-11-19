@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -68,8 +68,8 @@ func (s *updatePathNSServer) Register(ctx context.Context, ns *registry.NetworkS
 	if idErr != nil {
 		return nil, idErr
 	}
-	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), peerID.String())
-	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
+	ns.PathIds = updatePathIDs(ns.PathIds, int(path.Index-1), peerID.String())
+	ns.PathIds = updatePathIDs(ns.PathIds, int(path.Index), id.String())
 
 	ns, err = next.NetworkServiceRegistryServer(ctx).Register(ctx, ns)
 	if err != nil {
@@ -109,8 +109,8 @@ func (s *updatePathNSServer) Unregister(ctx context.Context, ns *registry.Networ
 	if idErr != nil {
 		return nil, idErr
 	}
-	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index-1), peerID.String())
-	ns.PathIds = updatePathIds(ns.PathIds, int(path.Index), id.String())
+	ns.PathIds = updatePathIDs(ns.PathIds, int(path.Index-1), peerID.String())
+	ns.PathIds = updatePathIDs(ns.PathIds, int(path.Index), id.String())
 
 	resp, err := next.NetworkServiceRegistryServer(ctx).Unregister(ctx, ns)
 	path.Index = index

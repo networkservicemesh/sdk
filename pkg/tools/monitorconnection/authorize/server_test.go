@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -188,9 +188,9 @@ func TestAuthzEndpoint(t *testing.T) {
 				require.NoError(t, err)
 			}
 			var spiffeIDConnectionMap genericsync.Map[spiffeid.ID, *genericsync.Map[string, struct{}]]
-			for spiffeIDstr, connIds := range s.spiffeIDConnMap {
+			for spiffeIDstr, connIDs := range s.spiffeIDConnMap {
 				connIDMap := genericsync.Map[string, struct{}]{}
-				for _, connID := range connIds {
+				for _, connID := range connIDs {
 					connIDMap.Store(connID, struct{}{})
 				}
 				var spiffeID spiffeid.ID

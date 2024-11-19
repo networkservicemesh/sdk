@@ -1,5 +1,7 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2024 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -33,7 +35,6 @@ import (
 func TestSwitchServer(t *testing.T) {
 	for _, s := range testSamples() {
 		t.Run(s.name, func(t *testing.T) {
-			// nolint:scopelint
 			testSwitchServer(t, s.conditions, s.result)
 		})
 	}
@@ -44,7 +45,6 @@ func testSwitchServer(t *testing.T, conditions []switchcase.Condition, expected 
 
 	var cases []*switchcase.ServerCase
 	for i, cond := range conditions {
-		i := i
 		cases = append(cases, &switchcase.ServerCase{
 			Condition: cond,
 			Server: checkcontext.NewServer(t, func(*testing.T, context.Context) {

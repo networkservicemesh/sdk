@@ -1,4 +1,4 @@
-// Copyright (c) 2022-2023 Cisco and/or its affiliates.
+// Copyright (c) 2022-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -35,14 +35,14 @@ import (
 
 type authorizeNSClient struct {
 	policies     policiesList
-	nsPathIdsMap *genericsync.Map[string, []string]
+	nsPathIDsMap *genericsync.Map[string, []string]
 }
 
 // NewNetworkServiceRegistryClient - returns a new authorization registry.NetworkServiceRegistryClient
 // Authorize registry client checks spiffeID of NS.
 func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegistryClient {
 	o := &options{
-		resourcePathIdsMap: new(genericsync.Map[string, []string]),
+		resourcePathIDsMap: new(genericsync.Map[string, []string]),
 	}
 
 	for _, opt := range opts {
@@ -51,7 +51,7 @@ func NewNetworkServiceRegistryClient(opts ...Option) registry.NetworkServiceRegi
 
 	return &authorizeNSClient{
 		policies:     o.policies,
-		nsPathIdsMap: o.resourcePathIdsMap,
+		nsPathIDsMap: o.resourcePathIDsMap,
 	}
 }
 
@@ -79,17 +79,17 @@ func (c *authorizeNSClient) Register(ctx context.Context, ns *registry.NetworkSe
 
 	path = grpcmetadata.PathFromContext(ctx)
 	spiffeID := getSpiffeIDFromPath(ctx, path)
-	rawMap := getRawMap(c.nsPathIdsMap)
+	rawMap := getRawMap(c.nsPathIDsMap)
 
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
 		ResourceName:       resp.Name,
-		ResourcePathIdsMap: rawMap,
+		ResourcePathIDsMap: rawMap,
 		PathSegments:       path.PathSegments,
 		Index:              path.Index,
 	}
 	if err := c.policies.check(ctx, input); err != nil {
-		if _, load := c.nsPathIdsMap.Load(resp.Name); !load {
+		if _, load := c.nsPathIDsMap.Load(resp.Name); !load {
 			unregisterCtx, cancelUnregister := postponeCtxFunc()
 			defer cancelUnregister()
 
@@ -101,7 +101,7 @@ func (c *authorizeNSClient) Register(ctx context.Context, ns *registry.NetworkSe
 		return nil, err
 	}
 
-	c.nsPathIdsMap.Store(resp.Name, resp.PathIds)
+	c.nsPathIDsMap.Store(resp.Name, resp.PathIds)
 	return resp, nil
 }
 
@@ -130,12 +130,12 @@ func (c *authorizeNSClient) Unregister(ctx context.Context, ns *registry.Network
 	}
 
 	spiffeID := getSpiffeIDFromPath(ctx, path)
-	rawMap := getRawMap(c.nsPathIdsMap)
+	rawMap := getRawMap(c.nsPathIDsMap)
 
 	input := RegistryOpaInput{
 		ResourceID:         spiffeID.String(),
 		ResourceName:       ns.Name,
-		ResourcePathIdsMap: rawMap,
+		ResourcePathIDsMap: rawMap,
 		PathSegments:       path.PathSegments,
 		Index:              path.Index,
 	}
@@ -143,6 +143,6 @@ func (c *authorizeNSClient) Unregister(ctx context.Context, ns *registry.Network
 		return nil, err
 	}
 
-	c.nsPathIdsMap.Delete(ns.Name)
+	c.nsPathIDsMap.Delete(ns.Name)
 	return resp, nil
 }
