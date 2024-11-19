@@ -33,7 +33,7 @@ type beginServer struct {
 	genericsync.Map[string, *eventFactoryServer]
 }
 
-// NewServer - creates a new begin chain element
+// NewServer - creates a new begin chain elem ent
 func NewServer() networkservice.NetworkServiceServer {
 	return &beginServer{}
 }
