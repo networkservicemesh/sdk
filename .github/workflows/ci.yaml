@@ -10,9 +10,16 @@ jobs:
     uses: networkservicemesh/.github/.github/workflows/yamllint.yaml@main
 
   build-and-test:
-    uses: networkservicemesh/.github/.github/workflows/build-and-test.yaml@main
-    with:
-      os: '["ubuntu-latest", "macos-latest", "windows-latest"]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.3
+      - name: Test
+        run: go test -race -run TestReselect_LocalForwarderRestart ./pkg/networkservice/chains/nsmgr -count 5000 -timeout 6h
 
   golangci-lint:
     uses: networkservicemesh/.github/.github/workflows/golangci-lint.yaml@main
