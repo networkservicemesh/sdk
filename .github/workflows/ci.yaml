@@ -19,7 +19,7 @@ jobs:
         with:
           go-version: 1.23.3
       - name: Test
-        run: go test -race -run Test_Interdomain_PassThroughUsecase ./pkg/networkservice/chains/nsmgrproxy -count 5000 -timeout 6h
+        run: go test -race -run TestNSMGR_CloseHeal ./pkg/networkservice/chains/nsmgr -count 5000 -timeout 6h
 
   golangci-lint:
     uses: networkservicemesh/.github/.github/workflows/golangci-lint.yaml@main
