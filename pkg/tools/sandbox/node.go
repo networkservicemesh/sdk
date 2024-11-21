@@ -250,17 +250,12 @@ func (n *Node) NewClient(
 	generatorFunc token.GeneratorFunc,
 	additionalOpts ...client.Option,
 ) networkservice.NetworkServiceClient {
-	opts := []client.Option{
+	return client.NewClient(ctx,
 		client.WithClientURL(CloneURL(n.NSMgr.URL)),
 		client.WithDialOptions(DialOptions(WithTokenGenerator(generatorFunc))...),
 		client.WithAuthorizeClient(authorize.NewClient(authorize.Any())),
 		client.WithHealClient(heal.NewClient(ctx)),
+		client.WithRetry(retry.NewClient()),
 		client.WithDialTimeout(DialTimeout),
-	}
-
-	opts = append(opts, additionalOpts...)
-	return retry.NewClient(client.NewClient(
-		ctx,
-		opts...,
-	))
+	)
 }

@@ -42,6 +42,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 	var opts = &clientOptions{
 		name:            "client-" + uuid.New().String(),
 		authorizeClient: null.NewClient(),
+		retryClient:     null.NewClient(),
 		healClient:      null.NewClient(),
 		refreshClient:   refresh.NewClient(ctx),
 	}
@@ -54,6 +55,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 			[]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
 				begin.NewClient(),
+				opts.retryClient,
 				metadata.NewClient(),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),
