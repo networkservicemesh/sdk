@@ -16,4 +16,4 @@ jobs:
         with:
           go-version: 1.23.3
       - name: Test
-        run: go test -race -run TestListenAndServe_NotExistsFolder ./pkg/tools/grpcutils -count 10000000 -timeout 6h
+        run: go test -race -run Test_vl3MtuServer_SpoiledConnection ./pkg/networkservice/connectioncontext/mtu/vl3mtu -count 10000 -timeout 6h
