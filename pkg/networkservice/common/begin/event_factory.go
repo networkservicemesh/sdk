@@ -30,6 +30,12 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 )
 
+type errorEventFactoryInconsistency struct{}
+
+func (e *errorEventFactoryInconsistency) Error() string {
+	return "errorEventFactoryInconsistency error"
+}
+
 type connectionState int
 
 const (
@@ -53,18 +59,25 @@ type eventFactoryClient struct {
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
-	opts               []grpc.CallOption
+	grpcOpts           []grpc.CallOption
 	client             networkservice.NetworkServiceClient
+	beforeRequestFunc  func() error
 	afterCloseFunc     func()
 }
 
-func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
+func newEventFactoryClient(ctx context.Context, actualEventFactoryFunc func() *eventFactoryClient, afterClose func()) *eventFactoryClient {
 	f := &eventFactoryClient{
 		client:         next.Client(ctx),
 		initialCtxFunc: postpone.Context(ctx),
-		opts:           opts,
 	}
 	f.updateContext(ctx)
+
+	f.beforeRequestFunc = func() error {
+		if actualEventFactoryFunc != nil && actualEventFactoryFunc() != f {
+			return &errorEventFactoryInconsistency{}
+		}
+		return nil
+	}
 
 	f.afterCloseFunc = func() {
 		f.state = closed
@@ -91,18 +104,29 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 		opt(o)
 	}
 	ch := make(chan error, 1)
+
 	f.executor.AsyncExec(func() {
 		defer close(ch)
-		if f.state != established {
+		if err := f.beforeRequestFunc(); err != nil {
+			ch <- err
 			return
 		}
 		select {
 		case <-o.cancelCtx.Done():
 		default:
 			request := f.request.Clone()
+			grpcOpts := f.grpcOpts
+			if o.userRequest != nil {
+				request = o.userRequest
+				request.Connection = mergeConnection(f.returnedConnection, o.userRequest.Connection, f.request.GetConnection())
+			}
+			if o.grpcOpts != nil {
+				grpcOpts = o.grpcOpts
+			}
+
 			if o.reselect {
 				ctx, cancel := f.ctxFunc()
-				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
+				_, _ = f.client.Close(ctx, request.GetConnection(), grpcOpts...)
 				if request.GetConnection() != nil {
 					request.GetConnection().Mechanism = nil
 					request.GetConnection().NetworkServiceEndpointName = ""
@@ -110,12 +134,30 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 				}
 				cancel()
 			}
-			ctx, cancel := f.ctxFunc()
-			defer cancel()
-			conn, err := f.client.Request(ctx, request, f.opts...)
-			if err == nil && f.request != nil {
-				f.request.Connection = conn
+
+			var ctx context.Context
+			if o.ctx != nil {
+				ctx = withEventFactory(o.ctx, f)
+			} else {
+				var cancel context.CancelFunc
+				ctx, cancel = f.ctxFunc()
+				defer cancel()
+			}
+
+			conn, err := f.client.Request(ctx, request, grpcOpts...)
+			if err == nil {
+				f.request = request.Clone()
+				f.request.Connection = conn.Clone()
+				f.grpcOpts = grpcOpts
+				f.state = established
 				f.request.Connection.State = networkservice.State_UP
+				if o.connectionToReturn != nil {
+					f.returnedConnection = conn.Clone()
+					*o.connectionToReturn = conn.Clone()
+				}
+				f.updateContext(ctx)
+			} else if f.state != established {
+				f.afterCloseFunc()
 			}
 			ch <- err
 		}
@@ -130,18 +172,26 @@ func (f *eventFactoryClient) Close(opts ...Option) <-chan error {
 	for _, opt := range opts {
 		opt(o)
 	}
+
 	ch := make(chan error, 1)
 	f.executor.AsyncExec(func() {
 		defer close(ch)
-		if f.request == nil {
+		if f.request == nil || f.state != established {
 			return
 		}
+
 		select {
 		case <-o.cancelCtx.Done():
 		default:
+			grpcOpts := f.grpcOpts
+			if o.grpcOpts != nil {
+				grpcOpts = o.grpcOpts
+			}
+
 			ctx, cancel := f.ctxFunc()
 			defer cancel()
-			_, err := f.client.Close(ctx, f.request.GetConnection(), f.opts...)
+
+			_, err := f.client.Close(ctx, f.request.GetConnection(), grpcOpts...)
 			f.afterCloseFunc()
 			ch <- err
 		}
@@ -158,16 +208,24 @@ type eventFactoryServer struct {
 	ctxFunc            func() (context.Context, context.CancelFunc)
 	request            *networkservice.NetworkServiceRequest
 	returnedConnection *networkservice.Connection
-	afterCloseFunc     func()
 	server             networkservice.NetworkServiceServer
+	beforeRequestFunc  func() error
+	afterCloseFunc     func()
 }
 
-func newEventFactoryServer(ctx context.Context, afterClose func()) *eventFactoryServer {
+func newEventFactoryServer(ctx context.Context, actualEventFactoryFunc func() *eventFactoryServer, afterClose func()) *eventFactoryServer {
 	f := &eventFactoryServer{
 		server:         next.Server(ctx),
 		initialCtxFunc: postpone.Context(ctx),
 	}
 	f.updateContext(ctx)
+
+	f.beforeRequestFunc = func() error {
+		if actualEventFactoryFunc != nil && actualEventFactoryFunc() != f {
+			return &errorEventFactoryInconsistency{}
+		}
+		return nil
+	}
 
 	f.afterCloseFunc = func() {
 		f.state = closed
@@ -195,17 +253,46 @@ func (f *eventFactoryServer) Request(opts ...Option) <-chan error {
 	ch := make(chan error, 1)
 	f.executor.AsyncExec(func() {
 		defer close(ch)
-		if f.state != established {
+		if err := f.beforeRequestFunc(); err != nil {
+			ch <- err
 			return
 		}
 		select {
 		case <-o.cancelCtx.Done():
 		default:
-			ctx, cancel := f.ctxFunc()
-			defer cancel()
-			conn, err := f.server.Request(ctx, f.request)
-			if err == nil && f.request != nil {
-				f.request.Connection = conn
+			request := f.request.Clone()
+			if o.userRequest != nil {
+				request = o.userRequest
+			}
+			if f.state == established && request.GetConnection().GetState() == networkservice.State_RESELECT_REQUESTED {
+				ctx, cancel := f.ctxFunc()
+				_, _ = f.server.Close(ctx, f.request.GetConnection())
+				f.state = closed
+				cancel()
+			}
+
+			var ctx context.Context
+			if o.ctx != nil {
+				ctx = withEventFactory(o.ctx, f)
+			} else {
+				var cancel context.CancelFunc
+				ctx, cancel = f.ctxFunc()
+				defer cancel()
+			}
+
+			conn, err := f.server.Request(ctx, request)
+			if err == nil {
+				f.request = request.Clone()
+				f.request.Connection = conn.Clone()
+				f.state = established
+				f.request.Connection.State = networkservice.State_UP
+				if o.connectionToReturn != nil {
+					f.returnedConnection = conn.Clone()
+					*o.connectionToReturn = conn.Clone()
+				}
+				f.updateContext(ctx)
+			} else if f.state != established {
+				f.afterCloseFunc()
 			}
 			ch <- err
 		}
@@ -223,7 +310,7 @@ func (f *eventFactoryServer) Close(opts ...Option) <-chan error {
 	ch := make(chan error, 1)
 	f.executor.AsyncExec(func() {
 		defer close(ch)
-		if f.request == nil {
+		if f.request == nil || f.state != established {
 			return
 		}
 		select {
