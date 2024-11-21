@@ -16,4 +16,4 @@ jobs:
         with:
           go-version: 1.23.3
       - name: Test
-        run: go test -race -run TestRefreshClient_Sandbox ./pkg/networkservice/common/refresh -count 10000000 -timeout 6h
+        run: go test -race -run Test_DiscoverForwarder_ChangeForwarderOnClose ./pkg/networkservice/chains/nsmgr -count 5000 -timeout 6h
