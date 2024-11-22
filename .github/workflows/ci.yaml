@@ -16,4 +16,4 @@ jobs:
         with:
           go-version: 1.23.3
       - name: Test
-        run: go test -race -run Test_DiscoverForwarder_ChangeForwarderOnClose ./pkg/networkservice/chains/nsmgr -count 100000 -timeout 6h
+        run: go test -race -run Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal ./pkg/networkservice/chains/nsmgr -count 10000 -timeout 6h
