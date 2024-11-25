@@ -52,8 +52,8 @@ var DefaultReselectFunc ReselectFunc = func(request *networkservice.NetworkServi
 	}
 }
 
-// Vl3ReselectFunc - reselect function for vl3 connections that doesn't clean NSE name
-var Vl3ReselectFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
+// ReselectWithSameEndpointFunc - reselect function that doesn't clean NSE name
+var ReselectWithSameEndpointFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
 	if request.GetConnection() != nil {
 		request.GetConnection().Mechanism = nil
 		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
