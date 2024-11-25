@@ -52,6 +52,14 @@ var DefaultReselectFunc ReselectFunc = func(request *networkservice.NetworkServi
 	}
 }
 
+// Vl3ReselectFunc - reselect function for vl3 connections that doesn't clean NSE name
+var Vl3ReselectFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
+	if request.GetConnection() != nil {
+		request.GetConnection().Mechanism = nil
+		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
+	}
+}
+
 // EventFactory - allows firing off a Request or Close event from midchain
 type EventFactory interface {
 	Request(opts ...Option) <-chan error
