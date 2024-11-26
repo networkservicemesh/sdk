@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -44,6 +44,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 		authorizeClient: null.NewClient(),
 		healClient:      null.NewClient(),
 		refreshClient:   refresh.NewClient(ctx),
+		reselectFunc:    begin.DefaultReselectFunc,
 	}
 	for _, opt := range clientOpts {
 		opt(opts)
@@ -53,7 +54,7 @@ func NewClient(ctx context.Context, clientOpts ...Option) networkservice.Network
 		append(
 			[]networkservice.NetworkServiceClient{
 				updatepath.NewClient(opts.name),
-				begin.NewClient(),
+				begin.NewClient(begin.WithReselectFunc(opts.reselectFunc)),
 				metadata.NewClient(),
 				opts.refreshClient,
 				clienturl.NewClient(opts.clientURL),

@@ -1,4 +1,4 @@
-// Copyright (c) 2021 Cisco and/or its affiliates.
+// Copyright (c) 2021-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/null"
 )
 
@@ -36,6 +37,7 @@ type clientOptions struct {
 	healClient              networkservice.NetworkServiceClient
 	dialOptions             []grpc.DialOption
 	dialTimeout             time.Duration
+	reselectFunc            begin.ReselectFunc
 }
 
 // Option modifies default client chain values.
@@ -107,5 +109,12 @@ func WithDialTimeout(dialTimeout time.Duration) Option {
 func WithoutRefresh() Option {
 	return func(c *clientOptions) {
 		c.refreshClient = null.NewClient()
+	}
+}
+
+// WithReselectFunc sets a function for changing request parameters on reselect
+func WithReselectFunc(f func(*networkservice.NetworkServiceRequest)) Option {
+	return func(c *clientOptions) {
+		c.reselectFunc = f
 	}
 }

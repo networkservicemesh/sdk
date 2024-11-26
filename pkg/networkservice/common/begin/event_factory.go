@@ -40,6 +40,26 @@ const (
 
 var _ connectionState = zero
 
+// ReselectFunc - function for changing request parameters on reselect
+type ReselectFunc func(request *networkservice.NetworkServiceRequest)
+
+// DefaultReselectFunc - default ReselectFunc
+var DefaultReselectFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
+	if request.GetConnection() != nil {
+		request.GetConnection().Mechanism = nil
+		request.GetConnection().NetworkServiceEndpointName = ""
+		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
+	}
+}
+
+// ReselectWithSameEndpointFunc - reselect function that doesn't clean NSE name
+var ReselectWithSameEndpointFunc ReselectFunc = func(request *networkservice.NetworkServiceRequest) {
+	if request.GetConnection() != nil {
+		request.GetConnection().Mechanism = nil
+		request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
+	}
+}
+
 // EventFactory - allows firing off a Request or Close event from midchain
 type EventFactory interface {
 	Request(opts ...Option) <-chan error
@@ -56,12 +76,14 @@ type eventFactoryClient struct {
 	opts               []grpc.CallOption
 	client             networkservice.NetworkServiceClient
 	afterCloseFunc     func()
+	reselectFunc       ReselectFunc
 }
 
-func newEventFactoryClient(ctx context.Context, afterClose func(), opts ...grpc.CallOption) *eventFactoryClient {
+func newEventFactoryClient(ctx context.Context, afterClose func(), reselectFunc func(*networkservice.NetworkServiceRequest), opts ...grpc.CallOption) *eventFactoryClient {
 	f := &eventFactoryClient{
 		client:         next.Client(ctx),
 		initialCtxFunc: postpone.Context(ctx),
+		reselectFunc:   reselectFunc,
 		opts:           opts,
 	}
 	f.updateContext(ctx)
@@ -103,11 +125,7 @@ func (f *eventFactoryClient) Request(opts ...Option) <-chan error {
 			if o.reselect {
 				ctx, cancel := f.ctxFunc()
 				_, _ = f.client.Close(ctx, request.GetConnection(), f.opts...)
-				if request.GetConnection() != nil {
-					request.GetConnection().Mechanism = nil
-					request.GetConnection().NetworkServiceEndpointName = ""
-					request.GetConnection().State = networkservice.State_RESELECT_REQUESTED
-				}
+				f.reselectFunc(request)
 				cancel()
 			}
 			ctx, cancel := f.ctxFunc()

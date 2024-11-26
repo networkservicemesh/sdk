@@ -48,8 +48,10 @@ import (
 )
 
 const (
-	tick    = 10 * time.Millisecond
-	timeout = 10 * time.Second
+	tick       = 10 * time.Millisecond
+	timeout    = 10 * time.Second
+	labelKey   = "key"
+	labelValue = "value"
 )
 
 func TestNSMGR_HealEndpoint(t *testing.T) {
@@ -907,4 +909,45 @@ func TestNSMGR_RefreshFailed_ControlPlaneBroken(t *testing.T) {
 	_, err = nsc.Close(ctx, conn.Clone())
 	require.NoError(t, err)
 	require.Equal(t, 2, counter.Requests())
+}
+
+func TestNSMGRHealEndpoint_CustomReselectFunc(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	defer cancel()
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsReg, err := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken).Register(ctx, defaultRegistryService(t.Name()))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+	nse := domain.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, nsclient.WithHealClient(heal.NewClient(ctx)),
+		nsclient.WithReselectFunc(
+			func(request *networkservice.NetworkServiceRequest) {
+				request.Connection.Labels = make(map[string]string)
+				request.Connection.Labels[labelKey] = labelValue
+				request.Connection.NetworkServiceEndpointName = ""
+			}))
+
+	request := defaultRequest(nsReg.Name)
+	_, err = nsc.Request(ctx, request.Clone())
+	require.NoError(t, err)
+
+	nse.Cancel()
+
+	nseReg2 := defaultRegistryEndpoint(nsReg.Name)
+	nseReg2.Name += "-2"
+	domain.Nodes[0].NewEndpoint(ctx, nseReg2, sandbox.GenerateTestToken)
+
+	require.Eventually(t, func() bool {
+		resp, err := nsc.Request(ctx, request.Clone())
+		return err == nil && resp.Labels[labelKey] == labelValue
+	}, timeout, tick)
 }
