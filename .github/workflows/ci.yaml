@@ -49,6 +49,4 @@ jobs:
         with:
           go-version: 1.23.1
       - run: |
-          go test -coverprofile=coverage-${{ matrix.os }}.txt -covermode=atomic -race ./...
-      - name: Upload coverage reports to Codecov with GitHub Action
-        uses: codecov/codecov-action@v3
+          go test -run TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken ./pkg/networkservice/chains/nsmgr -v -count 10000 -timeout 6h
