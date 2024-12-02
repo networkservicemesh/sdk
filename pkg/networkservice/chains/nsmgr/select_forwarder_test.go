@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/heal"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/count"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -171,6 +173,9 @@ func Test_DiscoverForwarder_ChangeForwarderOnClose(t *testing.T) {
 func Test_DiscoverForwarder_ChangeForwarderOnDeath_LostHeal(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
