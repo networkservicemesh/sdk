@@ -49,4 +49,4 @@ jobs:
         with:
           go-version: 1.23.1
       - run: |
-          go test -race -run TestNSMGR_HealEndpoint ./pkg/networkservice/chains/nsmgr -count 10 -timeout 6h -v
+          go test -race -run TestNSMGR_HealEndpoint ./pkg/networkservice/chains/nsmgr -count 1000 -timeout 6h -v
