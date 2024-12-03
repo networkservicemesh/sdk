@@ -99,6 +99,8 @@ func (di *dialer) Close() error {
 }
 
 func (di *dialer) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
+	di.mu.Lock()
+	defer di.mu.Unlock()
 	if di.ClientConn == nil {
 		return errors.New("no dialer.ClientConn found")
 	}
