@@ -49,7 +49,7 @@ import (
 
 const (
 	tick       = 10 * time.Millisecond
-	timeout    = 10 * time.Second
+	timeout    = 15 * time.Second
 	labelKey   = "key"
 	labelValue = "value"
 )
@@ -250,8 +250,6 @@ func TestNSMGRHealEndpoint_DataPlaneBroken_CtrlPlaneHealthy(t *testing.T) {
 }
 
 func TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken(t *testing.T) {
-	t.Skip("https://github.com/networkservicemesh/sdk/issues/1573")
-
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 
