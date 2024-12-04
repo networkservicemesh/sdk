@@ -66,7 +66,14 @@ func ListenAndServe(ctx context.Context, address *url.URL, server *grpc.Server) 
 		}
 	}
 
-	ln, err := net.Listen(network, target)
+	var ln net.Listener
+	var err error
+	for i := 0; i < 500; i++ {
+		ln, err = net.Listen(network, target)
+		if err == nil {
+			break
+		}
+	}
 
 	if ln != nil {
 		// We need to pass a real listener address into context, since we could specify random port.
