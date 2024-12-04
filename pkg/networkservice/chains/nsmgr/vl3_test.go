@@ -28,6 +28,7 @@ import (
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/protobuf/proto"
@@ -47,6 +48,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -56,6 +58,9 @@ const (
 
 func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
