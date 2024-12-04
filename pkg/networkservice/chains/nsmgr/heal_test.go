@@ -44,6 +44,7 @@ import (
 	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/clockmock"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -79,6 +80,9 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
 
 	defer cancel()
 	domain := sandbox.NewBuilder(ctx, t).
