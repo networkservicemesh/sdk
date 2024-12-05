@@ -26,6 +26,7 @@ jobs:
           go test -race -run "^TestNSMGR_HealEndpoint$" ./pkg/networkservice/chains/nsmgr -count 2000 -timeout 6h -v > ${{ matrix.os }}/logs
       - name: Upload Logs
         uses: actions/upload-artifact@v4
+        if: ${{ success() || failure() || cancelled() }}
         with:
           name: ${{ matrix.os }}-logs
           path: ${{ matrix.os }}/logs
@@ -65,6 +66,7 @@ jobs:
           go test -race -run "^TestNSMGR_HealEndpoint$" ./pkg/networkservice/chains/nsmgr -count 2000 -timeout 6h -v > ${{ matrix.os }}/logs
       - name: Upload Logs
         uses: actions/upload-artifact@v4
+        if: ${{ success() || failure() || cancelled() }}
         with:
           name: ${{ matrix.os }}-code-cov-logs
           path: ${{ matrix.os }}/logs
