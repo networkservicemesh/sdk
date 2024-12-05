@@ -49,7 +49,7 @@ import (
 
 const (
 	tick       = 10 * time.Millisecond
-	timeout    = 10 * time.Second
+	timeout    = 15 * time.Second
 	labelKey   = "key"
 	labelValue = "value"
 )
