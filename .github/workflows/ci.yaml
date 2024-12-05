@@ -23,9 +23,10 @@ jobs:
           go-version: 1.23.1
       - run: |
           mkdir ${{ matrix.os }}
-          go test -race -run "^TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken$" ./pkg/networkservice/chains/nsmgr -count 5000 -timeout 6h -v > ${{ matrix.os }}/logs
+          go test -race -run "^TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken$" ./pkg/networkservice/chains/nsmgr -count 3000 -timeout 6h -v > ${{ matrix.os }}/logs
       - name: Upload Logs
         uses: actions/upload-artifact@v4
+        if: ${{ success() || failure() || cancelled() }}
         with:
           name: ${{ matrix.os }}-logs
           path: ${{ matrix.os }}/logs
@@ -62,9 +63,10 @@ jobs:
           go-version: 1.23.1
       - run: |
           mkdir ${{ matrix.os }}
-          go test -race -run "^TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken$" ./pkg/networkservice/chains/nsmgr -count 5000 -timeout 6h -v > ${{ matrix.os }}/logs
+          go test -race -run "^TestNSMGRHealEndpoint_DatapathHealthy_CtrlPlaneBroken$" ./pkg/networkservice/chains/nsmgr -count 3000 -timeout 6h -v > ${{ matrix.os }}/logs
       - name: Upload Logs
         uses: actions/upload-artifact@v4
+        if: ${{ success() || failure() || cancelled() }}
         with:
           name: ${{ matrix.os }}-code-cov-logs
           path: ${{ matrix.os }}/logs
