@@ -17,7 +17,6 @@
 package log
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"strings"
@@ -87,14 +86,7 @@ func (l *defaultLogger) Tracef(format string, v ...interface{}) {
 }
 
 func (l *defaultLogger) Object(k, v interface{}) {
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	l.Infof("%v=%s", k, msg)
+	l.Infof("%v=%s", k, v)
 }
 
 func (l *defaultLogger) WithField(key, value interface{}) Logger {

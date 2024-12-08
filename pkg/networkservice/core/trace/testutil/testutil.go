@@ -160,6 +160,11 @@ func (c *ErrorServer) Close(ctx context.Context, connection *networkservice.Conn
 	return next.Server(ctx).Close(ctx, connection)
 }
 
+// Normalize normalizes test input of logs to make it usable for equals operations
+func Normalize(in string) string {
+	return strings.ReplaceAll(in, " ", "")
+}
+
 // TrimLogTime - to format logs
 func TrimLogTime(buff fmt.Stringer) string {
 	// Logger created by the trace chain element uses custom formatter, which prints date and time info in each line

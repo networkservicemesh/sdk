@@ -18,8 +18,6 @@ package traceconcise
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -55,13 +53,5 @@ func logObject(ctx context.Context, k, v interface{}) {
 	if !trace(ctx) {
 		return
 	}
-	s := log.FromContext(ctx)
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Infof("%v=%s", k, msg)
+	log.FromContext(ctx).Infof("%v=%s", k, v)
 }

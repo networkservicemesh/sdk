@@ -18,8 +18,6 @@ package trace
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"strings"
 
 	"github.com/google/go-cmp/cmp"
@@ -68,13 +66,5 @@ func logResponse(ctx context.Context, message *dns.Msg, prefixes ...string) {
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
-	s := log.FromContext(ctx)
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Tracef("%v=%s", k, msg)
+	log.FromContext(ctx).Tracef("%v=%s", k, v)
 }

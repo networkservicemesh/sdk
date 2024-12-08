@@ -22,7 +22,6 @@ package logruslogger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 	"sync"
@@ -89,14 +88,7 @@ func (s *logrusLogger) Tracef(format string, v ...interface{}) {
 }
 
 func (s *logrusLogger) Object(k, v interface{}) {
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Infof("%v=%s", k, msg)
+	s.Infof("%v=%s", k, v)
 }
 
 func (s *logrusLogger) WithField(key, value interface{}) log.Logger {
@@ -193,14 +185,7 @@ func (s *traceLogger) Tracef(format string, v ...interface{}) {
 }
 
 func (s *traceLogger) Object(k, v interface{}) {
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Infof("%v=%s", k, msg)
+	s.Infof("%v=%s", k, v)
 }
 
 func (s *traceLogger) WithField(key, value interface{}) log.Logger {

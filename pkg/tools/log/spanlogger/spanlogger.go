@@ -21,7 +21,6 @@ package spanlogger
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -89,14 +88,7 @@ func (s *spanLogger) Object(k, v interface{}) {
 
 	if s.span != nil {
 		if v != nil {
-			msg := ""
-			cc, err := json.Marshal(v)
-			if err == nil {
-				msg = string(cc)
-			} else {
-				msg = fmt.Sprint(v)
-			}
-			s.span.LogObject(k, msg)
+			s.span.LogObject(k, v)
 		}
 	}
 }

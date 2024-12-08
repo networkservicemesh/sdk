@@ -18,7 +18,6 @@
 package typeutils
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 )
@@ -29,6 +28,18 @@ func GetFuncName(value interface{}, methodName string) string {
 	if v.Kind() == reflect.Ptr {
 		v = v.Elem()
 	}
-	pkgPath := strings.TrimPrefix(v.Type().PkgPath(), "github.com/networkservicemesh/")
-	return fmt.Sprintf("%s/%s.%s", pkgPath, v.Type().Name(), methodName)
+
+	typeName := v.Type().Name()
+	pkgPath := v.Type().PkgPath()
+	pkgPath = pkgPath[strings.LastIndex(pkgPath, "/")+1:]
+	sb := strings.Builder{}
+
+	sb.Grow(len(methodName) + len(pkgPath) + len(typeName) + 2)
+	_, _ = sb.WriteString(pkgPath)
+	_, _ = sb.WriteString("/")
+	_, _ = sb.WriteString(typeName)
+	_, _ = sb.WriteString(".")
+	_, _ = sb.WriteString(methodName)
+
+	return sb.String()
 }

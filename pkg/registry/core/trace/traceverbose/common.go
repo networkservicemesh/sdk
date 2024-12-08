@@ -20,8 +20,6 @@ package traceverbose
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 
 	"github.com/pkg/errors"
 
@@ -58,13 +56,5 @@ func logObjectTrace(ctx context.Context, k, v interface{}) {
 		return
 	}
 
-	s := log.FromContext(ctx)
-	msg := ""
-	cc, err := json.Marshal(v)
-	if err == nil {
-		msg = string(cc)
-	} else {
-		msg = fmt.Sprint(v)
-	}
-	s.Tracef("%v=%s", k, msg)
+	log.FromContext(ctx).Tracef("%v=%s", k, v)
 }

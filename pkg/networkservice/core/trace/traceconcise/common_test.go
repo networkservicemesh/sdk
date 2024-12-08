@@ -60,18 +60,17 @@ func TestOutput(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, e)
 
-	expectedOutput :=
-		" [INFO] [id:conn-1] [type:networkService] server-request={\"connection\":" +
-			"{\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":" +
-			"[{\"cls\":\"LOCAL\",\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\":\"v2\"}}]}" +
-			"\n [INFO] [id:conn-1] [type:networkService] server-request-response={\"id\":\"conn-1\",\"context\":" +
-			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}" +
-			"\n [INFO] [id:conn-1] [type:networkService] server-close={\"id\":\"conn-1\",\"context\":{\"ip_context\":" +
-			"{\"src_ip_required\":true}},\"labels\":{\"Label\":\"D\"}}" +
-			"\n [INFO] [id:conn-1] [type:networkService] server-close-response={\"id\":\"conn-1\",\"context\":" +
-			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"X\"}}\n"
+	expectedOutput := ` [INFO] [id:conn-1] [type:networkService] server-request=connection:{id:"conn-1" context:{ip_context:{src_ip_required:true}}} mechanism_preferences:{cls:"LOCAL" type:"KERNEL"} mechanism_preferences:{cls:"LOCAL" type:"KERNEL" parameters:{key:"label" value:"v2"}}
+ [INFO] [id:conn-1] [type:networkService] server-request-response=id:"conn-1" context:{ip_context:{src_ip_required:true}} labels:{key:"Label" value:"B"}
+ [INFO] [id:conn-1] [type:networkService] server-close=id:"conn-1" context:{ip_context:{src_ip_required:true}} labels:{key:"Label" value:"D"}
+ [INFO] [id:conn-1] [type:networkService] server-close-response=id:"conn-1" context:{ip_context:{src_ip_required:true}} labels:{key:"Label" value:"X"}
+`
 
 	result := testutil.TrimLogTime(&buff)
+
+	result = testutil.Normalize(result)
+	expectedOutput = testutil.Normalize(expectedOutput)
+
 	require.Equal(t, expectedOutput, result)
 }
 
@@ -100,25 +99,14 @@ func TestErrorOutput(t *testing.T) {
 	require.Error(t, err)
 	require.Nil(t, conn)
 
-	expectedOutput :=
-		" [INFO] [id:conn-1] [type:networkService] server-request={\"connection\":" +
-			"{\"id\":\"conn-1\",\"context\":{\"ip_context\":{\"src_ip_required\":true}}},\"mechanism_preferences\":" +
-			"[{\"cls\":\"LOCAL\",\"type\":\"KERNEL\"},{\"cls\":\"LOCAL\",\"type\":\"KERNEL\",\"parameters\":{\"label\":\"v2\"}}]}\n" +
-			" [INFO] [id:conn-1] [type:networkService] server-request-response={\"id\":\"conn-1\",\"context\":" +
-			"{\"ip_context\":{\"src_ip_required\":true}},\"labels\":{\"Label\":\"B\"}}\n" +
-			" [ERRO] [id:conn-1] [type:networkService] Error returned from sdk/pkg/networkservice/core/trace/testutil/ErrorServer.Request:" +
-			" Error returned from api/pkg/api/networkservice/networkServiceClient.Close;" +
-			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;" +
-			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;" +
-			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;" +
-			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;" +
-			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;" +
-			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;" +
-			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;" +
-			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;" +
-			"\tgithub.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;" +
-			"\t\t/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;\t\n"
-
+	expectedOutput := ` [INFO] [id:conn-1] [type:networkService] server-request=connection:{id:"conn-1"  context:{ip_context:{src_ip_required:true}}}  mechanism_preferences:{cls:"LOCAL"  type:"KERNEL"}  mechanism_preferences:{cls:"LOCAL"  type:"KERNEL"  parameters:{key:"label"  value:"v2"}}
+ [INFO] [id:conn-1] [type:networkService] server-request-response=id:"conn-1"  context:{ip_context:{src_ip_required:true}}  labels:{key:"Label"  value:"B"}
+ [ERRO] [id:conn-1] [type:networkService] Error returned from testutil/ErrorServer.Request: Error returned from api/pkg/api/networkservice/networkServiceClient.Close;	github.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*beginTraceClient).Close;		/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:85;	github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;		/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;	github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;		/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;	github.com/networkservicemesh/sdk/pkg/networkservice/core/trace.(*endTraceClient).Close;		/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/trace/client.go:106;	github.com/networkservicemesh/sdk/pkg/networkservice/core/next.(*nextClient).Close;		/root/go/pkg/mod/github.com/networkservicemesh/sdk@v0.5.1-0.20210929180427-ec235de055f1/pkg/networkservice/core/next/client.go:65;	
+`
 	result := testutil.TrimLogTime(&buff)
+
+	result = testutil.Normalize(result)
+	expectedOutput = testutil.Normalize(expectedOutput)
+
 	require.Equal(t, expectedOutput, result)
 }
