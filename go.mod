@@ -3,6 +3,7 @@ module github.com/networkservicemesh/sdk
 go 1.23
 
 require (
+	github.com/OneOfOne/xxhash v1.2.8
 	github.com/RoaringBitmap/roaring v0.9.4
 	github.com/antonfisher/nested-logrus-formatter v1.3.1
 	github.com/benbjohnson/clock v1.3.0
@@ -50,7 +51,6 @@ require (
 require (
 	cloud.google.com/go/compute v1.23.1 // indirect
 	github.com/Microsoft/go-winio v0.6.1 // indirect
-	github.com/OneOfOne/xxhash v1.2.8 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
