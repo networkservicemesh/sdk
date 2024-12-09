@@ -166,7 +166,7 @@ func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, "unregister-response", rv)
+	logObjectTrace(ctx, "unregister-response", in)
 	return rv, nil
 }
 

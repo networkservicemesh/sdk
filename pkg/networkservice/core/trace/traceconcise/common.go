@@ -43,15 +43,10 @@ func logResponse(ctx context.Context, response any, prefixes ...string) {
 }
 
 func logError(ctx context.Context, err error, operation string) error {
-	if trace(ctx) {
-		log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
-	}
+	log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
 	return err
 }
 
 func logObject(ctx context.Context, k, v interface{}) {
-	if !trace(ctx) {
-		return
-	}
 	log.FromContext(ctx).Infof("%v=%s", k, v)
 }

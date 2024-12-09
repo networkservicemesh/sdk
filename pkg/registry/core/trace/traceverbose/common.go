@@ -39,10 +39,10 @@ type stackTracer interface {
 }
 
 func logError(ctx context.Context, err error, operation string) error {
+	if err == error(nil) {
+		return nil
+	}
 	if _, ok := err.(stackTracer); !ok {
-		if err == error(nil) {
-			return nil
-		}
 		err = errors.Wrapf(err, "Error returned from %s", operation)
 		log.FromContext(ctx).Errorf("%+v", err)
 		return err
@@ -52,9 +52,5 @@ func logError(ctx context.Context, err error, operation string) error {
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
-	if ok := trace(ctx); !ok {
-		return
-	}
-
 	log.FromContext(ctx).Tracef("%v=%s", k, v)
 }

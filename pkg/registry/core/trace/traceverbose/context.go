@@ -27,11 +27,10 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
 )
 
-type contextKeyType string
+type contextKeyType struct{}
 
 const (
-	traceInfoKey contextKeyType = "ConnectionInfoRegistry"
-	loggedType   string         = "registry"
+	loggedType string = "registry"
 )
 
 // ConnectionInfo - struct is used for tracing.
@@ -73,11 +72,11 @@ func withTrace(parent context.Context) context.Context {
 		return parent
 	}
 
-	return context.WithValue(parent, traceInfoKey, &traceInfo{})
+	return context.WithValue(parent, contextKeyType{}, &traceInfo{})
 }
 
 // trace - return traceInfo from context
 func trace(ctx context.Context) bool {
-	_, ok := ctx.Value(traceInfoKey).(*traceInfo)
+	_, ok := ctx.Value(contextKeyType{}).(*traceInfo)
 	return ok
 }
