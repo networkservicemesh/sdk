@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -31,68 +31,86 @@ import (
 )
 
 type traceNetworkServiceRegistryClient struct {
-	verbose registry.NetworkServiceRegistryClient
-	concise registry.NetworkServiceRegistryClient
+	verbose, concise, original registry.NetworkServiceRegistryClient
 }
 
 // NewNetworkServiceRegistryClient - wraps registry.NetworkServiceRegistryClient with tracing
 func NewNetworkServiceRegistryClient(traced registry.NetworkServiceRegistryClient) registry.NetworkServiceRegistryClient {
 	return &traceNetworkServiceRegistryClient{
-		verbose: traceverbose.NewNetworkServiceRegistryClient(traced),
-		concise: traceconcise.NewNetworkServiceRegistryClient(traced),
+		verbose:  traceverbose.NewNetworkServiceRegistryClient(traced),
+		concise:  traceconcise.NewNetworkServiceRegistryClient(traced),
+		original: traced,
 	}
 }
 
 func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*registry.NetworkService, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.concise.Register(ctx, in, opts...)
+	}
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Register(ctx, in, opts...)
 	}
-	return t.concise.Register(ctx, in, opts...)
+	return t.original.Register(ctx, in, opts...)
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Find(ctx, in, opts...)
 	}
-	return t.concise.Find(ctx, in, opts...)
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.concise.Find(ctx, in, opts...)
+	}
+	return t.original.Find(ctx, in, opts...)
 }
 
 func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *registry.NetworkService, opts ...grpc.CallOption) (*empty.Empty, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Unregister(ctx, in, opts...)
 	}
-	return t.concise.Unregister(ctx, in, opts...)
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.concise.Unregister(ctx, in, opts...)
+	}
+	return t.original.Unregister(ctx, in, opts...)
 }
 
 type traceNetworkServiceRegistryServer struct {
-	verbose registry.NetworkServiceRegistryServer
-	concise registry.NetworkServiceRegistryServer
+	concise, verbose, original registry.NetworkServiceRegistryServer
 }
 
 // NewNetworkServiceRegistryServer - wraps registry.NetworkServiceRegistryServer with tracing
 func NewNetworkServiceRegistryServer(traced registry.NetworkServiceRegistryServer) registry.NetworkServiceRegistryServer {
 	return &traceNetworkServiceRegistryServer{
-		verbose: traceverbose.NewNetworkServiceRegistryServer(traced),
-		concise: traceconcise.NewNetworkServiceRegistryServer(traced),
+		verbose:  traceverbose.NewNetworkServiceRegistryServer(traced),
+		concise:  traceconcise.NewNetworkServiceRegistryServer(traced),
+		original: traced,
 	}
 }
 
 func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *registry.NetworkService) (*registry.NetworkService, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Register(ctx, in)
 	}
-	return t.concise.Register(ctx, in)
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.concise.Register(ctx, in)
+	}
+	return t.original.Register(ctx, in)
 }
 
 func (t *traceNetworkServiceRegistryServer) Find(in *registry.NetworkServiceQuery, s registry.NetworkServiceRegistry_FindServer) error {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Find(in, s)
 	}
-	return t.concise.Find(in, s)
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.concise.Find(in, s)
+	}
+	return t.original.Find(in, s)
 }
 
 func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *registry.NetworkService) (*empty.Empty, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Unregister(ctx, in)
 	}
-	return t.concise.Unregister(ctx, in)
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.concise.Unregister(ctx, in)
+	}
+	return t.original.Unregister(ctx, in)
 }
