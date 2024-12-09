@@ -34,6 +34,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/spanlogger"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringutils"
 )
 
 type logrusLogger struct {
@@ -92,7 +93,7 @@ func (s *logrusLogger) Object(k, v interface{}) {
 	msg := ""
 	cc, err := json.Marshal(v)
 	if err == nil {
-		msg = string(cc)
+		msg = stringutils.CovertBytesToString(cc)
 	} else {
 		msg = fmt.Sprint(v)
 	}
@@ -196,7 +197,7 @@ func (s *traceLogger) Object(k, v interface{}) {
 	msg := ""
 	cc, err := json.Marshal(v)
 	if err == nil {
-		msg = string(cc)
+		msg = stringutils.CovertBytesToString(cc)
 	} else {
 		msg = fmt.Sprint(v)
 	}

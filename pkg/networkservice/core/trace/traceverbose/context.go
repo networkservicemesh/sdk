@@ -22,8 +22,6 @@ package traceverbose
 import (
 	"context"
 
-	"google.golang.org/protobuf/proto"
-
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
@@ -40,9 +38,9 @@ const (
 // ConnectionInfo - struct, containing string representations of request and response, used for tracing.
 type traceInfo struct {
 	// Request is last request of NetworkService{Client, Server}
-	Request proto.Message
+	Request uint64
 	// Response is last response of NetworkService{Client, Server}
-	Response proto.Message
+	Response uint64
 }
 
 // withLog - provides corresponding logger in context
