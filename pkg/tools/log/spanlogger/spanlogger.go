@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -27,6 +27,7 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/opentelemetry"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringutils"
 )
 
 // spanlogger - provides a way to log via opentelemetry spans
@@ -92,7 +93,7 @@ func (s *spanLogger) Object(k, v interface{}) {
 			msg := ""
 			cc, err := json.Marshal(v)
 			if err == nil {
-				msg = string(cc)
+				msg = stringutils.CovertBytesToString(cc)
 			} else {
 				msg = fmt.Sprint(v)
 			}

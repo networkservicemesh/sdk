@@ -1,6 +1,6 @@
 // Copyright (c) 2021 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringutils"
 )
 
 const (
@@ -41,10 +42,10 @@ type stackTracer interface {
 }
 
 func logError(ctx context.Context, err error, operation string) error {
+	if err == error(nil) {
+		return nil
+	}
 	if _, ok := err.(stackTracer); !ok {
-		if err == error(nil) {
-			return nil
-		}
 		err = errors.Wrapf(err, "Error returned from %s", operation)
 		log.FromContext(ctx).Errorf("%+v", err)
 		return err
@@ -54,17 +55,12 @@ func logError(ctx context.Context, err error, operation string) error {
 }
 
 func logObjectTrace(ctx context.Context, k, v interface{}) {
-	if ok := trace(ctx); !ok {
-		return
-	}
-
-	s := log.FromContext(ctx)
 	msg := ""
 	cc, err := json.Marshal(v)
 	if err == nil {
-		msg = string(cc)
+		msg = stringutils.CovertBytesToString(cc)
 	} else {
 		msg = fmt.Sprint(v)
 	}
-	s.Tracef("%v=%s", k, msg)
+	log.FromContext(ctx).Tracef("%v=%s", k, msg)
 }
