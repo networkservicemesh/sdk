@@ -30,27 +30,34 @@ import (
 )
 
 type traceServer struct {
-	verbose networkservice.NetworkServiceServer
-	concise networkservice.NetworkServiceServer
+	verbose, concise, original networkservice.NetworkServiceServer
 }
 
 // NewNetworkServiceServer - wraps tracing around the supplied traced
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return &traceServer{
-		verbose: traceverbose.NewNetworkServiceServer(traced),
-		concise: traceconcise.NewNetworkServiceServer(traced),
+		verbose:  traceverbose.NewNetworkServiceServer(traced),
+		concise:  traceconcise.NewNetworkServiceServer(traced),
+		original: traced,
 	}
 }
 
 func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.original.Request(ctx, request)
+	}
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Request(ctx, request)
 	}
+
 	return t.concise.Request(ctx, request)
 }
 
 func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		return t.original.Close(ctx, conn)
+	}
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Close(ctx, conn)
 	}
 	return t.concise.Close(ctx, conn)
