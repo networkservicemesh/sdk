@@ -8,7 +8,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at:
 //
-//     http://www.apache.org/licenses/LICENS-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,6 @@ package trace_test
 import (
 	"bytes"
 	"context"
-	"os"
 	"testing"
 
 	"github.com/networkservicemesh/api/pkg/api/registry"
@@ -148,7 +147,6 @@ func TestOutput_Trace_RegistryNetworkService(t *testing.T) {
 `
 
 	result := testutil.TrimLogTime(&buff)
-	os.WriteFile("out.txt", []byte(result), os.ModePerm)
 	result = testutil.Normalize(result)
 	expectedOutput = testutil.Normalize(expectedOutput)
 
@@ -208,7 +206,6 @@ func TestErrorOutput_RegistryNetworkService(t *testing.T) {
 	expectedOutput = testutil.Normalize(expectedOutput)
 
 	require.Equal(t, expectedOutput, result)
-
 }
 
 func TestErrorOutput_Trace_RegistryNetworkService(t *testing.T) {
@@ -276,5 +273,4 @@ func TestErrorOutput_Trace_RegistryNetworkService(t *testing.T) {
 	expectedOutput = testutil.Normalize(expectedOutput)
 
 	require.Equal(t, expectedOutput, result)
-
 }

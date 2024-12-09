@@ -208,7 +208,6 @@ func TestErrorOutput(t *testing.T) {
 	expectedOutput = testutil.Normalize(expectedOutput)
 
 	require.Equal(t, expectedOutput, result)
-
 }
 
 func TestErrorOutput_Trace(t *testing.T) {
@@ -276,5 +275,4 @@ func TestErrorOutput_Trace(t *testing.T) {
 	expectedOutput = testutil.Normalize(expectedOutput)
 
 	require.Equal(t, expectedOutput, result)
-
 }
