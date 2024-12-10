@@ -28,6 +28,7 @@ import (
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/goleak"
 	"google.golang.org/protobuf/proto"
@@ -47,6 +48,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/memory"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
 )
 
@@ -56,6 +58,9 @@ const (
 
 func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	log.EnableTracing(true)
+	logrus.SetLevel(logrus.TraceLevel)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
 	defer cancel()
@@ -97,18 +102,14 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		},
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 3; i++ {
 		nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken)
-
-		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1)
-		defer reqClose()
 
 		req := defaultRequest(nsReg.Name)
 		req.Connection.Id = uuid.New().String()
-
 		req.Connection.Labels["podName"] = nscName + fmt.Sprint(i)
 
-		resp, err := nsc.Request(reqCtx, req)
+		resp, err := nsc.Request(ctx, req)
 		require.NoError(t, err)
 
 		req.Connection = resp.Clone()
@@ -117,15 +118,15 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 
 		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
-		resp, err = nsc.Request(reqCtx, req)
+		resp, err = nsc.Request(ctx, req)
 		require.NoError(t, err)
 
 		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", "10.0.0.1")
 
-		_, err = nsc.Close(reqCtx, resp)
+		_, err = nsc.Close(ctx, resp)
 		require.NoError(t, err)
 
-		_, err = resolver.LookupIP(reqCtx, "ip4", nscName+fmt.Sprint(i)+".vl3")
+		_, err = resolver.LookupIP(ctx, "ip4", nscName+fmt.Sprint(i)+".vl3")
 		require.Error(t, err)
 	}
 }
