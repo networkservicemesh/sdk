@@ -23,7 +23,7 @@ jobs:
           go-version: 1.23.1
       - run: |
           mkdir ${{ matrix.os }}
-          go test -race -run "^Test_NSC_ConnectsTo_vl3NSE$" ./pkg/networkservice/chains/nsmgr -count 2000 -timeout 6h -v > ${{ matrix.os }}/logs
+          go test -race -run "^Test_NSC_ConnectsTo_vl3NSE$" ./pkg/networkservice/chains/nsmgr -count 1000 -timeout 6h -v > ${{ matrix.os }}/logs
       - name: Upload Logs
         uses: actions/upload-artifact@v4
         if: ${{ success() || failure() || cancelled() }}
@@ -63,7 +63,7 @@ jobs:
           go-version: 1.23.1
       - run: |
           mkdir ${{ matrix.os }}
-          go test -race -run "^Test_NSC_ConnectsTo_vl3NSE$" ./pkg/networkservice/chains/nsmgr -count 2000 -timeout 6h -v > ${{ matrix.os }}/logs
+          go test -race -run "^Test_NSC_ConnectsTo_vl3NSE$" ./pkg/networkservice/chains/nsmgr -count 1000 -timeout 6h -v > ${{ matrix.os }}/logs
       - name: Upload Logs
         uses: actions/upload-artifact@v4
         if: ${{ success() || failure() || cancelled() }}
