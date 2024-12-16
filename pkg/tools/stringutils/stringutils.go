@@ -19,9 +19,9 @@ package stringutils
 
 import "unsafe"
 
-// CovertBytesToString converts slice of bytes to string via unsafe package with zero allocations.
+// ConvertBytesToString converts slice of bytes to string via unsafe package with zero allocations.
 // Note: slice MUST NOT be modified after using this function.
-func CovertBytesToString(slice []byte) string {
+func ConvertBytesToString(slice []byte) string {
 	// nolint
 	return *(*string)(unsafe.Pointer(&slice))
 }
