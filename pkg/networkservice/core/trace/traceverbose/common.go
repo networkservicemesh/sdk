@@ -216,9 +216,9 @@ func logObjectTrace(ctx context.Context, k, v interface{}) {
 	msg := ""
 	cc, err := json.Marshal(v)
 	if err == nil {
-		msg = stringutils.CovertBytesToString(cc)
+		msg = stringutils.ConvertBytesToString(cc)
 	} else {
 		msg = fmt.Sprint(v)
 	}
-	s.Infof("%v=%s", k, msg)
+	s.Tracef("%v=%s", k, msg)
 }
