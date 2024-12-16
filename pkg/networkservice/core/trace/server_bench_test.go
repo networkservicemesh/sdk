@@ -140,7 +140,7 @@ func Benchmark_LongRequest_Trace(b *testing.B) {
 	}
 }
 
-func Benchmark_LongRequest_Trace_NoDiff(b *testing.B) {
+func Benchmark_LongRequest_NoDiff_Trace(b *testing.B) {
 	var s = newTestStaticServerChain(100)
 	var request = newTestRequest(100)
 	var ctx = context.Background()
