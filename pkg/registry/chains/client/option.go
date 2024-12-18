@@ -47,6 +47,34 @@ func WithNSClientURLResolver(c registry.NetworkServiceRegistryClient) Option {
 	}
 }
 
+// WithNSHealClient overrides default heal network service registry client
+func WithNSHealClient(c registry.NetworkServiceRegistryClient) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.nsHealClient = c
+	}
+}
+
+// WithNSRetryClient overrides default retry network service registry client
+func WithNSRetryClient(c registry.NetworkServiceRegistryClient) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.nsRetryClient = c
+	}
+}
+
+// WithNSERetryClient overrides default retry network service endpoint registry client
+func WithNSERetryClient(c registry.NetworkServiceEndpointRegistryClient) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.nseRetryClient = c
+	}
+}
+
+// WithNSEHealClient overrides default heal network service endpoint registry client
+func WithNSEHealClient(c registry.NetworkServiceEndpointRegistryClient) Option {
+	return func(clientOpts *clientOptions) {
+		clientOpts.nseHealClient = c
+	}
+}
+
 // WithNSEClientURLResolver sets nse client URL resolver
 func WithNSEClientURLResolver(c registry.NetworkServiceEndpointRegistryClient) Option {
 	return func(clientOpts *clientOptions) {
@@ -103,8 +131,9 @@ func WithDialTimeout(dialTimeout time.Duration) Option {
 }
 
 type clientOptions struct {
-	nsClientURLResolver        registry.NetworkServiceRegistryClient
-	nseClientURLResolver       registry.NetworkServiceEndpointRegistryClient
+	nsHealClient, nsRetryClient, nsClientURLResolver    registry.NetworkServiceRegistryClient
+	nseClientURLResolver, nseHealClient, nseRetryClient registry.NetworkServiceEndpointRegistryClient
+
 	authorizeNSRegistryClient  registry.NetworkServiceRegistryClient
 	authorizeNSERegistryClient registry.NetworkServiceEndpointRegistryClient
 	nsAdditionalFunctionality  []registry.NetworkServiceRegistryClient
