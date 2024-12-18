@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco Systems, Inc.
+// Copyright (c) 2023-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -33,6 +33,7 @@ const (
 var (
 	isTracingEnabled int32  = 0
 	globalLogger     Logger = Default()
+	emptyLogger      Logger = new(emptylogger)
 )
 
 // Logger - unified interface for logging
@@ -72,7 +73,7 @@ func FromContext(ctx context.Context) Logger {
 	if ok {
 		return rv
 	}
-	return L()
+	return emptyLogger
 }
 
 // Join - concatenates new logger with existing loggers
