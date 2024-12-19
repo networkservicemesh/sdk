@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -166,7 +166,7 @@ func (t *traceNetworkServiceEndpointRegistryServer) Unregister(ctx context.Conte
 	if err != nil {
 		return nil, logError(ctx, err, operation)
 	}
-	logObjectTrace(ctx, "unregister-response", rv)
+	logObjectTrace(ctx, "unregister-response", in)
 	return rv, nil
 }
 

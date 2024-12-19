@@ -59,6 +59,15 @@ func generateRandomBuffer(generator io.Reader, step int) ([]byte, error) {
 	return buffer, nil
 }
 
+// MustGenerateString calls GenerateString and panics if it returns error
+func MustGenerateString(size int, opts ...Option) string {
+	res, err := GenerateString(size, opts...)
+	if err != nil {
+		panic(err.Error())
+	}
+	return res
+}
+
 // GenerateString generates a random string based on size.
 // Original JavaScript implementation: https://github.com/ai/nanoid/blob/main/README.md
 func GenerateString(size int, opt ...Option) (string, error) {

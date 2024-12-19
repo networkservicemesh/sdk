@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -23,6 +23,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -30,27 +32,40 @@ import (
 )
 
 type traceServer struct {
-	verbose networkservice.NetworkServiceServer
-	concise networkservice.NetworkServiceServer
+	verbose, concise, original networkservice.NetworkServiceServer
 }
 
 // NewNetworkServiceServer - wraps tracing around the supplied traced
 func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) networkservice.NetworkServiceServer {
 	return &traceServer{
-		verbose: traceverbose.NewNetworkServiceServer(traced),
-		concise: traceconcise.NewNetworkServiceServer(traced),
+		verbose:  traceverbose.NewNetworkServiceServer(traced),
+		concise:  traceconcise.NewNetworkServiceServer(traced),
+		original: traced,
 	}
 }
 
 func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		if log.FromContext(ctx) == log.L() {
+			ctx = log.WithLog(ctx, logruslogger.New(ctx))
+		}
+		return t.original.Request(ctx, request)
+	}
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Request(ctx, request)
 	}
+
 	return t.concise.Request(ctx, request)
 }
 
 func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
-	if logrus.GetLevel() == logrus.TraceLevel {
+	if logrus.GetLevel() <= logrus.WarnLevel {
+		if log.FromContext(ctx) == log.L() {
+			ctx = log.WithLog(ctx, logruslogger.New(ctx))
+		}
+		return t.original.Close(ctx, conn)
+	}
+	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Close(ctx, conn)
 	}
 	return t.concise.Close(ctx, conn)
