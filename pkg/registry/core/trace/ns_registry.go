@@ -28,6 +28,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceconcise"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/trace/traceverbose"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 )
 
 type traceNetworkServiceRegistryClient struct {
@@ -50,6 +52,9 @@ func (t *traceNetworkServiceRegistryClient) Register(ctx context.Context, in *re
 	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Register(ctx, in, opts...)
 	}
+	if log.FromContext(ctx) == log.L() {
+		ctx = log.WithLog(ctx, logruslogger.New(ctx))
+	}
 	return t.original.Register(ctx, in, opts...)
 }
 func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *registry.NetworkServiceQuery, opts ...grpc.CallOption) (registry.NetworkServiceRegistry_FindClient, error) {
@@ -58,6 +63,9 @@ func (t *traceNetworkServiceRegistryClient) Find(ctx context.Context, in *regist
 	}
 	if logrus.GetLevel() <= logrus.WarnLevel {
 		return t.concise.Find(ctx, in, opts...)
+	}
+	if log.FromContext(ctx) == log.L() {
+		ctx = log.WithLog(ctx, logruslogger.New(ctx))
 	}
 	return t.original.Find(ctx, in, opts...)
 }
@@ -68,6 +76,9 @@ func (t *traceNetworkServiceRegistryClient) Unregister(ctx context.Context, in *
 	}
 	if logrus.GetLevel() <= logrus.WarnLevel {
 		return t.concise.Unregister(ctx, in, opts...)
+	}
+	if log.FromContext(ctx) == log.L() {
+		ctx = log.WithLog(ctx, logruslogger.New(ctx))
 	}
 	return t.original.Unregister(ctx, in, opts...)
 }
@@ -92,6 +103,9 @@ func (t *traceNetworkServiceRegistryServer) Register(ctx context.Context, in *re
 	if logrus.GetLevel() <= logrus.WarnLevel {
 		return t.concise.Register(ctx, in)
 	}
+	if log.FromContext(ctx) == log.L() {
+		ctx = log.WithLog(ctx, logruslogger.New(ctx))
+	}
 	return t.original.Register(ctx, in)
 }
 
@@ -111,6 +125,9 @@ func (t *traceNetworkServiceRegistryServer) Unregister(ctx context.Context, in *
 	}
 	if logrus.GetLevel() <= logrus.WarnLevel {
 		return t.concise.Unregister(ctx, in)
+	}
+	if log.FromContext(ctx) == log.L() {
+		ctx = log.WithLog(ctx, logruslogger.New(ctx))
 	}
 	return t.original.Unregister(ctx, in)
 }

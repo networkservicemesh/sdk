@@ -29,6 +29,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 )
 
 type traceClient struct {
@@ -48,16 +50,23 @@ func NewNetworkServiceClient(traced networkservice.NetworkServiceClient) network
 
 func (t *traceClient) Request(ctx context.Context, request *networkservice.NetworkServiceRequest, opts ...grpc.CallOption) (*networkservice.Connection, error) {
 	if logrus.GetLevel() <= logrus.WarnLevel {
+		if log.FromContext(ctx) == log.L() {
+			ctx = log.WithLog(ctx, logruslogger.New(ctx))
+		}
 		return t.original.Request(ctx, request)
 	}
 	if logrus.GetLevel() >= logrus.DebugLevel {
 		return t.verbose.Request(ctx, request, opts...)
 	}
+
 	return t.concise.Request(ctx, request, opts...)
 }
 
 func (t *traceClient) Close(ctx context.Context, conn *networkservice.Connection, opts ...grpc.CallOption) (*empty.Empty, error) {
 	if logrus.GetLevel() <= logrus.WarnLevel {
+		if log.FromContext(ctx) == log.L() {
+			ctx = log.WithLog(ctx, logruslogger.New(ctx))
+		}
 		return t.original.Close(ctx, conn)
 	}
 	if logrus.GetLevel() >= logrus.DebugLevel {
