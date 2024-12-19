@@ -1,6 +1,6 @@
-// Copyright (c) 2020-2023 Cisco Systems, Inc.
-//
 // Copyright (c) 2021-2023 Doc.ai and/or its affiliates.
+//
+// Copyright (c) 2020-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -26,11 +26,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/OneOfOne/xxhash"
 	"github.com/pkg/errors"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringutils"
 )
 
 const (
@@ -39,39 +41,27 @@ const (
 )
 
 func logRequest(ctx context.Context, request proto.Message, prefixes ...string) {
-	msg := strings.Join(prefixes, "-")
-	diffMsg := strings.Join(append(prefixes, "diff"), "-")
+	connInfo, _ := trace(ctx)
 
-	connInfo, ok := trace(ctx)
-	if ok && !proto.Equal(connInfo.Request, request) {
-		if connInfo.Request != nil && connInfo.Request.ProtoReflect().Descriptor().FullName() == request.ProtoReflect().Descriptor().FullName() {
-			requestDiff, hadChanges := Diff(connInfo.Request.ProtoReflect(), request.ProtoReflect())
-			if hadChanges {
-				logObjectTrace(ctx, diffMsg, requestDiff)
-			}
+	if v := hashCode(request); connInfo.Request != v {
+		if connInfo.Request != 0 {
+			logObjectTrace(ctx, strings.Join(append(prefixes, "diff"), "-"), request)
 		} else {
-			logObjectTrace(ctx, msg, request)
+			logObjectTrace(ctx, strings.Join(prefixes, "-"), request)
 		}
-		connInfo.Request = proto.Clone(request)
+		connInfo.Request = v
 	}
 }
 
 func logResponse(ctx context.Context, response proto.Message, prefixes ...string) {
-	msg := strings.Join(append(prefixes, "response"), "-")
-	diffMsg := strings.Join(append(prefixes, "response", "diff"), "-")
-
-	connInfo, ok := trace(ctx)
-	if ok && !proto.Equal(connInfo.Response, response) {
-		if connInfo.Response != nil {
-			responseDiff, changed := Diff(connInfo.Response.ProtoReflect(), response.ProtoReflect())
-			if changed {
-				logObjectTrace(ctx, diffMsg, responseDiff)
-			}
+	connInfo, _ := trace(ctx)
+	if v := hashCode(response); connInfo.Response != v {
+		if connInfo.Response != 0 {
+			logObjectTrace(ctx, strings.Join(append(prefixes, "response", "diff"), "-"), response)
 		} else {
-			logObjectTrace(ctx, msg, response)
+			logObjectTrace(ctx, strings.Join(append(prefixes, "response"), "-"), response)
 		}
-		connInfo.Response = proto.Clone(response)
-		return
+		connInfo.Response = v
 	}
 }
 
@@ -216,12 +206,17 @@ func logError(ctx context.Context, err error, operation string) error {
 	return err
 }
 
+func hashCode(msg proto.Message) uint64 {
+	bytes, _ := proto.MarshalOptions{Deterministic: true, AllowPartial: true, UseCachedSize: true}.Marshal(msg)
+	return xxhash.Checksum64(bytes)
+}
+
 func logObjectTrace(ctx context.Context, k, v interface{}) {
 	s := log.FromContext(ctx)
 	msg := ""
 	cc, err := json.Marshal(v)
 	if err == nil {
-		msg = string(cc)
+		msg = stringutils.ConvertBytesToString(cc)
 	} else {
 		msg = fmt.Sprint(v)
 	}

@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
+// Copyright (c) 2021-2024 Doc.ai and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"log"
 	"strings"
+
+	"github.com/networkservicemesh/sdk/pkg/tools/stringutils"
 )
 
 type defaultLogger struct {
@@ -90,7 +92,7 @@ func (l *defaultLogger) Object(k, v interface{}) {
 	msg := ""
 	cc, err := json.Marshal(v)
 	if err == nil {
-		msg = string(cc)
+		msg = stringutils.ConvertBytesToString(cc)
 	} else {
 		msg = fmt.Sprint(v)
 	}

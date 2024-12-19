@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cisco and/or its affiliates.
+// Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/stringutils"
 )
 
 const (
@@ -35,23 +36,17 @@ const (
 )
 
 func logError(ctx context.Context, err error, operation string) error {
-	if trace(ctx) {
-		log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
-	}
+	log.FromContext(ctx).Errorf("%v", errors.Wrapf(err, "Error returned from %s", operation))
 	return err
 }
 
 func logObject(ctx context.Context, k, v interface{}) {
-	if !trace(ctx) {
-		return
-	}
-	s := log.FromContext(ctx)
 	msg := ""
 	cc, err := json.Marshal(v)
 	if err == nil {
-		msg = string(cc)
+		msg = stringutils.ConvertBytesToString(cc)
 	} else {
 		msg = fmt.Sprint(v)
 	}
-	s.Infof("%v=%s", k, msg)
+	log.FromContext(ctx).Infof("%v=%s", k, msg)
 }
