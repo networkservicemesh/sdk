@@ -23,6 +23,8 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceconcise"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/trace/traceverbose"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
+	"github.com/networkservicemesh/sdk/pkg/tools/log/logruslogger"
 
 	"github.com/golang/protobuf/ptypes/empty"
 
@@ -44,6 +46,9 @@ func NewNetworkServiceServer(traced networkservice.NetworkServiceServer) network
 
 func (t *traceServer) Request(ctx context.Context, request *networkservice.NetworkServiceRequest) (*networkservice.Connection, error) {
 	if logrus.GetLevel() <= logrus.WarnLevel {
+		if log.FromContext(ctx) == log.L() {
+			ctx = log.WithLog(ctx, logruslogger.New(ctx))
+		}
 		return t.original.Request(ctx, request)
 	}
 	if logrus.GetLevel() >= logrus.DebugLevel {
@@ -55,6 +60,9 @@ func (t *traceServer) Request(ctx context.Context, request *networkservice.Netwo
 
 func (t *traceServer) Close(ctx context.Context, conn *networkservice.Connection) (*empty.Empty, error) {
 	if logrus.GetLevel() <= logrus.WarnLevel {
+		if log.FromContext(ctx) == log.L() {
+			ctx = log.WithLog(ctx, logruslogger.New(ctx))
+		}
 		return t.original.Close(ctx, conn)
 	}
 	if logrus.GetLevel() >= logrus.DebugLevel {
