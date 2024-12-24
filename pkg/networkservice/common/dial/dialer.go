@@ -20,6 +20,7 @@ import (
 	"context"
 	"net/url"
 	"runtime"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
@@ -37,6 +38,8 @@ type dialer struct {
 	*grpc.ClientConn
 	dialOptions []grpc.DialOption
 	dialTimeout time.Duration
+
+	mu sync.Mutex
 }
 
 func newDialer(ctx context.Context, dialTimeout time.Duration, dialOptions ...grpc.DialOption) *dialer {
@@ -74,7 +77,9 @@ func (di *dialer) Dial(ctx context.Context, clientURL *url.URL) error {
 		}
 		return errors.Wrapf(err, "failed to dial %s", target)
 	}
+	di.mu.Lock()
 	di.ClientConn = cc
+	di.mu.Unlock()
 
 	di.cleanupContext, di.cleanupCancel = context.WithCancel(di.ctx)
 
@@ -94,6 +99,8 @@ func (di *dialer) Close() error {
 }
 
 func (di *dialer) Invoke(ctx context.Context, method string, args, reply interface{}, opts ...grpc.CallOption) error {
+	di.mu.Lock()
+	defer di.mu.Unlock()
 	if di.ClientConn == nil {
 		return errors.New("no dialer.ClientConn found")
 	}
@@ -101,6 +108,8 @@ func (di *dialer) Invoke(ctx context.Context, method string, args, reply interfa
 }
 
 func (di *dialer) NewStream(ctx context.Context, desc *grpc.StreamDesc, method string, opts ...grpc.CallOption) (grpc.ClientStream, error) {
+	di.mu.Lock()
+	defer di.mu.Unlock()
 	if di.ClientConn == nil {
 		return nil, errors.New("no dialer.ClientConn found")
 	}
