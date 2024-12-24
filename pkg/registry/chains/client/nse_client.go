@@ -45,6 +45,8 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 		nseClientURLResolver:       null.NewNetworkServiceEndpointRegistryClient(),
 		authorizeNSERegistryClient: authorize.NewNetworkServiceEndpointRegistryClient(authorize.Any()),
 		dialTimeout:                time.Millisecond * 300,
+		nseHealClient:              heal.NewNetworkServiceEndpointRegistryClient(ctx),
+		nseRetryClient:             retry.NewNetworkServiceEndpointRegistryClient(ctx),
 	}
 	for _, opt := range opts {
 		opt(clientOpts)
@@ -55,8 +57,8 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 			[]registry.NetworkServiceEndpointRegistryClient{
 				begin.NewNetworkServiceEndpointRegistryClient(),
 				metadata.NewNetworkServiceEndpointClient(),
-				retry.NewNetworkServiceEndpointRegistryClient(ctx),
-				heal.NewNetworkServiceEndpointRegistryClient(ctx),
+				clientOpts.nseRetryClient,
+				clientOpts.nseHealClient,
 				refresh.NewNetworkServiceEndpointRegistryClient(ctx),
 				clientOpts.authorizeNSERegistryClient,
 				clientOpts.nseClientURLResolver,
