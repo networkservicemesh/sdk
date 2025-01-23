@@ -1,5 +1,7 @@
 // Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
+// Copyright (c) 2025 OpenInfra Foundation Europe. All rights reserved.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -51,6 +53,9 @@ func logError(ctx context.Context, err error, operation string) error {
 }
 
 func logObject(ctx context.Context, k, v interface{}) {
+	if !trace(ctx) {
+		return
+	}
 	s := log.FromContext(ctx)
 	msg := ""
 	cc, err := json.Marshal(v)
