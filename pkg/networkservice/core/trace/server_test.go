@@ -4,6 +4,8 @@
 //
 // Copyright (c) 2024 Nordix Foundation.
 //
+// Copyright (c) 2025 OpenInfra Foundation Europe. All rights reserved.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -230,6 +232,43 @@ func TestOutput_Info(t *testing.T) {
  [INFO] [id:conn-1] [type:networkService] server-close={"id":"conn-1","context":{"ip_context":{"src_ip_required":true}},"labels":{"Label":"D"}}
  [INFO] [id:conn-1] [type:networkService] server-close-response={"id":"conn-1","context":{"ip_context":{"src_ip_required":true}},"labels":{"Label":"X"}}
 `
+
+	result := testutil.TrimLogTime(&buff)
+	result = testutil.Normalize(result)
+	expectedOutput = testutil.Normalize(expectedOutput)
+
+	require.Equal(t, expectedOutput, result)
+}
+
+func TestOutput_Info_NoTrace(t *testing.T) {
+	// Configure logging
+	// Set output to buffer
+	var buff bytes.Buffer
+	logrus.SetOutput(&buff)
+	logrus.SetFormatter(&logrus.TextFormatter{
+		DisableTimestamp: true,
+	})
+	log.EnableTracing(false)
+	logrus.SetLevel(logrus.InfoLevel)
+
+	// Create a chain with modifying elements
+	ch := chain.NewNetworkServiceServer(
+		&testutil.LabelChangerFirstServer{},
+		&testutil.LabelChangerSecondServer{},
+	)
+
+	request := testutil.NewConnection()
+
+	conn, err := ch.Request(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, conn)
+
+	e, err := ch.Close(context.Background(), conn)
+	require.NoError(t, err)
+	require.NotNil(t, e)
+	logrus.Info("Random log line")
+
+	expectedOutput := "[INFO] Random log line\n"
 
 	result := testutil.TrimLogTime(&buff)
 	result = testutil.Normalize(result)
