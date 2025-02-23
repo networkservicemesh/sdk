@@ -34,12 +34,26 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 )
 
-func newIpamServer(prefixes ...*net.IPNet) networkservice.NetworkServiceServer {
+func newIpamServer(networks ...*net.IPNet) networkservice.NetworkServiceServer {
+	ipamNetworks := []*singlepointipam.IpamNet{}
+	for _, n := range networks {
+		ipamNetworks = append(ipamNetworks, &singlepointipam.IpamNet{Network: n})
+	}
+	return newIpamNetServer(ipamNetworks...)
+}
+
+func newIpamNetServer(networks ...*singlepointipam.IpamNet) networkservice.NetworkServiceServer {
 	return next.NewNetworkServiceServer(
 		updatepath.NewServer("ipam"),
 		metadata.NewServer(),
-		singlepointipam.NewServer(prefixes...),
+		singlepointipam.NewServer(networks...),
 	)
+}
+
+func newIpamNet(ipNet *net.IPNet) *singlepointipam.IpamNet {
+	return &singlepointipam.IpamNet{
+		Network: ipNet,
+	}
 }
 
 func newRequest() *networkservice.NetworkServiceRequest {
@@ -429,4 +443,192 @@ func TestRefreshRequestMultiServer(t *testing.T) {
 	conn, err = srv.Request(context.Background(), req)
 	require.NoError(t, err)
 	validateConns(t, conn, []string{"192.168.0.5/16", "fe80::5/64"})
+}
+
+//nolint:dupl
+func TestIPv4Range(t *testing.T) {
+	sip, ipNet, err := net.ParseCIDR("192.168.3.4/16")
+	require.NoError(t, err)
+	eip := net.ParseIP("192.168.4.1")
+	require.NotNil(t, eip)
+
+	ipamNet := newIpamNet(ipNet)
+	err = ipamNet.AddRange(sip, eip)
+	require.NoError(t, err)
+	srv := newIpamNetServer(ipamNet)
+
+	conn1, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn1, "192.168.3.5/16")
+
+	conn2, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn2, "192.168.3.6/16")
+
+	_, err = srv.Close(context.Background(), conn1)
+	require.NoError(t, err)
+
+	conn3, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn3, "192.168.3.5/16")
+
+	conn4, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn4, "192.168.3.7/16")
+}
+
+// TestIPv4RangeServers tests that an IP subnet can be split up between multiple
+// indenpendent singlepointipam servers to avoid collision when it comes to IP allocation
+//
+//nolint:dupl
+func TestIPv4RangeServers(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("192.168.0.0/24")
+	require.NoError(t, err)
+
+	srvs := []networkservice.NetworkServiceServer{
+		newIpamNetServer(
+			func() *singlepointipam.IpamNet {
+				n := newIpamNet(ipNet)
+				err = n.AddRange(net.ParseIP("192.168.0.1"), net.ParseIP("192.168.0.2"))
+				require.NoError(t, err)
+				err = n.AddRange(net.ParseIP("192.168.0.5"), net.ParseIP("192.168.0.6"))
+				require.NoError(t, err)
+				return n
+			}(),
+		),
+		newIpamNetServer(
+			func() *singlepointipam.IpamNet {
+				n := newIpamNet(ipNet)
+				err = n.AddRange(net.ParseIP("192.168.0.3"), net.ParseIP("192.168.0.4"))
+				require.NoError(t, err)
+				err = n.AddRange(net.ParseIP("192.168.0.7"), net.ParseIP("192.168.0.8"))
+				require.NoError(t, err)
+				return n
+			}(),
+		),
+	}
+
+	conn, err := srvs[0].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.2/24")
+
+	conn, err = srvs[1].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.4/24")
+
+	conn, err = srvs[0].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.5/24")
+
+	conn, err = srvs[1].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.7/24")
+
+	conn, err = srvs[0].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.6/24")
+
+	conn, err = srvs[1].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "192.168.0.8/24")
+
+	_, err = srvs[0].Request(context.Background(), newRequest())
+	require.Error(t, err)
+
+	_, err = srvs[1].Request(context.Background(), newRequest())
+	require.Error(t, err)
+}
+
+//nolint:dupl
+func TestIPv6Range(t *testing.T) {
+	sip, ipNet, err := net.ParseCIDR("fe80::/64")
+	require.NoError(t, err)
+	eip := net.ParseIP("fe80::ff")
+	require.NotNil(t, eip)
+
+	ipamNet := newIpamNet(ipNet)
+	err = ipamNet.AddRange(sip, eip)
+	require.NoError(t, err)
+	srv := newIpamNetServer(ipamNet)
+
+	conn1, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn1, "fe80::1/64")
+
+	conn2, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn2, "fe80::2/64")
+
+	_, err = srv.Close(context.Background(), conn1)
+	require.NoError(t, err)
+
+	conn3, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn3, "fe80::1/64")
+
+	conn4, err := srv.Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn4, "fe80::3/64")
+}
+
+// TestIPv6RangeServers tests that an IPv6 subnet can be split up between multiple
+// indenpendent singlepointipam servers to avoid collision when it comes to IP allocation
+//
+//nolint:dupl
+func TestIPv6RangeServers(t *testing.T) {
+	_, ipNet, err := net.ParseCIDR("2dea::1/48")
+	require.NoError(t, err)
+
+	srvs := []networkservice.NetworkServiceServer{
+		newIpamNetServer(
+			func() *singlepointipam.IpamNet {
+				n := newIpamNet(ipNet)
+				err = n.AddRange(net.ParseIP("2dea::a:0"), net.ParseIP("2dea::a:1"))
+				require.NoError(t, err)
+				err = n.AddRange(net.ParseIP("2dea::f:1"), net.ParseIP("2dea::f:2"))
+				require.NoError(t, err)
+				return n
+			}(),
+		),
+		newIpamNetServer(
+			func() *singlepointipam.IpamNet {
+				n := newIpamNet(ipNet)
+				err = n.AddRange(net.ParseIP("2dea::a:2"), net.ParseIP("2dea::a:3"))
+				require.NoError(t, err)
+				err = n.AddRange(net.ParseIP("2dea::f:ff01"), net.ParseIP("2dea::f:ff02"))
+				require.NoError(t, err)
+				return n
+			}(),
+		),
+	}
+
+	conn, err := srvs[0].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "2dea::a:1/48")
+
+	conn, err = srvs[1].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "2dea::a:3/48")
+
+	conn, err = srvs[0].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "2dea::f:1/48")
+
+	conn, err = srvs[1].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "2dea::f:ff01/48")
+
+	conn, err = srvs[0].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "2dea::f:2/48")
+
+	conn, err = srvs[1].Request(context.Background(), newRequest())
+	require.NoError(t, err)
+	validateConn(t, conn, "2dea::f:ff02/48")
+
+	_, err = srvs[0].Request(context.Background(), newRequest())
+	require.Error(t, err)
+
+	_, err = srvs[1].Request(context.Background(), newRequest())
+	require.Error(t, err)
 }
