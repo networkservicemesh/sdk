@@ -24,6 +24,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -225,7 +226,12 @@ func (certHandler *certHandler) LoadCertificate(certFile, keyFile, caFile string
 }
 
 func (certHandler *certHandler) LoadCertificateAuthority(caFile string) error {
-	caCert, err := os.ReadFile(caFile)
+	cleanCaFile := filepath.Clean(caFile)
+	if !strings.HasPrefix(cleanCaFile, "/run/secrets/") {
+		return errors.Errorf("invalid CA file path")
+	}
+
+	caCert, err := os.ReadFile(cleanCaFile)
 	if err != nil {
 		return errors.Errorf("failed to read CA certificate: %s", err)
 	}
