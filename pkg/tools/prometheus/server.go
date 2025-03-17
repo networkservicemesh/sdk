@@ -170,7 +170,7 @@ func (s *Server) createTLSConfig(ctx context.Context) {
 		s.certHandler = &certHandler{}
 		err := s.certHandler.LoadCertificate(s.certFile, s.keyFile, s.caFile)
 		if err != nil {
-			log.FromContext(ctx).Fatalf("error loading custom certificate and key: %v", err)
+			log.FromContext(ctx).Errorf("error creating tls config: %v", err)
 		}
 		s.tlsConfig.GetCertificate = s.certHandler.GetCertificate
 		if s.caFile != "" {
@@ -182,14 +182,16 @@ func (s *Server) createTLSConfig(ctx context.Context) {
 	} else {
 		source, err := workloadapi.NewX509Source(ctx)
 		if err != nil {
-			log.FromContext(ctx).Fatalf("error getting x509 source: %v", err.Error())
+			log.FromContext(ctx).Errorf("error getting x509 source: %v", err.Error())
 		}
 		s.tlsConfig.GetCertificate = tlsconfig.GetCertificate(source)
 
 		select {
 		case <-ctx.Done():
 			err = source.Close()
-			log.FromContext(ctx).Errorf("unable to close x509 source: %v", err.Error())
+			if err != nil {
+				log.FromContext(ctx).Errorf("unable to close x509 source: %v", err.Error())
+			}
 		default:
 		}
 	}
@@ -219,7 +221,7 @@ func (certHandler *certHandler) LoadCertificate(certFile, keyFile, caFile string
 	if caFile != "" {
 		err = certHandler.LoadCertificateAuthority(caFile)
 		if err != nil {
-			return errors.Errorf("error loading custom certificate: %v", err)
+			return errors.Errorf("error loading custom certificate authority: %v", err)
 		}
 	}
 	return nil
@@ -270,18 +272,16 @@ func (s *Server) monitorCertificate(ctx context.Context) error {
 				}
 				log.FromContext(ctx).Debugf("certificate watcher event: %v", event)
 				if event.Name == certFileName && event.Op&fsnotify.Create == fsnotify.Create {
-					log.FromContext(ctx).Debugf("certificate file '%s' was modified, reloading certificate", event.Name)
+					log.FromContext(ctx).Infof("certificate file '%s' was modified, reloading certificate", event.Name)
 					e := s.certHandler.LoadCertificate(s.certFile, s.keyFile, s.caFile)
 					if e != nil {
 						log.FromContext(ctx).Errorf("failed to reload metrics server certificate: %v", e)
-					} else {
-						log.FromContext(ctx).Info("metrics server certificate reloaded successfully")
 					}
 				}
 
 			case e, ok := <-watcher.Errors:
 				if !ok {
-					log.FromContext(ctx).Error("certificate watcher event channel closed", e)
+					log.FromContext(ctx).Errorf("certificate watcher event channel closed: %v", e)
 					return
 				}
 				log.FromContext(ctx).Errorf("certificate watcher error: %v", e)
@@ -295,8 +295,7 @@ func (s *Server) monitorCertificate(ctx context.Context) error {
 
 	err = watcher.Add(certFolder)
 	if err != nil {
-		log.FromContext(ctx).Errorf("failed to add certificate folder to file watcher: %v", err)
-		return err
+		return errors.Errorf("failed to add certificate folder to file watcher: %v", err)
 	}
 
 	return nil
