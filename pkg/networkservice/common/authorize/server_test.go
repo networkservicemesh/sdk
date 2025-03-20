@@ -26,7 +26,6 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"math/big"
-	"net"
 	"net/url"
 	"os"
 	"path"
@@ -182,7 +181,7 @@ func TestAuthzEndpoint(t *testing.T) {
 				require.Equal(t, s.Code(), codes.PermissionDenied, "wrong error status code")
 			}
 
-			ctx := peer.NewContext(context.Background(), &peer.Peer{Addr: &net.IPAddr{}})
+			ctx := peer.NewContext(context.Background(), &peer.Peer{})
 
 			_, err := srv.Request(ctx, s.request)
 			checkResult(err)
