@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2020-2024 Cisco Systems, Inc.
+// Copyright (c) 2020-2025 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -129,8 +129,7 @@ func (a *authorizeServer) Close(ctx context.Context, conn *networkservice.Connec
 			a.spiffeIDConnectionMap.Store(spiffeID, ids)
 		}
 	}
-
-	if p, ok := peer.FromContext(ctx); ok && p != nil && *p != (peer.Peer{}) {
+	if _, ok := peer.FromContext(ctx); ok {
 		if err := a.policies.check(ctx, leftSide); err != nil {
 			return nil, err
 		}

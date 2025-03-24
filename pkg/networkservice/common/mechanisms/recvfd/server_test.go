@@ -1,6 +1,6 @@
 // Copyright (c) 2021-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2023-2024 Cisco and/or its affiliates.
+// Copyright (c) 2023-2025 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -27,9 +27,7 @@ import (
 	"net/url"
 	"os"
 	"path"
-	"path/filepath"
 	"runtime"
-	"sync"
 	"testing"
 	"time"
 
@@ -38,8 +36,6 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/cls"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/common"
 	"github.com/networkservicemesh/api/pkg/api/networkservice/mechanisms/kernel"
-	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/goleak"
 	"google.golang.org/grpc"
@@ -51,8 +47,6 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontext"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkcontextonreturn"
-	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/inject/injecterror"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcfdutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
@@ -225,82 +219,4 @@ func (s *checkRecvfdTestSuite) TestRecvfdClosesMultipleFiles() {
 			return onClosedFileCtx.Err() != nil
 		}, time.Second, time.Millisecond*100)
 	}
-}
-
-func TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-
-	t.Cleanup(func() {
-		cancel()
-		goleak.VerifyNone(t)
-	})
-
-	eventFactoryCh := make(chan begin.EventFactory, 1)
-	var once sync.Once
-	// Create a server
-	server := chain.NewNetworkServiceServer(
-		begin.NewServer(),
-		checkcontextonreturn.NewServer(t, func(t *testing.T, ctx context.Context) {
-			once.Do(func() {
-				eventFactoryCh <- begin.FromContext(ctx)
-				close(eventFactoryCh)
-			})
-		}),
-		recvfd.NewServer(),
-		injecterror.NewServer(
-			injecterror.WithError(errors.New("error")),
-			injecterror.WithRequestErrorTimes(1),
-			injecterror.WithCloseErrorTimes(1)),
-	)
-
-	tempDir := t.TempDir()
-	sock, err := os.Create(filepath.Clean(path.Join(tempDir, "test.sock")))
-	require.NoError(t, err)
-
-	serveURL := &url.URL{Scheme: "unix", Path: sock.Name()}
-	grpcServer := grpc.NewServer(grpc.Creds(grpcfd.TransportCredentials(insecure.NewCredentials())))
-	networkservice.RegisterNetworkServiceServer(grpcServer, server)
-	errCh := grpcutils.ListenAndServe(ctx, serveURL, grpcServer)
-	require.Len(t, errCh, 0)
-
-	// Create a client
-	c := createClient(ctx, serveURL)
-
-	// Create a file to send
-	testFileName := filepath.Clean(path.Join(tempDir, "TestRecvfdDoesntWaitForAnyFilesOnRequestsFromBegin.test"))
-	f, err := os.Create(testFileName)
-	require.NoErrorf(t, err, "Failed to create and open a file: %v", err)
-	err = f.Close()
-	require.NoErrorf(t, err, "Failed to close file: %v", err)
-
-	// Create a request
-	request := &networkservice.NetworkServiceRequest{
-		Connection: &networkservice.Connection{
-			Id: "id",
-			Mechanism: &networkservice.Mechanism{
-				Cls:  cls.LOCAL,
-				Type: kernel.MECHANISM,
-				Parameters: map[string]string{
-					common.InodeURL: "file:" + testFileName,
-				},
-			},
-		},
-	}
-
-	// Make the first request from the client to send files
-	conn, err := c.Request(ctx, request)
-	require.NoError(t, err)
-	request.Connection = conn.Clone()
-
-	// Make the second request that return an error.
-	// It should make recvfd close all the files.
-	_, err = c.Request(ctx, request)
-	require.Error(t, err)
-
-	// Send Close. Recvfd shouldn't freeze trying to read files
-	// from the client because we send Close from begin.
-	eventFactory := <-eventFactoryCh
-	ch := eventFactory.Close()
-	err = <-ch
-	require.NoError(t, err)
 }

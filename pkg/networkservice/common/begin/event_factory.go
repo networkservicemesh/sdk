@@ -1,4 +1,4 @@
-// Copyright (c) 2021-2024 Cisco and/or its affiliates.
+// Copyright (c) 2021-2025 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -22,7 +22,6 @@ import (
 	"github.com/edwarnicke/serialize"
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/peer"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/extend"
 	"github.com/networkservicemesh/sdk/pkg/tools/postpone"
@@ -198,7 +197,6 @@ func (f *eventFactoryServer) updateContext(valueCtx context.Context) {
 	f.ctxFunc = func() (context.Context, context.CancelFunc) {
 		eventCtx, cancel := f.initialCtxFunc()
 		eventCtx = extend.WithValuesFromContext(eventCtx, valueCtx)
-		eventCtx = peer.NewContext(eventCtx, &peer.Peer{})
 		return withEventFactory(eventCtx, f), cancel
 	}
 }
