@@ -26,6 +26,10 @@ linters-settings:
           - (github.com/sirupsen/logrus.FieldLogger).Warnf
           - (github.com/sirupsen/logrus.FieldLogger).Errorf
           - (github.com/sirupsen/logrus.FieldLogger).Fatalf
+  staticcheck:
+    checks:
+      - all
+      - '-SA1019'
   revive:
     confidence: 0.8
     rules:
