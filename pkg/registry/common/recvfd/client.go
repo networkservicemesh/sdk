@@ -4,6 +4,8 @@
 //
 // Copyright (c) 2024  Xored Software Inc and/or its affiliates.
 //
+// Copyright (c) 2025 Nordix Foundation.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -36,6 +38,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type perEndpointFileMap struct {
@@ -102,7 +105,7 @@ func (x *recvfdNSEFindClient) Recv() (*registry.NetworkServiceEndpointResponse, 
 		// Recv the FD and swap theInode to File in the Parameters for the returned connection mechanism
 		err = recvFDAndSwapInodeToUnix(x.Context(), fileMap, nseResp.GetNetworkServiceEndpoint(), x.transceiver)
 		if err != nil {
-			closeFiles(nseResp.GetNetworkServiceEndpoint(), x.fileMaps)
+			closeFiles(log.FromContext(x.Context()), nseResp.GetNetworkServiceEndpoint(), x.fileMaps)
 		}
 	}
 	return nseResp, err

@@ -31,6 +31,6 @@ import (
 // NewNetworkServiceEndpointRegistryServer - creates new NSE registry chain element that will:
 //  1. Receive and fd over a unix file socket if the nse.URL is an inode://${dev}/${inode} url
 //  2. Rewrite the nse.URL to unix:///proc/${pid}/fd/${fd} so it can be used by a normal dialer
-func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
+func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
 	return null.NewNetworkServiceEndpointRegistryServer()
 }
