@@ -31,8 +31,6 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/spiffe/go-spiffe/v2/spiffetls/tlsconfig"
-	"github.com/spiffe/go-spiffe/v2/workloadapi"
 
 	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
@@ -102,10 +100,15 @@ func NewServer(listenOn string, options ...Option) *Server {
 func (s *Server) ListenAndServe(ctx context.Context, cancel context.CancelFunc) {
 	log.FromContext(ctx).Debugf("new metrics server created with parameters listenOn: '%v', certFile: '%v', keyFile: '%v', caFile: '%v', headerTimeout: '%v', monitorCert: '%v'",
 		s.listenOn, s.certFile, s.keyFile, s.caFile, s.headerTimeout, s.monitorCert)
+	isTLSEnabled := s.certFile != "" && s.keyFile != ""
+	if isTLSEnabled {
+		s.createTLSConfig(ctx)
+	} else {
+		log.FromContext(ctx).Warn("Using insecure metrics server")
+		s.tlsConfig = nil
+	}
 
-	s.createTLSConfig(ctx)
-
-	if s.monitorCert && s.certFile != "" && s.keyFile != "" {
+	if isTLSEnabled && s.monitorCert {
 		err := s.monitorCertificate(ctx)
 		if err != nil {
 			log.FromContext(ctx).Error(err.Error())
@@ -113,7 +116,7 @@ func (s *Server) ListenAndServe(ctx context.Context, cancel context.CancelFunc) 
 	}
 
 	go func() {
-		err := s.start(ctx)
+		err := s.start(ctx, isTLSEnabled)
 		if err != nil {
 			log.FromContext(ctx).Error(err.Error())
 			cancel()
@@ -121,7 +124,7 @@ func (s *Server) ListenAndServe(ctx context.Context, cancel context.CancelFunc) 
 	}()
 }
 
-func (s *Server) start(ctx context.Context) error {
+func (s *Server) start(ctx context.Context, isTLSEnabled bool) error {
 	log.FromContext(ctx).Info("start metrics server on ", s.listenOn)
 
 	server := &http.Server{
@@ -136,11 +139,19 @@ func (s *Server) start(ctx context.Context) error {
 	var ListenAndServeErr error
 
 	go func() {
-		ListenAndServeErr = server.ListenAndServeTLS("", "")
+		if isTLSEnabled {
+			ListenAndServeErr = server.ListenAndServeTLS("", "")
+		} else {
+			ListenAndServeErr = server.ListenAndServe()
+		}
 		if ListenAndServeErr != nil {
 			cancel()
 		}
 	}()
+
+	if ListenAndServeErr == nil {
+		log.FromContext(ctx).Debugf("metrics server started successfully on %s", s.listenOn)
+	}
 
 	<-serverCtx.Done()
 
@@ -166,34 +177,17 @@ func (s *Server) createTLSConfig(ctx context.Context) {
 		MinVersion: tls.VersionTLS13,
 	}
 
-	if s.certFile != "" && s.keyFile != "" {
-		s.certHandler = &certHandler{}
-		err := s.certHandler.LoadCertificate(s.certFile, s.keyFile, s.caFile)
-		if err != nil {
-			log.FromContext(ctx).Errorf("error creating tls config: %v", err)
-		}
-		s.tlsConfig.GetCertificate = s.certHandler.GetCertificate
-		if s.caFile != "" {
-			log.FromContext(ctx).Debug("enable client authentication for metrics server")
+	s.certHandler = &certHandler{}
+	err := s.certHandler.LoadCertificate(s.certFile, s.keyFile, s.caFile)
+	if err != nil {
+		log.FromContext(ctx).Errorf("error creating tls config: %v", err)
+	}
+	s.tlsConfig.GetCertificate = s.certHandler.GetCertificate
+	if s.caFile != "" {
+		log.FromContext(ctx).Debug("enable client authentication for metrics server")
 
-			s.tlsConfig.ClientCAs = s.certHandler.caCertPool
-			s.tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-	} else {
-		source, err := workloadapi.NewX509Source(ctx)
-		if err != nil {
-			log.FromContext(ctx).Errorf("error getting x509 source: %v", err.Error())
-		}
-		s.tlsConfig.GetCertificate = tlsconfig.GetCertificate(source)
-
-		select {
-		case <-ctx.Done():
-			err = source.Close()
-			if err != nil {
-				log.FromContext(ctx).Errorf("unable to close x509 source: %v", err.Error())
-			}
-		default:
-		}
+		s.tlsConfig.ClientCAs = s.certHandler.caCertPool
+		s.tlsConfig.ClientAuth = tls.RequireAndVerifyClientCert
 	}
 }
 
