@@ -104,7 +104,7 @@ func (s *Server) ListenAndServe(ctx context.Context, cancel context.CancelFunc) 
 	if isTLSEnabled {
 		s.createTLSConfig(ctx)
 	} else {
-		log.FromContext(ctx).Warn("Using insecure metrics server")
+		log.FromContext(ctx).Warn("using insecure metrics server")
 		s.tlsConfig = nil
 	}
 
