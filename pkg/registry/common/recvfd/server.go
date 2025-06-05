@@ -30,6 +30,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"slices"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -90,7 +91,7 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 	// Call the next server in the chain
 	returnedEndpoint, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 	if err != nil {
-		if r.forwarderServiceName == "" || !contains(endpoint.GetNetworkServiceNames(), r.forwarderServiceName) {
+		if r.forwarderServiceName == "" || !slices.Contains(endpoint.GetNetworkServiceNames(), r.forwarderServiceName) {
 			closeFiles(logger, endpoint, &r.fileMaps)
 		} else {
 			logger.Debugf("Not closing files for endpoint %s, since it is a forwarder service", endpoint.GetName())
@@ -254,13 +255,4 @@ func closeFiles(logger log.Logger, endpoint *registry.NetworkServiceEndpoint, fi
 		_ = os.Remove(file.Name())
 		logger.Debugf("FD %s (%s) deleted", file.Name(), inodeURLStr)
 	}
-}
-
-func contains(where []string, what string) bool {
-	for _, s := range where {
-		if s == what {
-			return true
-		}
-	}
-	return false
 }
