@@ -1,6 +1,6 @@
 // Copyright (c) 2020 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco and/or its affiliates.
+// Copyright (c) 2022-2023 Cisco and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -36,6 +36,7 @@ func TestNoTokensExpiredPolicy(t *testing.T) {
 	suits := []struct {
 		name    string
 		tokens  []string
+		index   uint32
 		expired bool
 	}{
 		{
@@ -61,6 +62,15 @@ func TestNoTokensExpiredPolicy(t *testing.T) {
 			},
 			expired: true,
 		},
+		{
+			name: "left tokens expired",
+			tokens: []string{
+				genJWTWithClaimsWithYear(lastYear),
+				genJWTWithClaimsWithYear(nextYear),
+			},
+			index:   1,
+			expired: false,
+		},
 	}
 
 	p, err := opa.PolicyFromFile("etc/nsm/opa/common/tokens_expired.rego")
@@ -70,7 +80,7 @@ func TestNoTokensExpiredPolicy(t *testing.T) {
 		s := suits[i]
 
 		t.Run(s.name, func(t *testing.T) {
-			conn := genConnectionWithTokens(s.tokens)
+			conn := genConnectionWithTokens(s.tokens, s.index)
 			checkResult := func(err error) {
 				if s.expired {
 					require.NotNil(t, err)

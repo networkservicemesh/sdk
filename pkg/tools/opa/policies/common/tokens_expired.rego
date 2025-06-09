@@ -1,4 +1,4 @@
-# Copyright (c) 2020-2022 Cisco and/or its affiliates.
+# Copyright (c) 2020-2023 Cisco and/or its affiliates.
 #
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -16,10 +16,14 @@
 
 package nsm
 
-default valid = false
+default valid := false
+default index := 0
+
+index = input.index
 
 valid {
-	count({x | input.path_segments[x]; token_alive(input.path_segments[x].token)}) == count(input.path_segments)
+	right_side_segments := array.slice(input.path_segments, index, count(input.path_segments))
+	count({x | right_side_segments[x]; token_alive(right_side_segments[x].token)}) == count(right_side_segments)
 }
 
 # alive means not expired
@@ -28,7 +32,7 @@ token_alive(token) {
 	now < payload.exp
 }
 
-now = t {
+now := t {
 	ns := time.now_ns()
 	t := ns / 1e9
 }
