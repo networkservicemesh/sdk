@@ -32,6 +32,7 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/heal"
+	"github.com/networkservicemesh/sdk/pkg/registry/common/limit"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/null"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/refresh"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/retry"
@@ -68,6 +69,7 @@ func NewNetworkServiceEndpointRegistryClient(ctx context.Context, opts ...Option
 					dial.WithDialTimeout(clientOpts.dialTimeout),
 					dial.WithDialOptions(clientOpts.dialOptions...),
 				),
+				limit.NewNetworkServiceEndpointRegistryClient(),
 			},
 			append(
 				clientOpts.nseAdditionalFunctionality,
