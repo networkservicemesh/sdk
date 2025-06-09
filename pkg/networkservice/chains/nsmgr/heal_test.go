@@ -76,6 +76,7 @@ func TestNSMGR_HealEndpoint(t *testing.T) {
 	}
 }
 
+// testNSMGRHealEndpoint
 func testNSMGRHealEndpoint(t *testing.T, nodeNum int) {
 	t.Cleanup(func() { goleak.VerifyNone(t) })
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
