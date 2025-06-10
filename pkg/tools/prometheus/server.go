@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -37,14 +38,15 @@ import (
 
 // Server is a server type for exposing Prometheus metrics
 type Server struct {
-	tlsConfig     *tls.Config
-	certHandler   *certHandler
-	listenOn      string
-	certFile      string
-	keyFile       string
-	caFile        string
-	monitorCert   bool
-	headerTimeout time.Duration
+	tlsConfig        *tls.Config
+	certHandler      *certHandler
+	listenOn         string
+	certFile         string
+	keyFile          string
+	caFile           string
+	monitorCert      bool
+	headerTimeout    time.Duration
+	maxBindThreshold int
 }
 
 // Option is an option pattern for prometheus server
@@ -79,15 +81,27 @@ func WithCertificateMonitoring(monitorCert bool) Option {
 	}
 }
 
+// WithMaxBindThreshold sets the maximum threshold for binding retries
+func WithMaxBindThreshold(maxBindThreshold int) Option {
+	return func(s *Server) {
+		s.maxBindThreshold = maxBindThreshold
+		if maxBindThreshold <= 0 {
+			log.FromContext(context.Background()).Warn("maxBindThreshold should be greater than 0, using default value of 120 seconds")
+			s.maxBindThreshold = 120 // default to 120 seconds
+		}
+	}
+}
+
 // NewServer creates a new prometheus server instance
 func NewServer(listenOn string, options ...Option) *Server {
 	server := &Server{
-		listenOn:      listenOn,
-		certFile:      "",
-		keyFile:       "",
-		caFile:        "",
-		monitorCert:   false,
-		headerTimeout: 5 * time.Second,
+		listenOn:         listenOn,
+		certFile:         "",
+		keyFile:          "",
+		caFile:           "",
+		monitorCert:      false,
+		headerTimeout:    5 * time.Second,
+		maxBindThreshold: 120, // default to 120 seconds
 	}
 	for _, opt := range options {
 		opt(server)
@@ -139,13 +153,30 @@ func (s *Server) start(ctx context.Context, isTLSEnabled bool) error {
 	var ListenAndServeErr error
 
 	go func() {
-		if isTLSEnabled {
-			ListenAndServeErr = server.ListenAndServeTLS("", "")
-		} else {
-			ListenAndServeErr = server.ListenAndServe()
-		}
-		if ListenAndServeErr != nil {
-			cancel()
+		i := 1 // retry interval in seconds
+		totalRetentionTime := 0
+		for {
+			if isTLSEnabled {
+				ListenAndServeErr = server.ListenAndServeTLS("", "")
+			} else {
+				ListenAndServeErr = server.ListenAndServe()
+			}
+			if ListenAndServeErr != nil {
+				if strings.Contains(ListenAndServeErr.Error(), syscall.EADDRINUSE.Error()) {
+					// address is already in use, wait for a while and then retry
+					time.Sleep(time.Duration(i) * time.Second)
+					totalRetentionTime += i
+					i *= 2 // Exponential backoff
+					if totalRetentionTime > s.maxBindThreshold {
+						log.FromContext(ctx).Warnf("metrics server failed to start on %s after multiple attempts: %s", s.listenOn, ListenAndServeErr)
+						cancel()
+					}
+				} else {
+					cancel()
+				}
+			} else {
+				break
+			}
 		}
 	}()
 
@@ -159,8 +190,11 @@ func (s *Server) start(ctx context.Context, isTLSEnabled bool) error {
 		return errors.Errorf("failed to ListenAndServe on metrics server: %s", ListenAndServeErr)
 	}
 
+	log.FromContext(ctx).Debugf("metrics server shuting down on %s", s.listenOn)
+
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer shutdownCancel()
+	defer func() { _ = server.Close() }() // just to be sure the server is closed
 
 	err := server.Shutdown(shutdownCtx)
 	if err != nil {
