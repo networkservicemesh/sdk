@@ -46,7 +46,7 @@ type Server struct {
 	caFile           string
 	monitorCert      bool
 	headerTimeout    time.Duration
-	maxBindThreshold int
+	maxBindThreshold time.Duration
 }
 
 // Option is an option pattern for prometheus server
@@ -82,7 +82,7 @@ func WithCertificateMonitoring(monitorCert bool) Option {
 }
 
 // WithMaxBindThreshold sets the maximum threshold for binding retries
-func WithMaxBindThreshold(maxBindThreshold int) Option {
+func WithMaxBindThreshold(maxBindThreshold time.Duration) Option {
 	return func(s *Server) {
 		s.maxBindThreshold = maxBindThreshold
 		if maxBindThreshold <= 0 {
@@ -101,7 +101,7 @@ func NewServer(listenOn string, options ...Option) *Server {
 		caFile:           "",
 		monitorCert:      false,
 		headerTimeout:    5 * time.Second,
-		maxBindThreshold: 120, // default to 120 seconds
+		maxBindThreshold: 120 * time.Second, // default to 120 seconds
 	}
 	for _, opt := range options {
 		opt(server)
@@ -167,7 +167,7 @@ func (s *Server) start(ctx context.Context, isTLSEnabled bool) error {
 					time.Sleep(time.Duration(i) * time.Second)
 					totalRetentionTime += i
 					i *= 2 // Exponential backoff
-					if totalRetentionTime > s.maxBindThreshold {
+					if time.Duration(totalRetentionTime)*time.Second > s.maxBindThreshold {
 						log.FromContext(ctx).Warnf("metrics server failed to start on %s after multiple attempts: %s", s.listenOn, ListenAndServeErr)
 						cancel()
 					}
