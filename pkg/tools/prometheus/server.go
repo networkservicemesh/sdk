@@ -133,7 +133,6 @@ func (s *Server) ListenAndServe(ctx context.Context, cancel context.CancelFunc) 
 		err := s.start(ctx, isTLSEnabled)
 		if err != nil {
 			log.FromContext(ctx).Error(err.Error())
-			cancel()
 		}
 	}()
 }
