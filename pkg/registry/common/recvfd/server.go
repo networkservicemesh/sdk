@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2024  Xored Software Inc and/or its affiliates.
 //
+// Copyright (c) 2025 Nordix Foundation.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -28,6 +30,7 @@ import (
 	"context"
 	"net/url"
 	"os"
+	"slices"
 
 	"github.com/edwarnicke/genericsync"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -38,17 +41,25 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/registry/core/next"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type recvfdNseServer struct {
-	fileMaps genericsync.Map[string, *perEndpointFileMap]
+	fileMaps             genericsync.Map[string, *perEndpointFileMap]
+	forwarderServiceName string
 }
 
 // NewNetworkServiceEndpointRegistryServer - creates new NSE registry chain element that will:
 //  1. Receive and fd over a unix file socket if the nse.URL is an inode://${dev}/${inode} url
 //  2. Rewrite the nse.URL to unix:///proc/${pid}/fd/${fd} so it can be used by a normal dialer
-func NewNetworkServiceEndpointRegistryServer() registry.NetworkServiceEndpointRegistryServer {
-	return &recvfdNseServer{}
+func NewNetworkServiceEndpointRegistryServer(options ...Option) registry.NetworkServiceEndpointRegistryServer {
+	opts := &recvfdNseOptions{}
+	for _, opt := range options {
+		opt(opts)
+	}
+	return &recvfdNseServer{
+		forwarderServiceName: opts.forwarderServiceName,
+	}
 }
 
 func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.NetworkServiceEndpoint) (*registry.NetworkServiceEndpoint, error) {
@@ -68,18 +79,23 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 		fileMap, _ = r.fileMaps.LoadOrStore(endpoint.GetName(), fileMap)
 	}
 
+	logger := log.FromContext(ctx).WithField("recvfdNseServer", "Request")
 	// Recv the FD and Swap the Inode for a file in InodeURL in Parameters
 	endpoint = endpoint.Clone()
 	err := recvFDAndSwapInodeToUnix(ctx, fileMap, endpoint, recv)
 	if err != nil {
-		closeFiles(endpoint, &r.fileMaps)
+		closeFiles(logger, endpoint, &r.fileMaps)
 		return nil, err
 	}
 
 	// Call the next server in the chain
 	returnedEndpoint, err := next.NetworkServiceEndpointRegistryServer(ctx).Register(ctx, endpoint)
 	if err != nil {
-		closeFiles(endpoint, &r.fileMaps)
+		if r.forwarderServiceName == "" || !slices.Contains(endpoint.GetNetworkServiceNames(), r.forwarderServiceName) {
+			closeFiles(logger, endpoint, &r.fileMaps)
+		} else {
+			logger.Debugf("Not closing files for endpoint %s, since it is a forwarder service", endpoint.GetName())
+		}
 		return nil, err
 	}
 	returnedEndpoint = returnedEndpoint.Clone()
@@ -91,7 +107,7 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 	// Swap back from File to Inode in the InodeURL in the Parameters
 	err = swapFileToInode(fileMap, returnedEndpoint)
 	if err != nil {
-		closeFiles(endpoint, &r.fileMaps)
+		closeFiles(logger, endpoint, &r.fileMaps)
 		return nil, err
 	}
 	return returnedEndpoint, nil
@@ -107,7 +123,7 @@ func (r *recvfdNseServer) Unregister(ctx context.Context, endpoint *registry.Net
 	}
 
 	// Clean up the fileMap no matter what happens
-	defer closeFiles(endpoint, &r.fileMaps)
+	defer closeFiles(log.FromContext(ctx), endpoint, &r.fileMaps)
 
 	// Get the grpcfd.FDRecver
 	recv, ok := grpcfd.FromContext(ctx)
@@ -223,17 +239,20 @@ func swapFileToInode(fileMap *perEndpointFileMap, endpoint *registry.NetworkServ
 	return nil
 }
 
-func closeFiles(endpoint *registry.NetworkServiceEndpoint, fileMaps *genericsync.Map[string, *perEndpointFileMap]) {
+func closeFiles(logger log.Logger, endpoint *registry.NetworkServiceEndpoint, fileMaps *genericsync.Map[string, *perEndpointFileMap]) {
 	defer fileMaps.Delete(endpoint.GetName())
 
 	fileMap, loaded := fileMaps.LoadAndDelete(endpoint.GetName())
 	if !loaded {
+		logger.Debugf("Filemap not found for %s", endpoint.GetName())
 		return
 	}
+	logger.Debugf("To close files for endpoint: %s", endpoint.GetName())
 
 	for inodeURLStr, file := range fileMap.filesByInodeURL {
 		delete(fileMap.filesByInodeURL, inodeURLStr)
 		_ = file.Close()
 		_ = os.Remove(file.Name())
+		logger.Debugf("FD %s (%s) deleted", file.Name(), inodeURLStr)
 	}
 }

@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2020-2024 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2025 Nordix Foundation.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -25,11 +27,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-
 	"google.golang.org/grpc"
 
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
-	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/endpoint"
@@ -44,26 +44,28 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/netsvcmonitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry"
-	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/begin"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clientconn"
-	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/clienturl"
-	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/dial"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/expire"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/grpcmetadata"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/localbypass"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/memory"
-	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
-	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
 	"github.com/networkservicemesh/sdk/pkg/registry/common/updatepath"
-
-	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/tools/grpcutils"
-	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 	"github.com/networkservicemesh/sdk/pkg/tools/token"
+
+	registryapi "github.com/networkservicemesh/api/pkg/api/registry"
+
+	registryauthorize "github.com/networkservicemesh/sdk/pkg/registry/common/authorize"
+	registryclientinfo "github.com/networkservicemesh/sdk/pkg/registry/common/clientinfo"
+	registryconnect "github.com/networkservicemesh/sdk/pkg/registry/common/connect"
+	registryrecvfd "github.com/networkservicemesh/sdk/pkg/registry/common/recvfd"
+	registrysendfd "github.com/networkservicemesh/sdk/pkg/registry/common/sendfd"
+	registryadapter "github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
+	authmonitor "github.com/networkservicemesh/sdk/pkg/tools/monitorconnection/authorize"
 )
 
 // Nsmgr - A simple combination of the Endpoint, registry.NetworkServiceRegistryServer, and registry.NetworkServiceDiscoveryServer interfaces
@@ -290,7 +292,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		registryclientinfo.NewNetworkServiceEndpointRegistryServer(),
 		expire.NewNetworkServiceEndpointRegistryServer(ctx, expire.WithDefaultExpiration(opts.defaultExpiration)),
-		registryrecvfd.NewNetworkServiceEndpointRegistryServer(), // Allow to receive a passed files
+		registryrecvfd.NewNetworkServiceEndpointRegistryServer(registryrecvfd.WithForwarderServiceName(opts.forwarderServiceName)), // Allow to receive a passed files
 		registrysendfd.NewNetworkServiceEndpointRegistryServer(),
 		remoteOrLocalRegistry,
 	)
