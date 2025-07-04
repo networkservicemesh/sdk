@@ -20,7 +20,7 @@ require (
 	github.com/miekg/dns v1.1.57
 	github.com/nats-io/nats-streaming-server v0.24.6
 	github.com/nats-io/stan.go v0.10.3
-	github.com/networkservicemesh/api v1.15.0-rc.1.0.20250625083423-2e0c8496e4e3
+	github.com/networkservicemesh/api v1.15.0-rc.2
 	github.com/open-policy-agent/opa v1.4.0
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.21.1
