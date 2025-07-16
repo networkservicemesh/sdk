@@ -225,7 +225,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		defaultExpiration:                time.Minute,
-		dialTimeout:                      time.Millisecond * 300,
+		dialTimeout:                      time.Second * 15,
 		name:                             "nsmgr-" + uuid.New().String(),
 		forwarderServiceName:             "forwarder",
 	}
