@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2020-2024 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2025 Nordix Foundation.
+// Copyright (c) 2025 OpenInfra Foundation Europe and/or its affiliates.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -225,7 +225,7 @@ func NewServer(ctx context.Context, tokenGenerator token.GeneratorFunc, options 
 		authorizeNSERegistryServer:       registryauthorize.NewNetworkServiceEndpointRegistryServer(registryauthorize.Any()),
 		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		defaultExpiration:                time.Minute,
-		dialTimeout:                      time.Millisecond * 300,
+		dialTimeout:                      time.Second * 15,
 		name:                             "nsmgr-" + uuid.New().String(),
 		forwarderServiceName:             "forwarder",
 	}
