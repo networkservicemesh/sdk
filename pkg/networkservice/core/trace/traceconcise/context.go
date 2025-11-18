@@ -1,5 +1,7 @@
 // Copyright (c) 2023 Cisco and/or its affiliates.
 //
+// Copyright (c) 2025 OpenInfra Foundation Europe and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -93,7 +95,7 @@ func trace(ctx context.Context) bool {
 	return ctx.Value(traceInfoKey) != nil
 }
 
-func conciseMapFromCtx(ctx context.Context) (context.Context, *conciseMap) {
+func conciseMapFromCtx(ctx context.Context) (newCtx context.Context, v *conciseMap) {
 	if ctx == nil {
 		panic("cannot create context from nil parent")
 	}
