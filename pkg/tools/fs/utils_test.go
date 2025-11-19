@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2022 Cisco and/or its affiliates.
 //
+// Copyright (c) 2025 OpenInfra Foundation Europe and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -73,7 +75,13 @@ func Test_WatchFile(t *testing.T) {
 
 	err = os.RemoveAll(root)
 	require.NoError(t, err)
-	require.Nil(t, readEvent(), filePath) // file removed
+	event := readEvent()
+	if event != nil {
+		// ignore stale write events on Windows
+		// read next event
+		event = readEvent()
+	}
+	require.Nil(t, event, filePath) // file removed
 
 	// Removing file is async operation.
 	// Waiting for events should theoretically sync us with the filesystem,
