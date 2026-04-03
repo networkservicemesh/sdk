@@ -1,6 +1,6 @@
 // Copyright (c) 2020-2022 Doc.ai and/or its affiliates.
 //
-// Copyright (c) 2022 Cisco Systems, Inc.
+// Copyright (c) 2022-2024 Cisco Systems, Inc.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -143,7 +143,7 @@ func TestLocalDomain_NetworkServiceRegistry(t *testing.T) {
 		registryclient.WithDialOptions(grpc.WithTransportCredentials(insecure.NewCredentials())),
 		registryclient.WithClientURL(domain1.Registry.URL))
 
-	stream, err := client2.Find(context.Background(), &registryapi.NetworkServiceQuery{
+	stream, err := client2.Find(ctx, &registryapi.NetworkServiceQuery{
 		NetworkService: &registryapi.NetworkService{
 			Name: expected.Name,
 		},
