@@ -30,8 +30,32 @@ jobs:
   checkgomod:
     uses: networkservicemesh/.github/.github/workflows/checkgomod.yaml@main
 
+  # TODO: revert to the reusable workflow once GitHub's cache for
+  # networkservicemesh/.github@main picks up the repo-token fix for
+  # arduino/setup-protoc (see networkservicemesh/.github#95).
   gogenerate:
-    uses: networkservicemesh/.github/.github/workflows/sdk-gogenerate.yaml@main
+    runs-on: ubuntu-latest
+    env:
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: "3.8.0"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.23.3
+      - name: Install proto-gen-go
+        run: go install github.com/golang/protobuf/protoc-gen-go@v1.4.2
+      - name: Install go-syncmap
+        run: go install github.com/searKing/golang/tools/cmd/go-syncmap@v1.1.68
+      - name: Generate files
+        run: go generate ./...
+      - name: Check for changes in generated code
+        run: |
+          git diff -- '*.pb.go' || ( echo "Rerun go generate ./... locally and resubmit" && false )
+          git diff -- '*.gen.go' || ( echo "Rerun go generate ./... locally and resubmit" && false )
 
   exclude-replace:
     uses: networkservicemesh/.github/.github/workflows/exclude-replace.yaml@main
