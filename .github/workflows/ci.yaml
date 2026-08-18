@@ -30,19 +30,20 @@ jobs:
   checkgomod:
     uses: networkservicemesh/.github/.github/workflows/checkgomod.yaml@main
 
-  # TODO: revert to the reusable workflow once GitHub's cache for
-  # networkservicemesh/.github@main picks up the repo-token fix for
-  # arduino/setup-protoc (see networkservicemesh/.github#95).
+  # TODO: revert to arduino/setup-protoc (or the reusable workflow) once
+  # its "unable to get latest version" failure calling the GitHub releases
+  # API is understood/resolved. Downloading the pinned protoc release
+  # directly avoids that API call entirely.
   gogenerate:
     runs-on: ubuntu-latest
-    env:
-      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
     steps:
       - uses: actions/checkout@v4
-      - uses: arduino/setup-protoc@v3
-        with:
-          version: "3.8.0"
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install protoc
+        run: |
+          curl -sSL -o protoc.zip https://github.com/protocolbuffers/protobuf/releases/download/v3.8.0/protoc-3.8.0-linux-x86_64.zip
+          sudo unzip -o protoc.zip -d /usr/local
+          rm protoc.zip
+          protoc --version
       - uses: actions/setup-go@v5
         with:
           go-version: 1.23.3
