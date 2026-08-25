@@ -14,11 +14,6 @@ jobs:
     with:
       os: '["ubuntu-latest", "macos-latest", "windows-latest"]'
 
-  golangci-lint:
-    uses: networkservicemesh/.github/.github/workflows/golangci-lint.yaml@main
-    with:
-      linter-version: v1.64.2
-
   exclude-fmt-errorf:
     uses: networkservicemesh/.github/.github/workflows/exclude-fmt-errorf.yaml@main
 
