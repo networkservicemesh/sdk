@@ -2,7 +2,7 @@
 //
 // Copyright (c) 2024  Xored Software Inc and/or its affiliates.
 //
-// Copyright (c) 2025 Nordix Foundation.
+// Copyright (c) 2025-2026 Nordix Foundation.
 //
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -94,6 +94,11 @@ func (r *recvfdNseServer) Register(ctx context.Context, endpoint *registry.Netwo
 		if r.forwarderServiceName == "" || !slices.Contains(endpoint.GetNetworkServiceNames(), r.forwarderServiceName) {
 			closeFiles(logger, endpoint, &r.fileMaps)
 		} else {
+			// Keep the file for the socket the forwarder is listening on *now*,
+			// release the files received for sockets it no longer listens on.
+			// endpoint.Url is still the unix:// url at this point, so this
+			// resolves the current inode exactly as the success path does.
+			_ = swapFileToInode(fileMap, endpoint)
 			logger.Debugf("Not closing files for endpoint %s, since it is a forwarder service", endpoint.GetName())
 		}
 		return nil, err
