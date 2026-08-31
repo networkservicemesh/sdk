@@ -31,6 +31,7 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/networkservice"
 	"github.com/pkg/errors"
 
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/monitor"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/metadata"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
@@ -41,9 +42,11 @@ import (
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/noloop"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils/norecursion"
 	"github.com/networkservicemesh/sdk/pkg/tools/ippool"
+	"github.com/networkservicemesh/sdk/pkg/tools/log"
 )
 
 type vl3DNSServer struct {
+	chainCtx              context.Context
 	dnsServerRecords      genericsync.Map[string, []net.IP]
 	dnsConfigs            *genericsync.Map[string, []*networkservice.DNSConfig]
 	domainSchemeTemplates []*template.Template
@@ -51,7 +54,7 @@ type vl3DNSServer struct {
 	dnsServer             dnsutils.Handler
 	listenAndServeDNS     func(ctx context.Context, handler dnsutils.Handler, listenOn string)
 	dnsServerIP           atomic.Value
-	dnsServerIPCh         <-chan net.IP
+	notifier              *vl3DNSNotifier
 }
 
 type clientDNSNameKey struct{}
@@ -63,10 +66,11 @@ type clientDNSNameKey struct{}
 // opts configure vl3dns networkservice instance with specific behavior.
 func NewServer(chainCtx context.Context, dnsServerIPCh <-chan net.IP, opts ...Option) networkservice.NetworkServiceServer {
 	var result = &vl3DNSServer{
+		chainCtx:          chainCtx,
 		dnsPort:           53,
 		listenAndServeDNS: dnsutils.ListenAndServe,
 		dnsConfigs:        new(genericsync.Map[string, []*networkservice.DNSConfig]),
-		dnsServerIPCh:     dnsServerIPCh,
+		notifier:          newNotifier(),
 	}
 
 	for _, opt := range opts {
@@ -95,6 +99,7 @@ func NewServer(chainCtx context.Context, dnsServerIPCh <-chan net.IP, opts ...Op
 					return
 				}
 				result.dnsServerIP.Store(addr)
+				result.notifier.notify()
 			}
 		}
 	}()
@@ -123,37 +128,36 @@ func (n *vl3DNSServer) Request(ctx context.Context, request *networkservice.Netw
 		}
 	}
 
-	dnsServerIPStr, err := n.addDNSContext(request.GetConnection(), recordNames)
+	resp, err := next.Server(ctx).Request(ctx, request)
 	if err != nil {
-		return nil, err
+		return resp, err
 	}
 
-	resp, err := next.Server(ctx).Request(ctx, request)
-	if err == nil {
-		ips := getSrcIPs(resp)
-		if len(ips) > 0 {
-			for _, recordName := range recordNames {
-				n.dnsServerRecords.Store(recordName, ips)
-			}
-
-			metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
+	dnsServerIPStr := n.addDNSContext(ctx, resp, recordNames)
+	ips := getSrcIPs(resp)
+	if len(ips) > 0 {
+		for _, recordName := range recordNames {
+			n.dnsServerRecords.Store(recordName, ips)
 		}
-		configs := make([]*networkservice.DNSConfig, 0)
-		if srcRoutes := resp.GetContext().GetIpContext().GetSrcRoutes(); len(srcRoutes) > 0 {
-			var lastPrefix = srcRoutes[len(srcRoutes)-1].Prefix
-			for _, config := range clientsConfigs {
-				for _, serverIP := range config.DnsServerIps {
-					if dnsServerIPStr == serverIP {
-						continue
-					}
-					if withinPrefix(serverIP, lastPrefix) {
-						configs = append(configs, config)
-					}
+
+		metadata.Map(ctx, false).Store(clientDNSNameKey{}, recordNames)
+	}
+	configs := make([]*networkservice.DNSConfig, 0)
+	if srcRoutes := resp.GetContext().GetIpContext().GetSrcRoutes(); len(srcRoutes) > 0 {
+		var lastPrefix = srcRoutes[len(srcRoutes)-1].Prefix
+		for _, config := range clientsConfigs {
+			for _, serverIP := range config.DnsServerIps {
+				if dnsServerIPStr == serverIP {
+					continue
+				}
+				if withinPrefix(serverIP, lastPrefix) {
+					configs = append(configs, config)
 				}
 			}
 		}
-		n.dnsConfigs.Store(resp.GetId(), configs)
 	}
+	n.dnsConfigs.Store(resp.GetId(), configs)
+
 	return resp, err
 }
 
@@ -170,7 +174,8 @@ func (n *vl3DNSServer) Close(ctx context.Context, conn *networkservice.Connectio
 	return next.Server(ctx).Close(ctx, conn)
 }
 
-func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection, dnsRecords []string) (serverIP string, err error) {
+func (n *vl3DNSServer) addDNSContext(ctx context.Context, c *networkservice.Connection, dnsRecords []string) string {
+	var dnsServerIPString string
 	if ip := n.dnsServerIP.Load(); ip != nil {
 		dnsServerIP := ip.(net.IP)
 
@@ -194,12 +199,38 @@ func (n *vl3DNSServer) addDNSContext(c *networkservice.Connection, dnsRecords []
 		if !dnsutils.ContainsDNSConfig(dnsContext.Configs, configToAdd) {
 			dnsContext.Configs = append(dnsContext.Configs, configToAdd)
 		}
-		return dnsServerIP.String(), nil
-	} else if c.GetPath().GetPathSegments()[0].Name == c.GetCurrentPathSegment().Name {
-		// If it calls itself - this is not an error, but a request to allocate a dns address
-		return "", nil
+		dnsServerIPString = dnsServerIP.String()
 	}
-	return "", errors.New("DNS address is initializing")
+
+	// Subscribe to dns address updates
+	if eventConsumer, ok := monitor.LoadEventConsumer(ctx, metadata.IsClient(n)); ok {
+		if prevCancel, ok := loadAndDeleteNotifierCancelFunc(ctx); ok {
+			prevCancel()
+		}
+		cancelCtx, cancel := context.WithCancel(context.Background())
+		storeNotifierCancelFunc(ctx, cancel)
+		go n.waitDNSServerIP(cancelCtx, c.Clone(), eventConsumer)
+	} else {
+		log.FromContext(ctx).Debug("eventConsumer is not presented")
+	}
+	return dnsServerIPString
+}
+
+func (n *vl3DNSServer) waitDNSServerIP(cancelCtx context.Context, c *networkservice.Connection, eventConsumer monitor.EventConsumer) {
+	ch := n.notifier.subscribe(c.GetId())
+
+	select {
+	case <-n.chainCtx.Done():
+	case <-cancelCtx.Done():
+	case <-ch:
+		c.State = networkservice.State_REFRESH_REQUESTED
+		_ = eventConsumer.Send(&networkservice.ConnectionEvent{
+			Type:        networkservice.ConnectionEventType_UPDATE,
+			Connections: map[string]*networkservice.Connection{c.GetId(): c},
+		})
+	}
+
+	n.notifier.unsubscribe(c.GetId())
 }
 
 func (n *vl3DNSServer) buildSrcDNSRecords(c *networkservice.Connection) ([]string, error) {

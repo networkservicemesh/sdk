@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/edwarnicke/genericsync"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -39,8 +41,10 @@ import (
 
 	"github.com/networkservicemesh/sdk/pkg/ipam/strictvl3ipam"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/common/upstreamrefresh"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/dnscontext/vl3dns"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/connectioncontext/ipcontext/vl3"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkconnection"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
 	"github.com/networkservicemesh/sdk/pkg/tools/clock"
 	"github.com/networkservicemesh/sdk/pkg/tools/dnsutils"
@@ -122,6 +126,111 @@ func Test_NSC_ConnectsTo_vl3NSE(t *testing.T) {
 		require.NoError(t, err)
 
 		_, err = resolver.LookupIP(ctx, "ip4", nscName+fmt.Sprint(i)+".vl3")
+		require.Error(t, err)
+	}
+}
+
+func Test_NSC_RefreshOnVl3DnsAddressChange(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*15)
+	defer cancel()
+
+	domain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nsRegistryClient := domain.NewNSRegistryClient(ctx, sandbox.GenerateTestToken)
+
+	nsReg, err := nsRegistryClient.Register(ctx, defaultRegistryService("vl3"))
+	require.NoError(t, err)
+
+	nseReg := defaultRegistryEndpoint(nsReg.Name)
+
+	var serverPrefixCh = make(chan *ipam.PrefixResponse, 1)
+	defer close(serverPrefixCh)
+
+	serverPrefixCh <- &ipam.PrefixResponse{Prefix: "10.0.0.1/24"}
+	dnsServerIPCh := make(chan net.IP, 1)
+
+	_ = domain.Nodes[0].NewEndpoint(
+		ctx,
+		nseReg,
+		sandbox.GenerateTestToken,
+		vl3dns.NewServer(ctx,
+			dnsServerIPCh,
+			vl3dns.WithDomainSchemes("{{ index .Labels \"podName\" }}.{{ .NetworkService }}."),
+			vl3dns.WithDNSPort(40053)),
+		vl3.NewServer(ctx, serverPrefixCh),
+	)
+
+	resolver := net.Resolver{
+		PreferGo: true,
+		Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
+			var dialer net.Dialer
+			return dialer.DialContext(ctx, network, "127.0.0.1:40053")
+		},
+	}
+
+	type nscInfo struct {
+		nsc     networkservice.NetworkServiceClient
+		conn    *networkservice.Connection
+		counter *atomic.Int32
+	}
+	var nscInfos []*nscInfo
+
+	for i := 0; i < 10; i++ {
+		var counter atomic.Int32
+		nsc := domain.Nodes[0].NewClient(ctx, sandbox.GenerateTestToken, client.WithAdditionalFunctionality(upstreamrefresh.NewClient(ctx),
+			checkconnection.NewClient(t, func(t *testing.T, conn *networkservice.Connection) {
+				if counter.Load() > 0 {
+					require.Len(t, conn.GetContext().GetDnsContext().GetConfigs(), 1)
+					require.Len(t, conn.GetContext().GetDnsContext().GetConfigs()[0].DnsServerIps, 1)
+				}
+				counter.Inc()
+			}),
+		))
+
+		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1)
+		defer reqClose()
+
+		req := defaultRequest(nsReg.Name)
+		req.Connection.Id = uuid.New().String()
+
+		req.Connection.Labels["podName"] = nscName + fmt.Sprint(i)
+
+		var resp *networkservice.Connection
+		resp, err = nsc.Request(reqCtx, req)
+		require.NoError(t, err)
+
+		require.Len(t, resp.GetContext().GetDnsContext().GetConfigs(), 0)
+
+		nscInfos = append(nscInfos, &nscInfo{
+			nsc:     nsc,
+			conn:    resp,
+			counter: &counter,
+		})
+	}
+
+	dnsServerIPCh <- net.ParseIP("127.0.0.1")
+
+	for i, n := range nscInfos {
+		nscInf := n
+		require.Eventually(t, func() bool {
+			return nscInf.counter.Load() == 2
+		}, timeout, tick)
+
+		reqCtx, reqClose := context.WithTimeout(ctx, time.Second*1)
+		defer reqClose()
+
+		requireIPv4Lookup(ctx, t, &resolver, nscName+fmt.Sprint(i)+".vl3", fmt.Sprintf("10.0.0.%d", i+1))
+
+		_, err = nscInf.nsc.Close(reqCtx, nscInf.conn)
+		require.NoError(t, err)
+
+		_, err = resolver.LookupIP(reqCtx, "ip4", nscName+fmt.Sprint(i)+".vl3")
 		require.Error(t, err)
 	}
 }
