@@ -1,5 +1,7 @@
 // Copyright (c) 2020-2021 Doc.ai and/or its affiliates.
 //
+// Copyright (c) 2023 Cisco and/or its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -151,10 +153,11 @@ func genJWTWithClaims(claims *jwt.RegisteredClaims) string {
 	return t
 }
 
-func genConnectionWithTokens(tokens []string) *networkservice.Connection {
+func genConnectionWithTokens(tokens []string, currIndex uint32) *networkservice.Connection {
 	rv := &networkservice.Connection{
 		Path: &networkservice.Path{
 			PathSegments: []*networkservice.PathSegment{},
+			Index:        currIndex,
 		},
 	}
 
