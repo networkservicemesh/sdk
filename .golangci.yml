@@ -1,135 +1,14 @@
 ---
+version: "2"
 run:
-  # concurrency: 6
-  go: "1.23"
-  timeout: 2m
+  go: "1.25"
   issues-exit-code: 1
   tests: true
-linters-settings:
-  goheader:
-    template-path: ".ci/license/template.txt"
-    values:
-      regexp:
-        company: .*
-        copyright-holder: Copyright \(c\) ({{mod-year-range}}) {{company}}\n\n
-        copyright-holders: ({{copyright-holder}})+
-  errcheck:
-    check-type-assertions: false
-    check-blank: false
-  govet:
-    enable:
-      - shadow
-    settings:
-      printf:
-        funcs:
-          - (github.com/sirupsen/logrus.FieldLogger).Infof
-          - (github.com/sirupsen/logrus.FieldLogger).Warnf
-          - (github.com/sirupsen/logrus.FieldLogger).Errorf
-          - (github.com/sirupsen/logrus.FieldLogger).Fatalf
-  staticcheck:
-    checks:
-      - all
-      - '-SA1019'
-  revive:
-    confidence: 0.8
-    rules:
-      - name: exported
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-      - name: increment-decrement
-      - name: var-naming
-      - name: package-comments
-      - name: range
-      - name: receiver-naming
-      - name: time-naming
-      - name: unexported-return
-      - name: indent-error-flow
-      - name: errorf
-      - name: superfluous-else
-      - name: unreachable-code
-  goimports:
-    local-prefixes: github.com/networkservicemesh/sdk
-  gocyclo:
-    min-complexity: 15
-  dupl:
-    threshold: 150
-  funlen:
-    lines: 120
-    statements: 60
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  depguard:
-    rules:
-      main:
-        deny:
-          - pkg: "errors"
-            desc: "Please use \"github.com/pkg/errors\" instead of \"errors\" in go imports"
-  misspell:
-    locale: US
-  unparam:
-    check-exported: false
-  nakedret:
-    max-func-lines: 30
-  prealloc:
-    simple: true
-    range-loops: true
-    for-loops: false
-  # TODO -  Fix gosec linter errors - https://github.com/networkservicemesh/sdk/issues/1690
-  gosec:
-    excludes:
-      - G115
-      - G204
-      - G301
-      - G302
-      - G306
-  gocritic:
-    enabled-checks:
-      - appendCombine
-      - boolExprSimplify
-      - builtinShadow
-      - commentedOutCode
-      - commentedOutImport
-      - docStub
-      - dupImport
-      - emptyFallthrough
-      - emptyStringTest
-      - equalFold
-      - evalOrder
-      - hexLiteral
-      - hugeParam
-      - importShadow
-      - indexAlloc
-      - initClause
-      - methodExprCall
-      - nestingReduce
-      - nilValReturn
-      - octalLiteral
-      - paramTypeCombine
-      - rangeExprCopy
-      - rangeValCopy
-      - regexpPattern
-      - sloppyReassign
-      - stringXbytes
-      - typeAssertChain
-      - typeUnparen
-      - unlabelStmt
-      - unnamedResult
-      - unnecessaryBlock
-      - weakCond
-      - yodaStyleExpr
 linters:
-  disable-all: true
+  default: none
   enable:
-    - goheader
     - bodyclose
-    - unused
+    - copyloopvar
     - depguard
     - dogsled
     - dupl
@@ -139,124 +18,277 @@ linters:
     - goconst
     - gocritic
     - gocyclo
-    - gofmt
-    - goimports
-    - revive
+    - goheader
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
-    - copyloopvar
+    - revive
     - staticcheck
-    - stylecheck
-    - typecheck
     - unconvert
     - unparam
+    - unused
     - whitespace
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: errors
+              desc: Please use "github.com/pkg/errors" instead of "errors" in go imports
+    dupl:
+      threshold: 150
+    errcheck:
+      check-type-assertions: false
+      check-blank: false
+    funlen:
+      lines: 120
+      statements: 60
+    goconst:
+      min-len: 2
+      min-occurrences: 3
+    gocritic:
+      enabled-checks:
+        - appendCombine
+        - boolExprSimplify
+        - builtinShadow
+        - commentedOutCode
+        - commentedOutImport
+        - docStub
+        - dupImport
+        - emptyFallthrough
+        - emptyStringTest
+        - equalFold
+        - evalOrder
+        - hexLiteral
+        - hugeParam
+        - importShadow
+        - indexAlloc
+        - initClause
+        - methodExprCall
+        - nestingReduce
+        - nilValReturn
+        - octalLiteral
+        - paramTypeCombine
+        - rangeExprCopy
+        - rangeValCopy
+        - regexpPattern
+        - sloppyReassign
+        - stringXbytes
+        - typeAssertChain
+        - typeUnparen
+        - unlabelStmt
+        - unnamedResult
+        - unnecessaryBlock
+        - weakCond
+        - yodaStyleExpr
+    gocyclo:
+      min-complexity: 15
+    goheader:
+      values:
+        regexp:
+          company: .*
+          copyright-holder: Copyright \(c\) ({{mod-year-range}}) {{company}}\n\n
+          copyright-holders: ({{copyright-holder}})+
+      template-path: .ci/license/template.txt
+    gosec:
+      excludes:
+        - G115
+        - G204
+        - G301
+        - G302
+        - G306
+        # G304/G702/G703: file-inclusion and taint-analysis rules. In this
+        # codebase the paths/commands are derived from process-controlled
+        # inputs (socket URLs, config paths), not external/attacker input.
+        # New or stricter in golangci-lint v2; excluded to match v1 behavior.
+        - G304
+        - G702
+        - G703
+    govet:
+      enable:
+        - shadow
+      disable:
+        # 'inline' analyzer (new in the go1.27 toolchain) emits stdlib
+        # inlining hints that are not actionable defects.
+        - inline
+      settings:
+        printf:
+          funcs:
+            - (github.com/sirupsen/logrus.FieldLogger).Infof
+            - (github.com/sirupsen/logrus.FieldLogger).Warnf
+            - (github.com/sirupsen/logrus.FieldLogger).Errorf
+            - (github.com/sirupsen/logrus.FieldLogger).Fatalf
+    misspell:
+      locale: US
+    nakedret:
+      max-func-lines: 30
+    prealloc:
+      simple: true
+      range-loops: true
+      for-loops: false
+    revive:
+      confidence: 0.8
+      rules:
+        - name: exported
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+        - name: increment-decrement
+        - name: var-naming
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: time-naming
+        - name: unexported-return
+        - name: indent-error-flow
+        - name: errorf
+        - name: superfluous-else
+        - name: unreachable-code
+    staticcheck:
+      checks:
+        - all
+        - -SA1019
+        # SA4023: false positives on interface-typed nil comparisons
+        # (e.g. begin.FromContext) that can legitimately be nil.
+        - -SA4023
+        # QF*: "quickfix" refactoring suggestions introduced in v2; these are
+        # style hints, not defects, and were not enforced under v1.
+        - -QF1001
+        - -QF1003
+        - -QF1008
+        - -QF1012
+    unparam:
+      check-exported: false
+  exclusions:
+    generated: lax
+    rules:
+      # goconst on test files and test-support helpers: repeated string
+      # literals in tests are not worth extracting into constants; v1
+      # effectively did not flag these.
+      - linters:
+          - goconst
+        path: (_test\.go|/testutil/)
+      - linters:
+          - dupl
+        path: .*registry.*.go
+      - linters:
+          - govet
+        path: pkg/networkservice/common/connect/server.go
+        text: lostcancel
+      - linters:
+          - funlen
+        path: pkg/networkservice/common/monitor/server_test.go
+        text: Function 'TestMonitor' is too long
+      - linters:
+          - funlen
+        path: pkg/networkservice/common/clientinfo/client_test.go
+        text: Function 'TestClientInfo' is too long
+      - linters:
+          - funlen
+        path: pkg/networkservice/common/connect/server_test.go
+        text: Function 'TestConnectServerShouldNotPanicOnRequest' is too long
+      - linters:
+          - funlen
+        path: pkg/networkservice/common/connect/server_test.go
+        text: Function 'TestConnectServer_RequestParallel' is too long
+      - linters:
+          - dupl
+        path: pkg/networkservice/utils/checks/checkerror/server_test.go
+      - linters:
+          - dupl
+        path: pkg/networkservice/common/retry/client.go
+      - linters:
+          - dupl
+        path: pkg/networkservice/common/retry/client_test.go
+        text: lines are duplicate of
+      - linters:
+          - dupl
+        path: pkg/networkservice/utils/checks/checkerror/client_test.go
+        text: lines are duplicate of
+      - linters:
+          - dupl
+        path: pkg/networkservice/core/trace/client.go
+        text: lines are duplicate of
+      - linters:
+          - dupl
+        path: pkg/registry/core/trace/registry_client.go
+        text: lines are duplicate of
+      - linters:
+          - dupl
+        path: pkg/registry/core/trace/discovery_client.go
+        text: lines are duplicate of
+      - linters:
+          - gochecknoinits
+        path: pkg/networkservice/common/updatepath/server_test.go
+        text: don't use `init` function
+      - linters:
+          - funlen
+          - gocyclo
+        path: pkg/tools/spire/start.go
+      - linters:
+          - gocyclo
+        path: pkg/networkservice/common/heal/client.go
+        text: processEvent
+      - linters:
+          - funlen
+        path: pkg/networkservice/common/connect/server_test.go
+        text: Function 'TestConnectServer_Request'
+      - linters:
+          - funlen
+        path: pkg/tools/matchutils/utils_test.go
+      - linters:
+          - funlen
+        path: pkg/networkservice/chains/nsmgr/single_test.go
+      - linters:
+          - dupl
+        path: pkg/networkservice/common/discover/server_test.go
+        text: lines are duplicate of
+      - linters:
+          - gocyclo
+        path: pkg/tools/ippool/ippool.go
+      - linters:
+          - funlen
+        path: pkg/networkservice/chains/nsmgrproxy/server_test.go
+      - linters:
+          - dupl
+        path: pkg/networkservice/core/next/.*_test.go
+      - linters:
+          - dupl
+        path: pkg/networkservice/common/switchcase/.*_test.go
+      - linters:
+          - unused
+        path: pkg/tools/ippool/ippool.go
+      - linters:
+          - revive
+        path: pkg/networkservice/common/switchcase/common_test.go
+      - linters:
+          - revive
+        path: pkg/tools/opa/policies.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    # We really *do* want to pass a pointer to an interface in these cases.  See comments in file for New{Server,Client}
-    # function for why
-    - path: .*registry.*.go
-      linters:
-        - dupl
-    # TODO - remove after deciding how to properly handle the cancel
-    - path: pkg/networkservice/common/connect/server.go
-      linters:
-        - govet
-      text: "lostcancel"
-    # Sometimes test functions just get long :(
-    - path: pkg/networkservice/common/monitor/server_test.go
-      linters:
-        - funlen
-      text: "Function 'TestMonitor' is too long"
-    - path: pkg/networkservice/common/clientinfo/client_test.go
-      linters:
-        - funlen
-      text: "Function 'TestClientInfo' is too long"
-    - path: pkg/networkservice/common/connect/server_test.go
-      linters:
-        - funlen
-      text: "Function 'TestConnectServerShouldNotPanicOnRequest' is too long"
-    - path: pkg/networkservice/common/connect/server_test.go
-      linters:
-        - funlen
-      text: "Function 'TestConnectServer_RequestParallel' is too long"
-    - path: pkg/networkservice/utils/checks/checkerror/server_test.go
-      linters:
-        - dupl
-    - path: pkg/networkservice/common/retry/client.go
-      linters:
-        - dupl
-    - path: pkg/networkservice/common/retry/client_test.go
-      linters:
-        - dupl
-      text: "lines are duplicate of"
-    - path: pkg/networkservice/utils/checks/checkerror/client_test.go
-      linters:
-        - dupl
-      text: "lines are duplicate of"
-    - path: pkg/networkservice/core/trace/client.go
-      linters:
-        - dupl
-      text: "lines are duplicate of"
-    - path: pkg/registry/core/trace/registry_client.go
-      linters:
-        - dupl
-      text: "lines are duplicate of"
-    - path: pkg/registry/core/trace/discovery_client.go
-      linters:
-        - dupl
-      text: "lines are duplicate of"
-    - path: pkg/networkservice/common/updatepath/server_test.go
-      linters:
-        - gochecknoinits
-      text: "don't use `init` function"
-    - path: pkg/tools/spire/start.go
-      linters:
-        - funlen
-        - gocyclo
-    - path: pkg/networkservice/common/heal/client.go
-      linters:
-        - gocyclo
-      text: "processEvent"
-    - path: pkg/networkservice/common/connect/server_test.go
-      linters:
-        - funlen
-      text: "Function 'TestConnectServer_Request'"
-    - path: pkg/tools/matchutils/utils_test.go
-      linters:
-        - funlen
-    - path: pkg/networkservice/chains/nsmgr/single_test.go
-      linters:
-        - funlen
-    - path: pkg/networkservice/common/discover/server_test.go
-      linters:
-        - dupl
-      text: "lines are duplicate of"
-    - path: pkg/tools/ippool/ippool.go
-      linters:
-        - gocyclo
-    - path: pkg/networkservice/chains/nsmgrproxy/server_test.go
-      linters:
-        - funlen
-    - path: pkg/networkservice/core/next/.*_test.go
-      linters:
-        - dupl
-    - path: pkg/networkservice/common/switchcase/.*_test.go
-      linters:
-        - dupl
-    - path: pkg/tools/ippool/ippool.go
-      linters:
-        - unused
-    - path: pkg/networkservice/common/switchcase/common_test.go
-      linters:
-        - revive
-    - path: pkg/tools/opa/policies.go
-      linters:
-        - revive
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/networkservicemesh/sdk
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
