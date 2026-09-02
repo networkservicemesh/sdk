@@ -188,8 +188,8 @@ github.com/nats-io/nuid v1.0.1/go.mod h1:19wcPz3Ph3q0Jbyiqsd0kePYG7A95tJPxeL+1OS
 github.com/nats-io/stan.go v0.10.2/go.mod h1:vo2ax8K2IxaR3JtEMLZRFKIdoK/3o1/PKueapB7ezX0=
 github.com/nats-io/stan.go v0.10.3 h1:8DOyQJ0+nza3zSVJZ19/cpikkrWA4rSKB3YvckIGOTI=
 github.com/nats-io/stan.go v0.10.3/go.mod h1:Cgf5zk6kKpOCqqUIJeuBz6ZDz9osT791VhS6m28sSQQ=
-github.com/networkservicemesh/api v1.19.0-rc.1.0.20260824081105-7ccb73c2b1b0 h1:qiHFaZlN6NOjNiCrDqOwcJbvIQOZy1EzAhgSUA8z46E=
-github.com/networkservicemesh/api v1.19.0-rc.1.0.20260824081105-7ccb73c2b1b0/go.mod h1:GcgkN6NcPpZVuvCdVlU+atmSFaWzxkekDPh5VBSM7/c=
+github.com/networkservicemesh/api v1.19.0-rc.1.0.20260902133228-2a1d65bc255c h1:1MtyX18joxJyUqTHLtoooBxc8PjlJL2sqHO7MCE9Cyk=
+github.com/networkservicemesh/api v1.19.0-rc.1.0.20260902133228-2a1d65bc255c/go.mod h1:GcgkN6NcPpZVuvCdVlU+atmSFaWzxkekDPh5VBSM7/c=
 github.com/open-policy-agent/opa v1.4.0 h1:IGO3xt5HhQKQq2axfa9memIFx5lCyaBlG+fXcgHpd3A=
 github.com/open-policy-agent/opa v1.4.0/go.mod h1:DNzZPKqKh4U0n0ANxcCVlw8lCSv2c+h5G/3QvSYdWZ8=
 github.com/openzipkin/zipkin-go v0.4.2 h1:zjqfqHjUpPmB3c1GlCvvgsM1G4LkvqQbBDueDOCg/jA=
