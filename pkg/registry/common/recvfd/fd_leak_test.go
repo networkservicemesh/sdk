@@ -57,7 +57,7 @@ func (f *fileTransceiver) RecvFileByURL(inodeURL string) (<-chan *os.File, error
 			return nil, werr
 		}
 	}
-	file, err := os.Open(name)
+	file, err := os.Open(filepath.Clean(name))
 	if err != nil {
 		return nil, err
 	}
