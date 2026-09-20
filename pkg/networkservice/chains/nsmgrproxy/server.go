@@ -72,7 +72,8 @@ type nsmgrProxyServer struct {
 
 type serverOptions struct {
 	name                             string
-	mapipFilePath                    string
+	tunnelMapFilePath                string
+	urlMapFilePath                   string
 	listenOn                         *url.URL
 	authorizeServer                  networkservice.NetworkServiceServer
 	authorizeMonitorConnectionServer networkservice.MonitorConnectionServer
@@ -84,9 +85,9 @@ type serverOptions struct {
 	dialTimeout                      time.Duration
 }
 
-func (s *serverOptions) openMapIPChannel(ctx context.Context) <-chan map[string]string {
+func (s *serverOptions) openMapIPChannel(ctx context.Context, p string) <-chan map[string]string {
 	var r = make(chan map[string]string)
-	var fCh = fs.WatchFile(ctx, s.mapipFilePath)
+	var fCh = fs.WatchFile(ctx, p)
 	go func() {
 		defer close(r)
 		for data := range fCh {
@@ -95,6 +96,7 @@ func (s *serverOptions) openMapIPChannel(ctx context.Context) <-chan map[string]
 				log.FromContext(ctx).Errorf("An error during umarshal ipmap: %v", err.Error())
 				continue
 			}
+			log.FromContext(ctx).Infof("map ip channel received update: %+v", m)
 			select {
 			case <-ctx.Done():
 				return
@@ -186,7 +188,14 @@ func WithListenOn(u *url.URL) Option {
 // WithMapIPFilePath sets the custom path for the file that contains internal to external IPs information in YAML format
 func WithMapIPFilePath(p string) Option {
 	return func(o *serverOptions) {
-		o.mapipFilePath = p
+		o.tunnelMapFilePath = p
+	}
+}
+
+// WithMapURLFilePath sets the path that contains the replacement for the hostname part of nse.URL in interdomain registry communication
+func WithMapURLFilePath(p string) Option {
+	return func(o *serverOptions) {
+		o.urlMapFilePath = p
 	}
 }
 
@@ -216,7 +225,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		authorizeNSRegistryClient:        registryauthorize.NewNetworkServiceRegistryClient(registryauthorize.Any()),
 		authorizeNSERegistryClient:       registryauthorize.NewNetworkServiceEndpointRegistryClient(registryauthorize.Any()),
 		listenOn:                         &url.URL{Scheme: "unix", Host: "listen.on"},
-		mapipFilePath:                    "map-ip.yaml",
+		tunnelMapFilePath:                "map-ip.yaml",
 	}
 	for _, opt := range options {
 		opt(opts)
@@ -252,7 +261,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		endpoint.WithAdditionalFunctionality(
 			interdomainbypass.NewServer(&interdomainBypassNSEServer, opts.listenOn),
 			discover.NewServer(nsClient, nseClient),
-			swapip.NewServer(opts.openMapIPChannel(ctx)),
+			swapip.NewServer(opts.openMapIPChannel(ctx, opts.tunnelMapFilePath)),
 			clusterinfo.NewServer(),
 			connect.NewServer(
 				client.NewClient(
@@ -262,7 +271,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 					client.WithDialTimeout(opts.dialTimeout),
 					client.WithoutRefresh(),
 					client.WithAdditionalFunctionality(
-						swapip.NewClient(opts.openMapIPChannel(ctx)),
+						swapip.NewClient(opts.openMapIPChannel(ctx, opts.tunnelMapFilePath)),
 					),
 				),
 			),
@@ -290,6 +299,11 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		nsServerChain,
 	)
 
+	var registryMapIP = opts.urlMapFilePath
+	if registryMapIP == "" {
+		registryMapIP = opts.tunnelMapFilePath
+	}
+
 	var nseServerChain = chain.NewNetworkServiceEndpointRegistryServer(
 		grpcmetadata.NewNetworkServiceEndpointRegistryServer(),
 		updatepath.NewNetworkServiceEndpointRegistryServer(tokenGenerator),
@@ -297,7 +311,7 @@ func NewServer(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator to
 		begin.NewNetworkServiceEndpointRegistryServer(),
 		clienturl.NewNetworkServiceEndpointRegistryServer(proxyURL),
 		interdomainBypassNSEServer,
-		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx)),
+		registryswapip.NewNetworkServiceEndpointRegistryServer(opts.openMapIPChannel(ctx, registryMapIP)),
 		registryclusterinfo.NewNetworkServiceEndpointRegistryServer(),
 		registryconnect.NewNetworkServiceEndpointRegistryServer(
 			chain.NewNetworkServiceEndpointRegistryClient(
