@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2023-2024 Cisco and/or its affiliates.
 //
+// Copyright (c) 2026 Nordix Foundation.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -150,7 +152,7 @@ func (s *traceLogger) Info(v ...interface{}) {
 }
 
 func (s *traceLogger) Infof(format string, v ...interface{}) {
-	s.logger.Infof(s.format(format, v...))
+	s.logger.Info(s.format(format, v...))
 }
 
 func (s *traceLogger) Warn(v ...interface{}) {
@@ -158,7 +160,7 @@ func (s *traceLogger) Warn(v ...interface{}) {
 }
 
 func (s *traceLogger) Warnf(format string, v ...interface{}) {
-	s.logger.Warnf(s.format(format, v...))
+	s.logger.Warn(s.format(format, v...))
 }
 
 func (s *traceLogger) Error(v ...interface{}) {
