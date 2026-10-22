@@ -150,7 +150,7 @@ func (s *traceLogger) Info(v ...interface{}) {
 }
 
 func (s *traceLogger) Infof(format string, v ...interface{}) {
-	s.logger.Infof(s.format(format, v...))
+	s.logger.Info(s.format(format, v...))
 }
 
 func (s *traceLogger) Warn(v ...interface{}) {
@@ -158,7 +158,7 @@ func (s *traceLogger) Warn(v ...interface{}) {
 }
 
 func (s *traceLogger) Warnf(format string, v ...interface{}) {
-	s.logger.Warnf(s.format(format, v...))
+	s.logger.Warn(s.format(format, v...))
 }
 
 func (s *traceLogger) Error(v ...interface{}) {
