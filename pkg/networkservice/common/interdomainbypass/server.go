@@ -51,7 +51,12 @@ func (n *interdomainBypassServer) Request(ctx context.Context, request *networks
 	// True on theremote nsmgr proxy side when it is floating interdomain usecase.
 	if ok {
 		ctx = clienturlctx.WithClientURL(ctx, u)
-		return next.Server(ctx).Request(ctx, request)
+		resp, err := next.Server(ctx).Request(ctx, request)
+		if err != nil {
+			n.m.Delete(request.Connection.NetworkServiceEndpointName)
+			return nil, err
+		}
+		return resp, nil
 	}
 	originalNSEName := request.GetConnection().NetworkServiceEndpointName
 	originalNS := request.GetConnection().NetworkService
