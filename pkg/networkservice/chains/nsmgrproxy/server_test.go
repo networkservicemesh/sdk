@@ -19,6 +19,10 @@ package nsmgrproxy_test
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/url"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -33,16 +37,73 @@ import (
 	"github.com/networkservicemesh/api/pkg/api/registry"
 
 	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/client"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgr"
+	"github.com/networkservicemesh/sdk/pkg/networkservice/chains/nsmgrproxy"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/clienturl"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/common/connect"
 	kernelmech "github.com/networkservicemesh/sdk/pkg/networkservice/common/mechanisms/kernel"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/chain"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/core/next"
 	"github.com/networkservicemesh/sdk/pkg/networkservice/utils/checks/checkrequest"
+	registryclient "github.com/networkservicemesh/sdk/pkg/registry/chains/client"
 	"github.com/networkservicemesh/sdk/pkg/registry/core/adapters"
 	"github.com/networkservicemesh/sdk/pkg/tools/interdomain"
 	"github.com/networkservicemesh/sdk/pkg/tools/sandbox"
+	"github.com/networkservicemesh/sdk/pkg/tools/token"
 )
+
+// Test_NsmgrProxy_ShouldAbleToUseLoadBalancerURls covers a scenario when we need to change nse.URL of registration to something else.
+// For example to load balancer address.
+func Test_NsmgrProxy_ShouldAbleToUseLoadBalancerURls(t *testing.T) {
+	t.Cleanup(func() { goleak.VerifyNone(t) })
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
+	var dnsServer = new(sandbox.FakeDNSResolver)
+
+	var supplyNSMGRProxy sandbox.SupplyNSMgrProxyFunc = func(ctx context.Context, regURL, proxyURL *url.URL, tokenGenerator token.GeneratorFunc, options ...nsmgrproxy.Option) nsmgr.Nsmgr {
+		var p = filepath.Join(t.TempDir(), "urls-map.yaml")
+		require.NoError(t, ioutil.WriteFile(p, []byte(fmt.Sprintf("%v: %v", regURL.Hostname(), "my-lb-dns-name")), os.ModePerm))
+		return nsmgrproxy.NewServer(ctx, regURL, proxyURL, tokenGenerator, append(options, nsmgrproxy.WithMapURLFilePath(p))...)
+	}
+
+	cluster1 := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(1).
+		SetDNSResolver(dnsServer).
+		SetDNSDomainName("cluster1").
+		SetNSMgrProxySupplier(supplyNSMGRProxy).
+		Build()
+
+	floatingDomain := sandbox.NewBuilder(ctx, t).
+		SetNodesCount(0).
+		SetDNSDomainName("floating.domain").
+		SetDNSResolver(dnsServer).
+		SetNSMgrProxySupplier(nil).
+		SetRegistryProxySupplier(nil).
+		Build()
+
+	nseReg := &registry.NetworkServiceEndpoint{
+		Name:                "final-endpoint@" + floatingDomain.Name,
+		NetworkServiceNames: []string{"my-service-interdomain"},
+	}
+
+	cluster1.Nodes[0].NewEndpoint(ctx, nseReg, sandbox.GenerateTestToken)
+
+	var list []*registry.NetworkServiceEndpoint
+	var floatingRegistryClient = registryclient.NewNetworkServiceEndpointRegistryClient(ctx, registryclient.WithDialOptions(sandbox.DialOptions()...), registryclient.WithClientURL(floatingDomain.Registry.URL))
+
+	require.Eventually(t, func() bool {
+		var stream, err = floatingRegistryClient.Find(ctx, &registry.NetworkServiceEndpointQuery{NetworkServiceEndpoint: &registry.NetworkServiceEndpoint{Name: "final-endpoint"}})
+		if err != nil {
+			return false
+		}
+		list = registry.ReadNetworkServiceEndpointList(stream)
+		return len(list) > 0
+	}, time.Second, time.Second/20)
+
+	require.Equal(t, "tcp://my-lb-dns-name:"+cluster1.NSMgrProxy.URL.Port(), list[0].Url)
+}
 
 // TestNSMGR_InterdomainUseCase covers simple interdomain scenario:
 //
