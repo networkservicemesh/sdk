@@ -2,6 +2,8 @@
 //
 // Copyright (c) 2022 Cisco and/or its affiliates.
 //
+// Copyright (c) 2023 Nordix and its affiliates.
+//
 // SPDX-License-Identifier: Apache-2.0
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -124,6 +126,119 @@ func Test_IPPoolContains(t *testing.T) {
 		ipNet := "10.10.0.0/" + fmt.Sprint(i)
 		require.False(t, ipPool.ContainsNetString(ipNet), ipNet)
 	}
+}
+
+func TestIPPoolRange_Contains(t *testing.T) {
+	firstip := net.ParseIP("192.10.254.255")
+	lastip := net.ParseIP("192.168.0.150")
+	require.NotNil(t, firstip)
+	require.NotNil(t, lastip)
+
+	ipPool := New(len(firstip))
+	require.NotNil(t, ipPool)
+	ipPool.AddRange(firstip, lastip)
+
+	require.True(t, ipPool.ContainsNetString("192.10.255.0/32"))
+	require.True(t, ipPool.ContainsNetString("192.10.254.255/32"))
+	require.True(t, ipPool.ContainsNetString("192.168.0.5/32"))
+	require.False(t, ipPool.ContainsNetString("193.169.0.1/32"))
+	require.True(t, ipPool.ContainsString("192.168.0.2"))
+	require.True(t, ipPool.ContainsString("::ffff:192.168.0.100"))
+	require.False(t, ipPool.ContainsNetString("192.0.0.1/32"))
+
+	for i := 24; i < 32; i++ {
+		ipNet := "192.10.255.0/" + fmt.Sprint(i)
+		require.True(t, ipPool.ContainsNetString(ipNet), ipNet)
+	}
+}
+
+func TestIPPoolRange_IPv6Contains(t *testing.T) {
+	firstip := net.ParseIP("1000:2000:1000::0")
+	lastip := net.ParseIP("1000:2000:2000:3000::1")
+	require.NotNil(t, firstip)
+	require.NotNil(t, lastip)
+
+	ipPool := New(len(firstip))
+	require.NotNil(t, ipPool)
+	ipPool.AddRange(firstip, lastip)
+
+	require.True(t, ipPool.ContainsNetString("1000:2000:2000:1000::0/128"))
+	require.True(t, ipPool.ContainsNetString("1000:2000:2000:1000::ffff/128"))
+	require.False(t, ipPool.ContainsNetString("1000:2000:2000:5000::ffff/128"))
+	require.True(t, ipPool.ContainsString("1000:2000:2000:3000::1"))
+	require.False(t, ipPool.ContainsString("::ffff:192.168.0.100"))
+	require.False(t, ipPool.ContainsString("192.167.0.100"))
+
+	for i := 36; i < 128; i++ {
+		ipNet := "1000:2000:1000::0/" + fmt.Sprint(i)
+		require.True(t, ipPool.ContainsNetString(ipNet), ipNet)
+	}
+	for i := 35; i > 0; i-- {
+		ipNet := "1000:2000:1000::0/" + fmt.Sprint(i)
+		require.False(t, ipPool.ContainsNetString(ipNet), ipNet)
+	}
+}
+
+func TestIPPoolRange_WorksCorrect(t *testing.T) {
+	firstip := net.ParseIP("192.168.0.0")
+	lastip := net.ParseIP("192.168.2.150")
+	require.NotNil(t, firstip)
+	require.NotNil(t, lastip)
+
+	ipPool := New(len(firstip))
+	require.NotNil(t, ipPool)
+
+	ipPool.AddRange(firstip, lastip)
+	p, err := ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, p, firstip)
+
+	prefix := p.String() + "/24"
+	fmt.Println(prefix)
+	ipPool.ExcludeString(prefix)
+	p, err = ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, p, net.ParseIP("192.168.1.0"))
+
+	ipPool.ExcludeString("192.168.1.0/25")
+	p, err = ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, p, net.ParseIP("192.168.1.128"))
+
+	ipPool.ExcludeString("192.168.1.0/24")
+	p, err = ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, p, net.ParseIP("192.168.2.0"))
+
+	ipPool.ExcludeString("192.168.2.0/24")
+	_, err = ipPool.Pull()
+	require.Error(t, err)
+}
+
+func TestIPPoolRange_IPv6WorksCorrect(t *testing.T) {
+	firstip := net.ParseIP("1000:2000:ff00::0")
+	lastip := net.ParseIP("1000:2000:ffff::0")
+	require.NotNil(t, firstip)
+	require.NotNil(t, lastip)
+
+	ipPool := New(len(firstip))
+	require.NotNil(t, ipPool)
+
+	ipPool.AddRange(firstip, lastip)
+	p, err := ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, p, firstip)
+
+	prefix := p.String() + "/48"
+	fmt.Println(prefix)
+	ipPool.ExcludeString(prefix)
+	p, err = ipPool.Pull()
+	require.NoError(t, err)
+	require.Equal(t, p, net.ParseIP("1000:2000:ff01::0"))
+
+	ipPool.ExcludeString("1000:2000:ff00::0/38")
+	_, err = ipPool.Pull()
+	require.Error(t, err)
 }
 
 func TestIPPoolTool_Contains(t *testing.T) {
